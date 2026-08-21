@@ -1,0 +1,3792 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>베이스튠 가설 프로그램</title>
+<style>
+/* 잉크와 종이. 중성색은 푸른 쪽으로 살짝 기울이고 강조는 코발트 하나만 쓴다.
+   성공·실패는 강조색과 분리한다 — 상태는 상태색으로만 읽혀야 한다. */
+:root{
+  --paper:#fff; --bg:#f5f7fa; --ink:#0a0c10; --ink2:#39414c; --ink3:#6e7885; --ink4:#a3abb7;
+  --line:#e3e7ed; --line2:#c9d0da; --tint:#eef2f7;
+  --acc:#0f3fd8; --acc2:#e8eefd; --acc3:#0a2ea8;
+  --ok:#04684b; --ok2:#e4f4ed; --no:#ba0f3d; --no2:#fdeaf0;
+  --wa:#8a5200; --wa2:#fdf1dc; --run:#1c5c9e; --run2:#e6f0f9;
+  --r:11px; --rs:8px; --sh:0 1px 2px rgba(10,12,16,.06),0 1px 1px rgba(10,12,16,.03);
+}
+@media (prefers-color-scheme:dark){:root{
+  --paper:#13161c; --bg:#090b0f; --ink:#f1f4f8; --ink2:#c1c9d4; --ink3:#88919e; --ink4:#59616d;
+  --line:#232830; --line2:#333a45; --tint:#191d24;
+  --acc:#7fa0ff; --acc2:#141c33; --acc3:#a9c0ff;
+  --ok:#46dc9d; --ok2:#0d2620; --no:#ff819a; --no2:#2a111a;
+  --wa:#e9b664; --wa2:#291f12; --run:#7ab4ea; --run2:#101f2d;
+  --sh:0 1px 2px rgba(0,0,0,.45);
+}}
+:root[data-theme="dark"]{
+  --paper:#13161c; --bg:#090b0f; --ink:#f1f4f8; --ink2:#c1c9d4; --ink3:#88919e; --ink4:#59616d;
+  --line:#232830; --line2:#333a45; --tint:#191d24;
+  --acc:#7fa0ff; --acc2:#141c33; --acc3:#a9c0ff;
+  --ok:#46dc9d; --ok2:#0d2620; --no:#ff819a; --no2:#2a111a;
+  --wa:#e9b664; --wa2:#291f12; --run:#7ab4ea; --run2:#101f2d;
+  --sh:0 1px 2px rgba(0,0,0,.45);
+}
+:root[data-theme="light"]{
+  --paper:#fff; --bg:#f5f7fa; --ink:#0a0c10; --ink2:#39414c; --ink3:#6e7885; --ink4:#a3abb7;
+  --line:#e3e7ed; --line2:#c9d0da; --tint:#eef2f7;
+  --acc:#0f3fd8; --acc2:#e8eefd; --acc3:#0a2ea8;
+  --ok:#04684b; --ok2:#e4f4ed; --no:#ba0f3d; --no2:#fdeaf0;
+  --wa:#8a5200; --wa2:#fdf1dc; --run:#1c5c9e; --run2:#e6f0f9;
+  --sh:0 1px 2px rgba(10,12,16,.06),0 1px 1px rgba(10,12,16,.03);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:14px/1.5 'Pretendard','Malgun Gothic',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+b,strong{font-weight:650}
+.wrap{display:grid;grid-template-columns:214px minmax(0,1fr);min-height:100vh}
+nav{background:var(--paper);border-right:1px solid var(--line);padding:20px 12px;
+  position:sticky;top:0;height:100vh;overflow:auto;display:flex;flex-direction:column;gap:1px}
+nav h1{font-size:14.5px;margin:0;padding:0 9px;letter-spacing:-.35px;font-weight:700}
+nav .sub{font-size:11px;color:var(--ink4);padding:4px 9px 0;margin-bottom:16px;line-height:1.5}
+nav .lab{font-size:9.5px;color:var(--ink4);letter-spacing:1px;padding:15px 9px 5px;font-weight:700}
+nav button{all:unset;display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:var(--rs);
+  font-size:13px;color:var(--ink2);cursor:pointer;transition:background .12s}
+nav button:hover{background:var(--tint)}
+nav button[aria-current="true"]{background:var(--acc2);color:var(--acc);font-weight:650}
+nav button i{font-style:normal;font-size:9.5px;width:17px;height:17px;border-radius:99px;flex:none;
+  display:grid;place-items:center;background:var(--tint);color:var(--ink3);font-weight:700;
+  border:1px solid var(--line)}
+nav button[aria-current="true"] i{background:var(--acc);color:var(--paper);border-color:var(--acc)}
+nav .foot{margin-top:auto;font-size:11.5px;color:var(--ink4);padding:12px 9px 0;
+  border-top:1px solid var(--line);line-height:1.65}
+main{padding:26px 30px 90px;min-width:0}
+@media(max-width:1020px){.wrap{grid-template-columns:1fr}
+  nav{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center}
+  nav h1,nav .sub,nav .lab,nav .foot{display:none}main{padding:18px 15px 60px}}
+h2{font-size:24px;margin:0 0 5px;letter-spacing:-.7px;font-weight:700}
+h3{font-size:14px;margin:0 0 11px;letter-spacing:-.2px;font-weight:650}
+.eyebrow{font-size:11.5px;letter-spacing:1.2px;color:var(--ink4);font-weight:700;margin:0 0 7px}
+.lede{color:var(--ink3);font-size:12.5px;margin:0 0 20px;max-width:82ch;line-height:1.6}
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(116px,1fr));gap:8px;margin:0 0 18px}
+.kpi div{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);
+  padding:13px 15px;box-shadow:var(--sh)}
+.kpi b{display:block;font-size:25px;letter-spacing:-1.1px;line-height:1.08;font-variant-numeric:tabular-nums}
+.kpi span{font-size:11.5px;color:var(--ink4);display:block;margin-top:4px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(166px,1fr));gap:8px;margin:0 0 20px}
+.steps a{text-decoration:none;color:inherit;background:var(--paper);border:1px solid var(--line);
+  border-radius:var(--r);padding:12px 14px;cursor:pointer;display:block;box-shadow:var(--sh);
+  transition:border-color .12s,transform .12s}
+.steps a:hover{border-color:var(--acc);transform:translateY(-1px)}
+.steps a.on{border-color:var(--acc);background:var(--acc2)}
+.steps b{display:flex;align-items:center;gap:7px;font-size:13px;margin-bottom:3px}
+.steps em{font-style:normal;background:var(--tint);border:1px solid var(--line);color:var(--ink3);
+  width:19px;height:19px;border-radius:99px;display:grid;place-items:center;font-size:10px;font-weight:700}
+.steps a.on em{background:var(--acc);color:var(--paper);border-color:var(--acc)}
+.steps span{font-size:11.5px;color:var(--ink4)}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);
+  padding:17px 19px;margin:0 0 12px;box-shadow:var(--sh)}
+.card.tight{padding:13px 15px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,400px);gap:14px;align-items:start}
+.two>*{min-width:0}  /* 이게 없으면 넓은 표가 칸을 밀어내 옆 카드를 덮는다 */
+/* 표가 길다(소재 189행). 상세가 따라다녀야 아래쪽을 눌러도 옆에서 볼 수 있다 */
+@media(min-width:1401px){.two>*:last-child{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}}
+@media(max-width:1400px){.two{grid-template-columns:minmax(0,1fr)}}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--paper);box-shadow:var(--sh)}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{padding:8px 11px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line);
+  font-variant-numeric:tabular-nums}
+th:first-child,td:first-child,th.l,td.l{text-align:left;font-variant-numeric:normal}
+th{position:sticky;top:0;background:var(--tint);font-size:11.5px;color:var(--ink3);z-index:1;
+  cursor:pointer;user-select:none;font-weight:650;letter-spacing:.3px;border-bottom:1px solid var(--line2)}
+th:hover{color:var(--ink)}
+tbody tr:last-child td{border-bottom:0}
+tr.click{cursor:pointer} tr.click:hover td{background:var(--tint)}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:650;
+  line-height:1.5;white-space:nowrap}
+.p-ok{color:var(--ok);background:var(--ok2)} .p-no{color:var(--no);background:var(--no2)}
+.p-wa{color:var(--wa);background:var(--wa2)} .p-run{color:var(--run);background:var(--run2)}
+.p-dim{color:var(--ink3);background:var(--tint)}
+.g{color:var(--ok);font-weight:650} .b{color:var(--no);font-weight:650}
+.mut{color:var(--ink2)} .dim{color:var(--ink4)}
+button.btn,select,input,textarea{font:inherit;color:var(--ink);background:var(--paper);
+  border:1px solid var(--line2);border-radius:var(--rs);padding:6px 10px}
+button.btn{cursor:pointer;font-size:12.5px;font-weight:600;transition:background .12s,border-color .12s}
+button.btn:hover{background:var(--tint);border-color:var(--ink4)}
+button.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+button.btn.pri:hover{background:var(--acc3);border-color:var(--acc3)}
+button.btn.sm{padding:3px 9px;font-size:11.5px}
+:is(button,select,input,textarea,a,[tabindex]):focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 14px}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chips label{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 10px;
+  border:1px solid var(--line2);border-radius:99px;cursor:pointer;background:var(--paper);transition:border-color .12s}
+.chips label:hover{border-color:var(--ink4)}
+.chips label:has(input:checked){border-color:var(--acc);background:var(--acc2);color:var(--acc);font-weight:650}
+.chips input{margin:0;accent-color:var(--acc)}
+.chips.bad label:has(input:checked){border-color:var(--no);background:var(--no2);color:var(--no)}
+.chips.bad input{accent-color:var(--no)}
+.chips.good label:has(input:checked){border-color:var(--ok);background:var(--ok2);color:var(--ok)}
+.chips.good input{accent-color:var(--ok)}
+.row{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .badge{flex:none;width:22px;height:22px;border-radius:99px;background:var(--acc2);color:var(--acc);
+  display:grid;place-items:center;font-size:11px;font-weight:700;margin-top:1px}
+.next{margin-top:14px;padding-top:13px;border-top:1px solid var(--line);display:flex;gap:8px;
+  align-items:center;flex-wrap:wrap}
+.note{border-left:3px solid var(--line2);padding:11px 15px;border-radius:0 var(--rs) var(--rs) 0;
+  margin:11px 0;font-size:12.5px;background:var(--tint);line-height:1.6}
+.note.no{border-color:var(--no);background:var(--no2)}
+.note.ok{border-color:var(--ok);background:var(--ok2)}
+.note.wa{border-color:var(--wa);background:var(--wa2)}
+.empty{color:var(--ink4);font-size:12.5px;padding:22px 4px;text-align:center}
+.meter{height:5px;background:var(--tint);border-radius:99px;overflow:hidden;margin-top:5px}
+.meter i{display:block;height:100%;background:var(--acc);border-radius:99px}
+.gauge{height:7px;background:var(--tint);border-radius:99px;position:relative;margin:7px 0 3px}
+.gauge i{position:absolute;top:0;bottom:0;left:0;border-radius:99px}
+.gauge u{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink4);opacity:.5}
+.spark{display:flex;gap:2px;align-items:flex-end;height:32px}
+.spark i{flex:1;background:var(--acc);opacity:.38;border-radius:2px 2px 0 0;min-height:2px}
+.spark i.last{opacity:1}
+.ed{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:900px){.ed{grid-template-columns:1fr}}
+.pane{border:1px solid var(--line);border-radius:var(--r);background:var(--paper);overflow:hidden;box-shadow:var(--sh)}
+.pane.focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc2)}
+.pane header{padding:10px 14px;border-bottom:1px solid var(--line);display:flex;gap:8px;
+  align-items:center;background:var(--tint)}
+.pane textarea{width:100%;border:0;border-radius:0;padding:14px;min-height:320px;resize:vertical;
+  font-size:13.5px;line-height:1.8;background:transparent}
+.pane textarea:focus-visible{outline:none}
+.pane footer{padding:8px 14px;border-top:1px solid var(--line);font-size:11px;color:var(--ink4);
+  display:flex;gap:12px;flex-wrap:wrap}
+.quote{border:1px solid var(--line);border-radius:var(--rs);padding:10px 12px;margin:0 0 7px;
+  cursor:pointer;background:var(--paper);transition:border-color .12s}
+.quote:hover{border-color:var(--acc)}
+.quote .h{display:flex;gap:7px;align-items:center;font-size:11px;margin-bottom:4px}
+.quote .s{font-size:12.5px;line-height:1.55}
+.wkcard{background:var(--paper);border:1px solid var(--line);border-radius:var(--r);
+  padding:13px 16px;margin:0 0 9px;box-shadow:var(--sh);border-left:3px solid var(--line2)}
+.wkcard.go{border-left-color:var(--ok)}
+.wkcard.stop{border-left-color:var(--no)}
+.wkhead{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.wkhead b{font-size:14px}
+.cells{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:var(--rs);overflow:hidden}
+.cellx{background:var(--paper);padding:7px 10px}
+.cellx span{display:block;font-size:10px;color:var(--ink4);margin-bottom:2px}
+.cellx b{font-size:13px;font-variant-numeric:tabular-nums}
+.hrow{display:flex;gap:9px;align-items:flex-start;margin-top:11px}
+.hlab{font-size:10px;letter-spacing:.8px;color:var(--ink4);font-weight:700;
+  padding-top:4px;flex:none;width:78px}
+.hchips{display:flex;flex-wrap:wrap;gap:5px;min-width:0}
+.hchip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;padding:3px 9px 3px 4px;
+  border-radius:99px;border:1px solid var(--line2);background:var(--paper);max-width:100%}
+.hchip i{font-style:normal;font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:99px;flex:none}
+.hchip.ok{border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+.hchip.ok i{background:var(--ok2);color:var(--ok)}
+.hchip.no{border-color:color-mix(in srgb,var(--no) 40%,transparent)}
+.hchip.no i{background:var(--no2);color:var(--no)}
+.hchip.dim i{background:var(--tint);color:var(--ink4)}
+.hmore{margin-top:9px}
+.hmore summary{cursor:pointer;font-size:11.5px;color:var(--ink4);padding:3px 0}
+.quote .ord{width:16px;height:16px;border-radius:99px;background:var(--tint);color:var(--ink3);
+  display:grid;place-items:center;font-size:9.5px;font-weight:700;border:1px solid var(--line)}
+.srcbar{display:flex;gap:7px;align-items:center;padding:7px 2px 8px;
+  border-bottom:1px solid var(--line2);margin-bottom:8px}
+.srcbar b{font-size:12.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.kpi3{grid-template-columns:repeat(3,1fr)}
+.kpi .kpi2{display:block;font-style:normal;font-size:12px;color:var(--ink4);margin-top:3px}
+table.tt{width:100%;border-collapse:collapse;font-size:13.5px}
+table.tt th{text-align:left;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink4);padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.tt th.n{text-align:right}
+table.tt td{padding:7px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.tt td.n{text-align:right;font-variant-numeric:tabular-nums}
+table.tt tbody tr:hover{background:var(--line2)}
+td.sm{font-size:12.5px;max-width:420px;white-space:normal;line-height:1.45}
+td.sm2{font-size:12.5px;max-width:340px;white-space:normal;line-height:1.45}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:6px;margin:8px 0 18px}
+.gbox{border:1px solid var(--line);border-radius:6px;margin:0 0 10px;padding:0 12px}
+.gbox summary{cursor:pointer;padding:10px 0;font-size:14px}
+.lrow{margin:0 0 5px;font-size:13px;line-height:1.5}
+.lrow .n{font-variant-numeric:tabular-nums}
+.qbar{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 10px}
+.qb{font-size:13px;padding:6px 13px;border-radius:20px;border:1px solid var(--line);
+  background:var(--paper);color:var(--ink3);cursor:pointer}
+.qb:hover{color:var(--ink)}
+.qb.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.bar.filt{gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.cards3{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px;margin:10px 0 96px}
+.icard{border:1px solid var(--line);border-radius:8px;padding:13px 15px;background:var(--paper)}
+.icard.on{border-color:var(--ok);box-shadow:inset 0 0 0 1px var(--ok)}
+.icard .iax{margin:0;font-size:11.5px;letter-spacing:.04em;color:var(--ink4);text-transform:none}
+.icard .ival{margin:3px 0 8px;font-size:16px;font-weight:700;line-height:1.35}
+.icard .inum{margin:7px 0 0;font-size:13px}
+.icard .inum b{font-size:15px}
+.pbar{position:relative;height:7px;border-radius:4px;background:var(--line2);overflow:visible}
+.pbar i{display:block;height:100%;border-radius:4px}
+.pbar{margin-bottom:2px}
+.pbar u{position:absolute;top:-3px;width:2px;height:13px;background:var(--ink);border-radius:1px}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0 0}
+.basket{position:sticky;bottom:0;display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+  padding:11px 14px;margin:16px 0 0;background:var(--paper);border:1px solid var(--line);
+  border-radius:8px;box-shadow:0 -2px 12px rgba(0,0,0,.06)}
+.basket .pill{cursor:pointer}
+.advrow{padding:6px 0;border-top:1px solid var(--line)}
+.advrow:first-of-type{border-top:0}
+.vd{padding:9px 0;border-top:1px solid var(--line)}
+.vd:first-of-type{border-top:0}
+.vraw{margin:2px 0 0;font-size:12.5px;color:var(--ink3);padding-left:10px}
+.vraw b{color:var(--ink4);font-weight:500;margin-right:4px}
+.rtrend{display:flex;flex-direction:column;gap:5px}
+.rt{display:grid;grid-template-columns:52px 1fr 46px 64px;gap:10px;align-items:center;font-size:13px}
+.rtl{color:var(--ink4);font-family:inherit}
+.rtb{position:relative;height:9px;border-radius:5px;background:var(--line2)}
+.rtb i{display:block;height:100%;border-radius:5px}
+.rtb u{position:absolute;top:-3px;width:2px;height:15px;background:var(--ink);border-radius:1px}
+.rt b{text-align:right;font-variant-numeric:tabular-nums}
+.rt .dim{text-align:right;font-variant-numeric:tabular-nums}
+.spark{display:flex;align-items:flex-end;gap:2px;height:70px}
+.spark i{flex:1;background:var(--acc);border-radius:2px 2px 0 0;opacity:.75}
+.spark i:hover{opacity:1}
+
+.nxg{margin:14px 0 6px;font-size:13px;letter-spacing:.04em;color:var(--ink3);text-transform:none}
+.nxs{border:1px solid var(--line);border-radius:var(--rs);padding:8px 10px;margin:0 0 8px;background:var(--paper)}
+.nxs select{width:100%}
+.nxax{font-size:12px}
+.nxl{margin:6px 0 0;font-size:13px;line-height:1.5;color:var(--ink2)}
+.nxq{margin:0 0 6px;font-size:13px;line-height:1.6;color:var(--ink2);
+     padding-left:9px;border-left:2px solid var(--line2)}
+
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px;margin:8px 0}
+.mcard{border:1px solid var(--line);border-radius:var(--rs);padding:8px 10px;background:var(--paper);min-width:0}
+.mcard h4{margin:0 0 5px;font-size:13px}
+.mrow{margin:0 0 3px;font-size:13px;line-height:1.5;display:flex;gap:5px;align-items:baseline;flex-wrap:wrap}
+/* 판정 딱지. 화면의 다른 알약(.pill)과 같은 모양으로 맞춘다 — 회색 네모는
+   이 화면에 없던 모양이라 혼자 떠 보였다. 중립은 칠하지 않고 테두리만 둔다.
+   글자가 칸을 넘지 않게: 줄바꿈 없음 · 줄어들지 않음 · 최소 너비를 둔다.
+   말이 바뀌어도 칸이 따라오도록 딱지가 든 격자 칸은 이 너비에 맞춰 잡는다. */
+.mk{display:inline-block;font-size:11px;font-weight:650;line-height:1.5;
+  padding:1px 8px;border-radius:99px;white-space:nowrap;flex:none;
+  min-width:38px;text-align:center;border:1px solid transparent}
+.mk.yes{background:var(--ok2);color:var(--ok);border-color:var(--ok2)}
+.mk.no{background:var(--no2);color:var(--no);border-color:var(--no2)}
+.mk.maybe{background:var(--wa2);color:var(--wa);border-color:var(--wa2)}
+.mv{font-weight:600}
+.mx{font-size:12px}
+.nxmust{border-color:var(--ok);box-shadow:inset 2px 0 0 var(--ok)}
+.nxbad{border-color:var(--no);box-shadow:inset 2px 0 0 var(--no)}
+
+.ghead{margin:16px 0 4px;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:4px}
+.irows{display:flex;flex-direction:column}
+.irow{display:grid;grid-template-columns:56px minmax(0,1.5fr) minmax(0,1fr) 72px 166px 76px 42px 42px;
+  gap:8px;align-items:center;padding:4px 6px;border-radius:4px;font-size:13px;min-width:0}
+.irow:hover{background:var(--tint)}
+.irow.on{background:var(--ok2)}
+.irow .iv{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.irow .ia,.irow .it{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.irow .in2{white-space:nowrap;font-size:12.5px;overflow:hidden}
+.irow .ib{position:relative;height:6px;border-radius:3px;background:var(--line2);overflow:hidden}
+.irow .ib i{position:absolute;left:0;top:0;bottom:0;display:block}
+.irow .ib u{position:absolute;top:-2px;bottom:-2px;width:1px;background:var(--ink4)}
+.irow .ic{white-space:nowrap;font-size:12px}
+.mk.none{background:transparent;color:var(--ink4);border-color:var(--line)}
+.idet{padding:2px 6px 8px 52px;border-left:2px solid var(--line);margin:0 0 6px}
+.idet p{margin:0 0 3px}
+.more{margin:4px 0 0;align-self:flex-start;font-size:12.5px}
+/* 좁아지면 막대와 구분 칸의 폭만 0으로 줄인다. display:none으로 없애면 뒤 칸이
+   한 칸씩 앞으로 밀려 머리글과 어긋나고 글자가 겹친다. */
+@media(max-width:1400px){
+  .irow{grid-template-columns:56px minmax(0,1.5fr) minmax(0,1fr) 60px 166px 76px 42px 42px;gap:7px}
+  .irow .it{overflow:hidden}}
+@media(max-width:1150px){
+  .irow{grid-template-columns:56px minmax(0,1.4fr) minmax(0,1fr) 0 158px 72px 40px 40px;gap:6px}
+  .irow .ib,.irow .it{overflow:hidden}}
+
+.lypick{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.lypick .qb{display:flex;gap:3px;align-items:baseline}
+.lytop{border:1px solid var(--line);border-radius:var(--rs);padding:10px 12px;margin:10px 0;background:var(--paper)}
+.lybig{margin:0;font-size:15px;display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}
+.h3up{margin:7px 0 0;font-size:13.5px;border-top:1px dashed var(--line);padding-top:7px}
+.lysay{margin:4px 0 0;font-size:13px;line-height:1.6;color:var(--ink2)}
+.h3c{border:1px solid var(--line);border-left:3px solid var(--line2);border-radius:var(--rs);
+  padding:10px 12px;margin:0 0 9px;background:var(--paper)}
+.h3c.on{border-left-color:var(--ok)}
+.h3h{display:flex;gap:7px;align-items:baseline;flex-wrap:wrap;margin:0 0 3px}
+.h3no{font-size:11.5px;letter-spacing:.05em;color:var(--ink4);white-space:nowrap}
+.h3s{font-size:14.5px}
+.h3n{margin:0;font-size:13px;color:var(--ink3)}
+.h3in{padding-left:18px;border-left:2px solid var(--line);margin:0 0 4px}
+.lytab{display:flex;flex-direction:column;margin:9px 0 0}
+.lyr2{display:grid;grid-template-columns:minmax(0,1fr) 110px 128px 74px 52px;
+  gap:9px;align-items:center;padding:3px 6px;border-radius:4px;font-size:13px;min-width:0}
+.lyr3{display:grid;grid-template-columns:minmax(0,120px) minmax(0,1.2fr) minmax(0,1fr) 74px 76px;
+  gap:9px;align-items:center;padding:3px 6px;border-radius:4px;font-size:13px;min-width:0}
+.lyr2:hover,.lyr3:hover{background:var(--tint)}
+.lyhd{font-size:11.5px;color:var(--ink4);border-bottom:1px solid var(--line);padding-bottom:4px}
+.lyhd:hover{background:none}
+.lyhd span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lybr,.lyv{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lybr{font-size:12px}
+.lyv{font-weight:600}
+.lyn,.lyd{white-space:nowrap;overflow:hidden;font-size:12.5px}
+.lyb{position:relative;height:7px;border-radius:4px;background:var(--line2);overflow:hidden;display:block}
+.lyb i{position:absolute;left:0;top:0;bottom:0;display:block}
+.lyb u{position:absolute;top:-2px;bottom:-2px;width:1px;background:var(--ink4)}
+.lyr2 .ic,.lyr3 .ic{font-size:12px;white-space:nowrap}
+@media(max-width:1200px){
+  .lyr2{grid-template-columns:minmax(0,1fr) 70px 118px 66px 50px;gap:7px}
+  .lyr3{grid-template-columns:minmax(0,104px) minmax(0,1.2fr) minmax(0,1fr) 66px 76px;gap:7px}}
+
+.ideawrap{display:grid;grid-template-columns:186px minmax(0,1fr);gap:18px;align-items:start}
+.toc{position:sticky;top:8px;display:flex;flex-direction:column;gap:2px}
+.tochd{margin:0 4px 4px;font-size:11.5px;letter-spacing:.06em;color:var(--ink4)}
+.tocb{display:block;width:100%;text-align:left;background:none;border:0;cursor:pointer;
+  padding:5px 7px;border-radius:5px;color:var(--ink);font:inherit;font-size:13px;line-height:1.35}
+.tocb:hover{background:var(--tint)}
+.tocb.on{background:var(--tint)}
+.tocb b{display:block;font-weight:600}
+.tocn{display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:2px;font-size:11px}
+.irow.ihead{font-size:11.5px;color:var(--ink4);letter-spacing:.02em;padding-bottom:5px;
+  border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:2}
+.irow.ihead:hover{background:var(--bg)}
+.irow.ihead span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:1000px){.ideawrap{grid-template-columns:minmax(0,1fr)}
+  .toc{position:static;flex-direction:row;flex-wrap:wrap;gap:4px}
+  .tocb{width:auto;border:1px solid var(--line)}}
+
+.h3box{border:1px solid var(--line);border-radius:var(--rs);padding:10px 12px;margin:10px 0 12px;background:var(--paper)}
+.h3bh{margin:0 0 6px;font-size:13.5px}
+.h3bs{margin:8px 0 3px;font-size:11.5px;letter-spacing:.04em;color:var(--ink4)}
+.h3bl{margin:0 0 4px;font-size:13px;line-height:1.6}
+.irow .iv{text-align:left;background:none;border:0;padding:0;cursor:pointer;font:inherit;font-weight:600}
+.wone{font-size:11px;white-space:nowrap}
+
+.wrr{display:grid;grid-template-columns:56px minmax(0,1.3fr) minmax(0,1fr) 108px 100px 96px;
+  gap:8px;align-items:center;padding:4px 6px;border-radius:4px;font-size:13px;min-width:0;cursor:pointer}
+.wrr:hover{background:var(--tint)}
+.wrr.on{background:var(--ok2)}
+.wrr.lyhd{cursor:default}
+.wrv{border-bottom:1px solid var(--line);padding:6px 2px}
+.wrw{margin:4px 0 0;font-size:12.5px;line-height:1.55}
+.wrq{color:var(--ink2)}
+.qb.done{border-color:var(--ok)}
+@media(max-width:1400px){
+  .wrr{grid-template-columns:56px minmax(0,1.3fr) minmax(0,1fr) 100px 92px 90px;gap:7px}}
+
+/* 글 속에서 누르는 것 — 성공작 이름, 담기, 접기 같은 것.
+   여태 아무 모양도 주지 않아 브라우저 기본 회색 버튼으로 나왔다. 글 사이에
+   회색 네모가 박혀 화면과 따로 놀았다. 글자 그대로 두고 색으로만 누를 수
+   있다는 걸 알린다. */
+button.lnk{background:none;border:0;padding:0;margin:0;font:inherit;color:var(--acc);
+  cursor:pointer;text-align:left;line-height:inherit;border-radius:3px}
+button.lnk:hover{text-decoration:underline}
+button.lnk:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+button.lnk.g{color:var(--ok)}
+button.lnk.b{color:var(--no)}
+/* 표 안의 작은 단추는 글이 아니라 손잡이다 — 옅은 테두리만 준다 */
+button.lnk.ic{font-size:12px;padding:1px 7px;border:1px solid var(--line);color:var(--ink3)}
+button.lnk.ic:hover{text-decoration:none;background:var(--tint);border-color:var(--ink4);color:var(--ink)}
+.wrs{margin:3px 0 0 6px;font-size:12.5px;line-height:1.6}
+
+.chart{margin:0 0 16px}
+.cwrap{position:relative;border:1px solid var(--line);border-radius:var(--r);
+  padding:6px 8px 2px;background:var(--paper)}
+.csvg{width:100%;height:auto;display:block}
+.cmet{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 7px}
+.cmb{--mc:var(--acc);font:inherit;font-size:12.5px;cursor:pointer;padding:5px 12px;
+  border-radius:99px;border:1px solid var(--line);background:var(--paper);color:var(--ink3);
+  transition:background .12s,color .12s,border-color .12s}
+.cmb:hover{color:var(--ink);border-color:var(--ink4)}
+.cmb.on{background:var(--mc);border-color:var(--mc);color:#fff;font-weight:650}
+.cseg{display:flex;gap:0;border:1px solid var(--line);border-radius:99px;overflow:hidden}
+.csb{font:inherit;font-size:12px;cursor:pointer;padding:4px 12px;border:0;
+  background:var(--paper);color:var(--ink3)}
+.csb.on{background:var(--ink);color:var(--paper)}
+.cgrid{stroke:var(--line);stroke-width:1}
+.ccut{stroke:var(--ink4);stroke-width:1;stroke-dasharray:5 5}
+.ccutt{fill:var(--ink4);font-weight:600}
+.clab{fill:var(--ink4);font-size:11px;font-family:inherit}
+.cdot{stroke:var(--paper);stroke-width:2}
+.cring{fill:none;stroke-width:2;opacity:.55}
+.cv{stroke:var(--line2);stroke-width:1}
+.ctip{position:absolute;top:8px;background:var(--paper);border:1px solid var(--line);
+  border-radius:var(--rs);padding:7px 10px;font-size:12px;line-height:1.7;
+  pointer-events:none;box-shadow:var(--sh);min-width:158px;white-space:nowrap}
+.ctip .ck{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:5px;vertical-align:middle}
+
+.sgr{display:grid;grid-template-columns:64px minmax(0,1fr) 130px 120px 74px 62px 46px;
+  gap:9px;align-items:center;padding:4px 6px;border-radius:4px;font-size:13px;min-width:0}
+.sgr:hover{background:var(--tint)}
+.sgr.lyhd:hover{background:none}
+@media(max-width:1200px){.sgr{grid-template-columns:56px minmax(0,1fr) 80px 112px 68px 76px 44px;gap:7px}}
+
+.bdnav{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
+.bdb{display:flex;gap:6px;align-items:baseline;font:inherit;font-size:13px;cursor:pointer;
+  padding:7px 14px;border-radius:99px;border:1px solid var(--line);background:var(--paper);color:var(--ink3)}
+.bdb b{font-size:11px;letter-spacing:.04em;color:var(--ink4)}
+.bdb:hover{border-color:var(--ink4);color:var(--ink)}
+.bdb.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.bdb.on b{color:var(--paper);opacity:.6}
+.bdb.ok{border-color:var(--ok)}
+.bdok{color:var(--ok);font-weight:700}
+.bdb.on .bdok{color:var(--paper)}
+.bdpick{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px;padding:8px 10px;
+  border:1px solid var(--line);border-radius:var(--rs);background:var(--paper);font-size:12.5px}
+.bdc{white-space:nowrap}
+.bdc.on{font-weight:600}
+.bdh{margin:16px 0 6px;font-size:13px;letter-spacing:.03em;color:var(--ink3)}
+.bdcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.bdcard{text-align:left;font:inherit;cursor:pointer;padding:9px 11px;border-radius:var(--rs);
+  border:1px solid var(--line);background:var(--paper);color:var(--ink);min-width:0}
+.bdcard:hover{border-color:var(--ink4)}
+.bdcard.on{border-color:var(--ok);box-shadow:inset 0 0 0 1px var(--ok)}
+.bdv{display:block;font-size:14px;margin:0 0 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bdn{margin:0;font-size:12.5px}
+.bdr{display:grid;grid-template-columns:56px minmax(0,1fr) 124px 124px 74px 52px 52px;
+  gap:8px;align-items:center;padding:4px 6px;border-radius:4px;font-size:13px;min-width:0}
+.bdr:hover{background:var(--tint)}
+.bdr.lyhd:hover{background:none}
+.bdh3{display:grid;grid-template-columns:56px minmax(0,1fr) 124px 74px 66px 66px 56px;
+  gap:8px;align-items:center;padding:4px 6px;border-radius:4px;font-size:13px;min-width:0}
+.bdh3:hover{background:var(--tint)}
+.bdh3.on{background:var(--ok2)}
+.bdh3.lyhd:hover{background:none}
+.bdsg{margin:12px 0 4px;font-size:13.5px}
+.bdmech{display:flex;flex-direction:column;gap:2px}
+.bdm{border-bottom:1px solid var(--line);padding:6px 4px}
+.bdm.on{background:var(--ok2)}
+.bdm.no{opacity:.75}
+.bdw{border-bottom:1px solid var(--line);padding:8px 4px}
+.bd2{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)}
+.bdlab{margin:10px 0 3px;font-size:12px;letter-spacing:.04em;color:var(--ink4)}
+.bdchk{margin:0 0 3px;font-size:13px;display:flex;gap:6px;align-items:baseline}
+.bdp{display:grid;grid-template-columns:minmax(0,1fr) 124px 66px;gap:8px;align-items:center;
+  padding:3px 4px;font-size:12.5px;min-width:0}
+.bdnow{white-space:nowrap}
+button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
+@media(max-width:1300px){
+  .bdr{grid-template-columns:56px minmax(0,1fr) 112px 112px 68px 48px 48px;gap:6px}
+  .bdh3{grid-template-columns:56px minmax(0,1fr) 112px 68px 60px 60px 52px;gap:6px}}
+
+.bkh{margin:14px 0 4px;padding:0 2px 4px;border-bottom:1px solid var(--line);
+  font-size:12.5px;display:flex;gap:5px;align-items:baseline;flex-wrap:wrap}
+.bkl{display:grid;grid-template-columns:minmax(0,110px) minmax(0,1fr) 46px;gap:10px;
+  align-items:baseline;padding:4px 4px;border-radius:4px;font-size:13px;min-width:0}
+.bkl:hover{background:var(--tint)}
+.bkq{line-height:1.65;color:var(--ink2);cursor:copy}
+.bkl .lnk{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.drawerbg{position:fixed;inset:0;background:rgba(0,0,0,.28);opacity:0;pointer-events:none;
+  transition:opacity .16s;z-index:40}
+.drawerbg.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(620px,92vw);background:var(--bg);
+  border-left:1px solid var(--line);box-shadow:-8px 0 32px rgba(0,0,0,.12);
+  transform:translateX(100%);transition:transform .18s ease;z-index:41;
+  display:flex;flex-direction:column}
+.drawer.on{transform:none}
+.drtop{margin:0;padding:12px 16px;border-bottom:1px solid var(--line);
+  justify-content:space-between;background:var(--paper)}
+.drbody{overflow:auto;padding:12px 16px 40px;flex:1}
+
+.dpsum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;
+  border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;background:var(--paper);margin:6px 0}
+.dpk{margin:0;font-size:11.5px;letter-spacing:.04em;color:var(--ink4)}
+.dpv{margin:2px 0 2px;font-size:24px;font-weight:700;line-height:1.15}
+.dpr{display:grid;grid-template-columns:56px minmax(0,1fr) 122px 70px 108px 74px 44px;
+  gap:9px;align-items:center;padding:4px 6px;border-radius:4px;font-size:13px;min-width:0}
+.dpr:hover{background:var(--tint)}
+.dpr.on{background:var(--ok2)}
+.dpr.lyhd:hover{background:none}
+@media(max-width:1300px){
+  .dpr{grid-template-columns:56px minmax(0,1fr) 112px 66px 100px 68px 42px;gap:7px}}
+
+/* 열이 열여섯이라 오른쪽으로 밀면 어느 소재 줄인지 잃는다 — 첫 칸을 붙박는다 */
+.scroll table.tt th:first-child,
+.scroll table.tt td:first-child{position:sticky;left:0;background:var(--bg);z-index:1}
+.scroll table.tt tr:hover td:first-child{background:var(--tint)}
+.scroll table.tt thead th:first-child{z-index:2}
+
+.todo{border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:var(--rs);
+  padding:10px 13px;margin:0 0 14px;background:var(--paper)}
+.todoh{margin:8px 0 2px;font-size:13.5px;display:flex;gap:6px;align-items:baseline}
+.todoh:first-child{margin-top:0}
+.todor{margin:0 0 3px;font-size:13px;line-height:1.65}
+.tv{font-weight:600}
+.kd{margin-left:4px}
+.mk.ref{background:transparent;color:var(--ink4);border-color:var(--line);border-style:dashed}
+
+/* 가설 제안 — 소구 나무. 안쪽으로 들어갈수록 왼쪽 선이 하나씩 늘어난다 */
+.sgt{margin:6px 0 0}
+.sgh{display:grid;grid-template-columns:44px minmax(150px,1fr) 110px 190px 46px 46px;
+  gap:10px;align-items:center;padding:9px 10px;border-radius:9px;
+  border:1px solid transparent}
+.sgh:hover{background:var(--hov)}
+.sgh.on{background:var(--hov);border-color:var(--line)}
+.sgn{font-size:14px;font-weight:600;text-align:left;color:var(--ink);letter-spacing:-.01em}
+.sgb{margin:2px 0 14px 16px;padding:6px 0 6px 14px;border-left:2px solid var(--line)}
+.sgl{margin:12px 0 4px;font-size:12px;letter-spacing:.02em}
+.sgl b{color:var(--ink2)}
+.sgi{padding:3px 0}
+.sgr{display:grid;grid-template-columns:44px minmax(140px,1fr) 90px 170px 46px;
+  gap:9px;align-items:center;padding:3px 6px;border-radius:7px}
+.sgr:hover{background:var(--hov)}
+.sgv{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sgq{display:flex;gap:8px;align-items:baseline;margin:1px 0 4px 50px;font-size:12.5px}
+.sgqt{color:var(--ink2);line-height:1.55;flex:1;min-width:0}
+.sgqs{margin:0 0 6px}
+.sgq.bad .sgqt{color:var(--ink4)}   /* 실패작 문장 — 베끼라고 내민 게 아니다 */
+/* 좁으면 막대를 접는다 — 담기·가설 단추가 밖으로 나가면 못 누른다 */
+@media (max-width:1240px){
+  .sgh{grid-template-columns:40px minmax(110px,1fr) 150px 42px 42px}
+  .sgr{grid-template-columns:40px minmax(100px,1fr) 140px 42px}
+  .sgh .ib,.sgr .ib{display:none}
+  .sgq{margin-left:44px}
+}
+</style>
+
+<div class="wrap">
+<nav>
+  <h1>가설 프로그램</h1>
+  <div class="sub" id="navsub"></div>
+  <div class="lab">1 · 라이브 모니터</div>
+  <button data-v="home" aria-current="true">지금</button>
+  <button data-v="perf">계정 흐름</button>
+  <div class="lab">2 · 트렌드와 가설</div>
+  <button data-v="idea">가설 제안</button>
+  <button data-v="deep">소구</button>
+  <div class="lab">3 · 원고 빌더</div>
+  <button data-v="build">빌더</button>
+  <button data-v="write">요소별로 파기</button>
+  <button data-v="draft">원고 검증</button>
+  <div class="lab">4 · 아카이브</div>
+  <button data-v="bank">문장 뱅크</button>
+  <button data-v="drafts">소재 189편</button>
+  <div class="lab">5 · 전지표 판정</div>
+  <button data-v="full">판정 원문</button>
+  <button data-v="judge">지표값 찾기</button>
+  <div class="foot" id="navfoot"></div>
+</nav>
+<main id="main"></main>
+</div>
+
+<script>
+const DATA = (function(){
+  /* 잠긴 데이터를 비번으로 풀어 온다. 로컬 판은 파일을 그냥 읽지만
+     올린 판은 여기를 지난다. 비번은 이 탭이 살아 있는 동안만 기억한다. */
+  window.HYP_LOAD = window.HYP_LOAD || function(){
+    var 자물쇠 = "데이터.enc", 반복 = 250000, 기억칸 = "hyp_pw";
+
+    function 풀기(pw, 뭉치){
+      var salt = 뭉치.slice(0,16), iv = 뭉치.slice(16,28), 본문 = 뭉치.slice(28);
+      return crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"])
+        .then(function(씨){
+          return crypto.subtle.deriveKey(
+            {name:"PBKDF2", salt:salt, iterations:반복, hash:"SHA-256"}, 씨,
+            {name:"AES-GCM", length:256}, false, ["decrypt"]);
+        })
+        .then(function(열쇠){ return crypto.subtle.decrypt({name:"AES-GCM", iv:iv}, 열쇠, 본문); })
+        .then(function(눌린것){
+          return new Response(new Blob([눌린것]).stream()
+            .pipeThrough(new DecompressionStream("gzip"))).text();
+        })
+        .then(JSON.parse);
+    }
+
+    return fetch(자물쇠).then(function(r){
+      if(!r.ok) throw new Error("잠긴 데이터를 못 받았습니다 ("+r.status+")");
+      return r.arrayBuffer();
+    }).then(function(뭉치){
+      var 기억 = sessionStorage.getItem(기억칸);
+      if (기억) return 풀기(기억, 뭉치).catch(function(){
+        sessionStorage.removeItem(기억칸); return 물어보기(뭉치);
+      });
+      return 물어보기(뭉치);
+    });
+
+    function 물어보기(뭉치){
+      return new Promise(function(done){
+        var 막 = document.createElement("div");
+        막.style.cssText = "position:fixed;inset:0;z-index:9999;display:flex;align-items:center;"
+          + "justify-content:center;background:#14161a;color:#e8eaed;"
+          + "font:15px/1.6 'Malgun Gothic',system-ui,sans-serif";
+        막.innerHTML =
+          '<form style="width:300px;text-align:center">'
+          + '<div style="font-size:19px;font-weight:700;margin-bottom:6px">가설 프로그램</div>'
+          + '<div id="lk-say" style="color:#9aa0a6;margin-bottom:18px">비밀번호를 넣어 주세요</div>'
+          + '<input id="lk-pw" type="password" autocomplete="current-password" autofocus '
+          + 'style="width:100%;padding:11px 13px;border:1px solid #3c4043;border-radius:7px;'
+          + 'background:#202124;color:#e8eaed;font-size:15px;box-sizing:border-box">'
+          + '<button id="lk-go" style="width:100%;margin-top:10px;padding:11px;border:0;'
+          + 'border-radius:7px;background:#8ab4f8;color:#14161a;font-size:15px;font-weight:700;'
+          + 'cursor:pointer">열기</button></form>';
+        document.body.appendChild(막);
+
+        var 말 = 막.querySelector("#lk-say"), 칸 = 막.querySelector("#lk-pw"),
+            단추 = 막.querySelector("#lk-go");
+        막.querySelector("form").addEventListener("submit", function(e){
+          e.preventDefault();
+          var pw = 칸.value;
+          if(!pw) return;
+          단추.disabled = true; 말.textContent = "여는 중…"; 말.style.color = "#9aa0a6";
+          풀기(pw, 뭉치).then(function(자료){
+            sessionStorage.setItem(기억칸, pw);
+            막.remove();
+            done(자료);
+          }).catch(function(){
+            단추.disabled = false;
+            말.textContent = "비밀번호가 다릅니다";
+            말.style.color = "#f28b82";
+            칸.select();
+          });
+        });
+      });
+    }
+  };
+  return null;
+})();
+const $=(s,r=document)=>r.querySelector(s);
+const el=(t,a={},...k)=>{const n=document.createElement(t);
+  for(const[p,v] of Object.entries(a)){ if(v==null)continue;
+    if(p==="class")n.className=v; else if(p==="html")n.innerHTML=v;
+    else if(p.startsWith("on"))n.addEventListener(p.slice(2),v); else n.setAttribute(p,v);}
+  for(const c of k.flat()) if(c!=null) n.append(c.nodeType?c:document.createTextNode(c));
+  return n;};
+const pc=x=>(x*100).toFixed(0)+"%";
+const pp=x=>(x>=0?"+":"")+(x*100).toFixed(0)+"%p";
+const man=n=>!n?"0":n>=1e8?(n/1e8).toFixed(2)+"억":Math.round(n/1e4).toLocaleString()+"만";
+const num=n=>Math.round(n||0).toLocaleString();
+/* 데이터는 심어서 올 수도(로컬), 열 때 받아 올 수도(올린 판) 있다.
+   그래서 데이터를 쓰는 것은 전부 boot() 안으로 미룬다. */
+let D=null, COD=null, DR=null, BANS=[];
+const VP={"더 테스트한다":"p-ok","접는다":"p-no","아직 모른다":"p-wa","새 소재 없음":"p-dim"};
+const SP={성공:"p-ok",실패:"p-no","조기 중단":"p-no",집행중:"p-run","판정 불가":"p-dim"};
+const CP={계속:"p-ok",끈다:"p-no",아직:"p-dim"};
+
+function table(cols,rows,opt={}){
+  let sort=opt.sort??null,dir=opt.dir??-1;
+  const box=el("div",{class:"scroll"}),tb=el("table");
+  const draw=()=>{tb.innerHTML="";
+    const hr=el("tr");
+    cols.forEach((c,i)=>hr.append(el("th",{class:c.l?"l":"",title:c.tip,
+      onclick:()=>{if(sort===i)dir=-dir;else{sort=i;dir=-1;}draw();}},c.h+(sort===i?(dir<0?" ↓":" ↑"):""))));
+    tb.append(hr);
+    let rs=rows.slice();
+    if(sort!=null){const k=cols[sort].k;
+      rs.sort((a,b)=>{const x=k(a),y=k(b);
+        return (typeof x==="string"?x.localeCompare(y):(x??-1e18)-(y??-1e18))*(dir<0?-1:1);});}
+    rs.forEach(r=>{const tr=el("tr",opt.onrow?{class:"click",onclick:()=>opt.onrow(r)}:{});
+      cols.forEach(c=>tr.append(el("td",{class:c.l?"l":""},c.c?c.c(r):String(c.k?c.k(r):""))));tb.append(tr);});};
+  draw();box.append(tb);return box;}
+function go(v){document.querySelectorAll("nav button").forEach(x=>
+    x.setAttribute("aria-current",String(x.dataset.v===v)));
+  try{localStorage.setItem("bt_view",v);}catch(e){}
+  VIEWS[v]();window.scrollTo({top:0,behavior:"smooth"});}
+const STEPS=[["bench","1","무엇을 검증할까","가설을 고르고 사례를 본다"],
+  ["write","2","어떻게 쓸까","A안·B안을 여기서 쓴다"],
+  ["decide","3","뭘 할까","가져갈지 고칠지 버릴지 정한다"]];
+const stepBar=cur=>el("div",{class:"steps"},...STEPS.map(([v,n,t,d])=>
+  el("a",{role:"button",tabindex:"0",class:v===cur?"on":"",onclick:()=>go(v),
+    onkeydown:e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();go(v);}}},
+    el("b",{},el("em",{},n),t),el("span",{},d))));
+const gauge=p=>el("div",{class:"gauge"},
+  el("i",{style:`width:${Math.max(2,p*100)}%;background:${p>=.9?"var(--ok)":p<=.1?"var(--no)":"var(--wa)"}`}),
+  el("u",{style:"left:90%"}),el("u",{style:"left:10%"}));
+
+/* ── 지금 할 일 ────────────────────────────────── */
+
+/* ── 새로고침 ─────────────────────────────────────────
+   파일로 열면 브라우저가 카페24를 막는다(CORS). 그래서 서버가 있으면 서버에 시키고,
+   없으면 화면만 다시 읽는다. 서버 띄우는 법은 아래 안내에 적어 둔다. */
+let LIVE = null;
+async function api(path){
+  // 파일로 열었으면 서버가 없다. 부르면 콘솔에 오류만 남는다.
+  if(location.protocol === "file:") return null;
+  try{
+    const r = await fetch(path, {cache:"no-store"});
+    if(!r.ok) return null;
+    return await r.json();
+  }catch(e){ return null; }
+}
+async function pollLive(){
+  const st = await api("/api/status");
+  const box = document.querySelector("#liveNow");
+  if(!box) return;
+  if(!st){
+    box.innerHTML = '파일로 연 상태 — 새로고침은 화면만 다시 읽습니다. ' +
+      '<b>실행.bat</b> 으로 열면 버튼이 실제로 데이터를 가져옵니다. 파일로 열면 브라우저가 막습니다.';
+    return;
+  }
+  LIVE = st;
+  box.textContent = `마지막 갱신 ${st.made || "-"}`;
+  const t = await api("/api/today");
+  if(t && !t.err){
+    const k = document.querySelector("#kpiToday");
+    if(k) k.innerHTML = `오늘 실시간 — 메타 주문 <b>${t.meta.n}건</b> · ${man(t.meta.amt)} ` +
+      `<span class="dim">(전체 ${t.all.n}건 · ${man(t.all.amt)})</span>`;
+  }
+}
+async function doRefresh(){
+  const btn = document.querySelector("#refBtn");
+  const st = await api("/api/status");
+  if(!st){ location.reload(); return; }
+  btn.disabled = true; btn.textContent = "갱신 중…";
+  await api("/api/refresh");
+  const box = document.querySelector("#liveNow");
+  const tick = setInterval(async () => {
+    const s = await api("/api/status");
+    if(!s) return;
+    if(box) box.textContent = (s.log[s.log.length-1] || "갱신 중…").slice(0, 70);
+    if(!s.running){
+      clearInterval(tick);
+      btn.textContent = s.ok === false ? "실패 — 창의 로그를 보세요" : "다 됐습니다. 다시 읽는 중…";
+      if(s.ok !== false) setTimeout(() => location.reload(), 900);
+      else btn.disabled = false;
+    }
+  }, 1200);
+}
+
+/* ─── 추세 그림 ────────────────────────────────────────────────────────────
+   외부 그림 꾸러미를 쓰지 않는다. 콘솔은 파일로 열어도, 인터넷이 막힌 자리에서도
+   열려야 한다. SVG를 직접 그린다 — 그린다고 못생길 이유는 없다.
+
+   지표를 하나씩 본다. 한 화면에 비율과 금액을 같이 넣으면 눈금이 둘이 되고
+   둘 다 못 읽는다. 탭으로 갈아 끼운다.
+
+   곡선은 카트멀-롬을 삼차 베지에로 옮겨 그린다 — 점을 지나면서 부드럽다.
+   그냥 이어 그으면 꺾인 자국이 남는다. */
+const SV = "http://www.w3.org/2000/svg";
+const sv = (t, a) => { const n = document.createElementNS(SV, t);
+  for (const k in a) if (a[k] != null) n.setAttribute(k, a[k]); return n; };
+
+/* 점을 지나는 부드러운 길 — 단조 삼차(프리치-칼슨).
+   그냥 카트멀-롬으로 휘면 두 점 사이가 원래 값보다 위로 솟았다 내려간다.
+   1.05와 1.10 사이에 1.18짜리 봉우리가 생기는 식이라, 없는 주가 있는 것처럼
+   보인다. 단조 삼차는 점 사이를 넘어서지 않는다 — 부드럽되 거짓말은 안 한다. */
+function smoothPath(P){
+  const n=P.length;
+  if(n<2) return "";
+  if(n===2) return `M${P[0][0]},${P[0][1]}L${P[1][0]},${P[1][1]}`;
+  const dx=[], dy=[], dl=[];
+  for(let i=0;i<n-1;i++){ dx.push(P[i+1][0]-P[i][0]); dy.push(P[i+1][1]-P[i][1]);
+    dl.push(dx[i]?dy[i]/dx[i]:0); }
+  const m=[dl[0]];
+  for(let i=1;i<n-1;i++){
+    if(dl[i-1]*dl[i]<=0) m.push(0);
+    else{ let v=(dl[i-1]+dl[i])/2;
+      const lim=3*Math.min(Math.abs(dl[i-1]),Math.abs(dl[i]));
+      m.push(Math.sign(v)*Math.min(Math.abs(v),lim)); }
+  }
+  m.push(dl[n-2]);
+  let d=`M${P[0][0]},${P[0][1]}`;
+  for(let i=0;i<n-1;i++){
+    const h=dx[i]/3;
+    d+=`C${P[i][0]+h},${P[i][1]+m[i]*h} ${P[i+1][0]-h},${P[i+1][1]-m[i+1]*h} ${P[i+1][0]},${P[i+1][1]}`;
+  }
+  return d;
+}
+
+const CH_MET = [
+  {k:"roas", t:"직접 ROAS", c:"#4f7fff", f:r=>r.sp?r.nt/r.sp:0,  fmt:v=>v.toFixed(2), cut:()=>D.cut},
+  {k:"cpa",  t:"직접 CPA",  c:"#ef4444", f:r=>r.od?r.sp/r.od:0,   fmt:v=>v>=10000?(v/10000).toFixed(1)+"만":num(v), low:true},
+  {k:"sp",   t:"지출",      c:"#f59e0b", f:r=>r.sp,               fmt:v=>man(v)},
+  {k:"nt",   t:"매출",      c:"#22c55e", f:r=>r.nt,               fmt:v=>man(v)},
+  {k:"aov",  t:"객단가",    c:"#a78bfa", f:r=>r.od?r.nt/r.od:0,   fmt:v=>man(v)},
+  {k:"od",   t:"주문",      c:"#14b8a6", f:r=>r.od||0,            fmt:v=>num(v)+"건"},
+];
+
+/* rows: [{k, sp, nt, od}] */
+function trendChart(rows, st) {
+  const box = el("div", {class: "chart"});
+  const tabs = el("div", {class: "cmet"});
+  const host = el("div", {class: "cwrap"});
+  CH_MET.forEach(m => tabs.append(el("button", {
+    class: "cmb" + (st.met === m.k ? " on" : ""),
+    style: st.met === m.k ? `--mc:${m.c}` : null,
+    onclick: () => { st.met = m.k; draw(); }}, m.t)));
+  box.append(tabs, host);
+
+  function draw() {
+    [...tabs.children].forEach((b, i) => {
+      const on = CH_MET[i].k === st.met;
+      b.className = "cmb" + (on ? " on" : "");
+      b.style.setProperty("--mc", CH_MET[i].c);
+    });
+    host.innerHTML = "";
+    if (!rows.length) { host.append(el("p", {class: "dim"}, "그릴 것이 없습니다.")); return; }
+    const M = CH_MET.find(x => x.k === st.met) || CH_MET[0];
+    const W = 1400, H = 300, P = {t: 22, r: 20, b: 34, l: 74};
+    const iw = W - P.l - P.r, ih = H - P.t - P.b;
+    const vals = rows.map(M.f);
+    const cut = M.cut ? M.cut() : null;
+    const hi = Math.max(...vals, cut || 0) * 1.12 || 1;
+    const x = i => P.l + (rows.length === 1 ? iw / 2 : iw * i / (rows.length - 1));
+    const y = v => P.t + ih - ih * Math.max(0, Math.min(v, hi)) / hi;
+
+    const g = sv("svg", {viewBox: `0 0 ${W} ${H}`, class: "csvg",
+                         role: "img", "aria-label": `${M.t} 추세`});
+    const gid = "cg" + st.met;
+    const defs = sv("defs", {});
+    const lg = sv("linearGradient", {id: gid, x1: 0, y1: 0, x2: 0, y2: 1});
+    lg.appendChild(sv("stop", {offset: "0%",   "stop-color": M.c, "stop-opacity": 0.22}));
+    lg.appendChild(sv("stop", {offset: "100%", "stop-color": M.c, "stop-opacity": 0}));
+    defs.appendChild(lg); g.appendChild(defs);
+
+    for (let i = 0; i <= 4; i++) {
+      const v = hi * i / 4, yy = y(v);
+      g.appendChild(sv("line", {x1: P.l, x2: W - P.r, y1: yy, y2: yy, class: "cgrid"}));
+      const t = sv("text", {x: P.l - 11, y: yy + 5, class: "clab", "text-anchor": "end"});
+      t.textContent = M.fmt(v); g.appendChild(t);
+    }
+    if (cut != null) {
+      const yc = y(cut);
+      g.appendChild(sv("line", {x1: P.l, x2: W - P.r, y1: yc, y2: yc, class: "ccut"}));
+      const ct = sv("text", {x: W - P.r - 4, y: yc - 8, class: "clab ccutt", "text-anchor": "end"});
+      ct.textContent = `컷 ${cut}`; g.appendChild(ct);
+    }
+
+    const pts = rows.map((r, i) => [x(i), y(vals[i])]);
+    const line = smoothPath(pts);
+    g.appendChild(sv("path", {d: `${line}L${pts[pts.length-1][0]},${P.t+ih}L${pts[0][0]},${P.t+ih}Z`,
+                              fill: `url(#${gid})`, stroke: "none"}));
+    g.appendChild(sv("path", {d: line, fill: "none", stroke: M.c, "stroke-width": 2.5,
+                              "stroke-linecap": "round", "stroke-linejoin": "round"}));
+    pts.forEach((p, i) => {
+      const good = cut != null ? (M.low ? vals[i] <= cut : vals[i] >= cut) : null;
+      g.appendChild(sv("circle", {cx: p[0], cy: p[1], r: 5, class: "cdot",
+        fill: good === null ? M.c : (good ? "var(--ok)" : "var(--no)")}));
+    });
+
+    const step = Math.ceil(rows.length / Math.max(2, Math.floor(iw / 96)));
+    rows.forEach((r, i) => {
+      if (i % step && i !== rows.length - 1) return;
+      const t = sv("text", {x: x(i), y: H - 10, class: "clab", "text-anchor": "middle"});
+      t.textContent = r.k; g.appendChild(t);
+    });
+
+    const vline = sv("line", {x1: 0, x2: 0, y1: P.t, y2: P.t + ih, class: "cv", opacity: 0});
+    const ring = sv("circle", {r: 9, class: "cring", opacity: 0});
+    const hit = sv("rect", {x: 0, y: 0, width: W, height: H, fill: "transparent"});
+    g.appendChild(vline); g.appendChild(ring); g.appendChild(hit);
+    const tip = el("div", {class: "ctip", style: "display:none"});
+    hit.addEventListener("mousemove", e => {
+      const b = g.getBoundingClientRect();
+      const px = (e.clientX - b.left) / b.width * W;
+      let i = 0, best = 1e9;
+      pts.forEach((p, j) => { const d = Math.abs(p[0] - px); if (d < best) { best = d; i = j; } });
+      vline.setAttribute("x1", pts[i][0]); vline.setAttribute("x2", pts[i][0]);
+      vline.setAttribute("opacity", 1);
+      ring.setAttribute("cx", pts[i][0]); ring.setAttribute("cy", pts[i][1]);
+      ring.setAttribute("stroke", M.c); ring.setAttribute("opacity", 1);
+      const r = rows[i];
+      tip.innerHTML = `<b>${r.k}</b>` + CH_MET.map(mm =>
+        `<span class="ck" style="background:${mm.c}"></span>${mm.t} <b>${mm.fmt(mm.f(r))}</b>`).join("<br>");
+      tip.style.display = "block";
+      const lx = pts[i][0] / W * b.width;
+      tip.style.left = Math.min(b.width - 168, Math.max(0, lx - 76)) + "px";
+    });
+    hit.addEventListener("mouseleave", () => {
+      vline.setAttribute("opacity", 0); ring.setAttribute("opacity", 0); tip.style.display = "none"; });
+    host.append(g, tip);
+  }
+  draw();
+  return box;
+}
+
+/* 여러 줄을 겹쳐 그린다. series: [{name, color, pts:[{k,sp,nt,od}]}]
+   눈금 이름은 줄마다 다를 수 있다 — 어떤 소구는 3월에 안 돌았다. 이름을 모아
+   가로축을 하나로 만들고, 없는 칸은 선을 끊는다. 0으로 이으면 안 쓴 달이
+   폭락한 달처럼 보인다. */
+function multiChart(series, met){
+  const box = el("div", {class: "chart"});
+  const host = el("div", {class: "cwrap"});
+  box.append(host);
+  if(!series.length){ host.append(el("p",{class:"dim"},"소구를 하나 이상 고르세요.")); return box; }
+  const M = CH_MET.find(x=>x.k===met) || CH_MET[0];
+  const keys = [...new Set(series.flatMap(s=>s.pts.map(p=>p.k)))].sort();
+  if(!keys.length){ host.append(el("p",{class:"dim"},"그릴 것이 없습니다.")); return box; }
+
+  const W=1400, H=320, P={t:22,r:20,b:34,l:74};
+  const iw=W-P.l-P.r, ih=H-P.t-P.b;
+  const cut = M.cut ? M.cut() : null;
+  const val = p => M.f(p);
+  const all = series.flatMap(s=>s.pts.map(val));
+  const hi = Math.max(...all, cut||0) * 1.12 || 1;
+  const x = i => P.l + (keys.length===1 ? iw/2 : iw*i/(keys.length-1));
+  const y = v => P.t + ih - ih*Math.max(0,Math.min(v,hi))/hi;
+
+  const g = sv("svg",{viewBox:`0 0 ${W} ${H}`, class:"csvg", role:"img",
+                      "aria-label":`소구별 ${M.t}`});
+  for(let i=0;i<=4;i++){
+    const v=hi*i/4, yy=y(v);
+    g.appendChild(sv("line",{x1:P.l,x2:W-P.r,y1:yy,y2:yy,class:"cgrid"}));
+    const t=sv("text",{x:P.l-11,y:yy+5,class:"clab","text-anchor":"end"});
+    t.textContent=M.fmt(v); g.appendChild(t);
+  }
+  if(cut!=null){
+    const yc=y(cut);
+    g.appendChild(sv("line",{x1:P.l,x2:W-P.r,y1:yc,y2:yc,class:"ccut"}));
+    const ct=sv("text",{x:W-P.r-4,y:yc-8,class:"clab ccutt","text-anchor":"end"});
+    ct.textContent=`컷 ${cut}`; g.appendChild(ct);
+  }
+  const at = {};
+  series.forEach(s=>{
+    const by={}; s.pts.forEach(p=>by[p.k]=p);
+    at[s.name]=by;
+    /* 이어진 구간마다 따로 긋는다 — 빠진 칸에서 끊는다 */
+    let run=[];
+    const flush=()=>{ if(run.length>1) g.appendChild(sv("path",{d:smoothPath(run),fill:"none",
+        stroke:s.color,"stroke-width":2.5,"stroke-linecap":"round","stroke-linejoin":"round"}));
+      else if(run.length===1) g.appendChild(sv("circle",{cx:run[0][0],cy:run[0][1],r:3,fill:s.color}));
+      run=[]; };
+    keys.forEach((k,i)=>{ const p=by[k]; if(!p){flush();return;} run.push([x(i),y(val(p))]); });
+    flush();
+    keys.forEach((k,i)=>{ const p=by[k]; if(!p)return;
+      g.appendChild(sv("circle",{cx:x(i),cy:y(val(p)),r:4,class:"cdot",fill:s.color})); });
+  });
+  const step=Math.ceil(keys.length/Math.max(2,Math.floor(iw/96)));
+  keys.forEach((k,i)=>{
+    if(i%step && i!==keys.length-1) return;
+    const t=sv("text",{x:x(i),y:H-10,class:"clab","text-anchor":"middle"});
+    t.textContent=k.length>7?k.slice(5):k; g.appendChild(t);
+  });
+
+  const vline=sv("line",{x1:0,x2:0,y1:P.t,y2:P.t+ih,class:"cv",opacity:0});
+  const hit=sv("rect",{x:0,y:0,width:W,height:H,fill:"transparent"});
+  g.appendChild(vline); g.appendChild(hit);
+  const tip=el("div",{class:"ctip",style:"display:none"});
+  hit.addEventListener("mousemove",e=>{
+    const b=g.getBoundingClientRect();
+    const px=(e.clientX-b.left)/b.width*W;
+    let i=0,best=1e9;
+    keys.forEach((k,j)=>{const d=Math.abs(x(j)-px); if(d<best){best=d;i=j;}});
+    vline.setAttribute("x1",x(i)); vline.setAttribute("x2",x(i)); vline.setAttribute("opacity",1);
+    const rows=series.map(s=>({s, p:at[s.name][keys[i]]})).filter(o=>o.p)
+      .sort((a,b)=>val(b.p)-val(a.p));
+    tip.innerHTML=`<b>${keys[i]}</b>`+rows.map(o=>
+      `<br><span class="ck" style="background:${o.s.color}"></span>${o.s.name} <b>${M.fmt(val(o.p))}</b>`+
+      `<span class="dim"> ${o.p.d}편 ${man(o.p.sp)}</span>`).join("");
+    tip.style.display="block";
+    tip.style.left=Math.min(b.width-215,Math.max(0,x(i)/b.width*0+x(i)/W*b.width-100))+"px";
+  });
+  hit.addEventListener("mouseleave",()=>{vline.setAttribute("opacity",0);tip.style.display="none";});
+  host.append(g,tip);
+  return box;
+}
+/* ─── 원고 쓰기 ────────────────────────────────────────────────────────────
+   가설을 담아 왔으면 여기서 쓴다. 순서를 정해 놓고 몰아가지 않는다 — 쓰다가
+   막히는 자리가 사람마다 다르다. 후킹이 안 떠오르면 후킹을, 소구가 고민이면
+   소구를 눌러서 그 자리만 파고든다.
+
+   한 요소를 누르면 두 층이 나온다.
+     ① 어떤 종류가 잘되나   그동안 · 최근 · 이번 주를 같이 본다
+     ② 실제로 어떻게 썼나   그 종류 안의 워딩과, 그 워딩을 쓴 성공작의 실제 문장
+   보고 나서 그 자리에 바로 쓴다. */
+
+const WR_ORDER = ["형식","페르소나","구조","훅","소구","근거","기전","CTA"];
+const WR_GRP = {형식:"영상형식"};                 // 화면에 쓸 이름 → 판정 묶음 이름
+const wrGrp = g => WR_GRP[g] || g;
+let WR = {g:"훅", ax:null, v:null, read:null, text:{}, name:"", fmt:""};
+
+/* 갈래로 쓰이는 축은 ①에 올리지 않는다. ①은 「어떤 종류로 갈까」를 고르는 자리다. */
+let WR_BRANCH=null;
+function wrBranchAx(){
+  if(WR_BRANCH) return WR_BRANCH;
+  WR_BRANCH=new Set();
+  D.idea.forEach(x=>h3Branches(x.ax,x.v).forEach(b=>WR_BRANCH.add(b.a)));
+  return WR_BRANCH;
+}
+const wrTop = ax => !wrBranchAx().has(ax) && !ax.includes(" · ") && !/계열$/.test(ax);
+
+/* 그 묶음에서 고를 수 있는 종류 */
+function wrKinds(g){
+  const gg=wrGrp(g);
+  return D.idea.filter(x=>x.grp===gg && wrTop(x.ax) && x.n>=3)
+    .sort((a,b)=>b.rt-a.rt||b.n-a.n);
+}
+/* 최근 — 판정을 이전 절반과 최근 절반으로 가른 그 최근이다. 이번 주와 다르다. */
+const wrLate = x => x.nL ? {n:x.nL, w:x.wL, rt:x.wL/x.nL} : null;
+
+function wrMark(x){
+  if(x.ref) return {t:"참고", c:"ref"};   // 판정 문서가 뺀 축
+  if(x.ban || (x.n>=5&&x.w===0) || (x.split&&x.n>=5&&x.lf<=-0.15)) return {t:"금지", c:"no"};
+  if(x.split&&x.n>=5&&x.lf>=0.15) return {t:"추천", c:"yes"};
+  if(x.lf>=0.15) return {t:"대기", c:"maybe"};
+  return {t:"—", c:"none"};
+}
+const wrBar = rt => el("span",{class:"lyb"},
+  el("i",{style:`width:${Math.max(2,Math.min(100,rt*100))}%;background:${rt>=D.base?"var(--ok)":"var(--no)"}`}),
+  el("u",{style:`left:${Math.min(99,D.base*100)}%`,title:`기저 ${pc(D.base)}`}));
+
+/* 그 값을 쓴 성공작 — 이름을 누르면 원고 전문이 열린다 */
+function wrWins(ax,v){
+  const r=D.vals.find(x=>x.ax===ax&&x.v===v);
+  if(!r) return [];
+  const det=(r.det||[]).filter(x=>x.st==="성공");
+  if(det.length) return det.map(x=>({t:x.t, s:x.first||""}));
+  return (r.wins||[]).map(t=>({t, s:""}));
+}
+
+function viewWrite(){
+  const m=$("#main");m.innerHTML="";
+  m.append(el("div",{class:"bar",style:"margin:0 0 2px"},
+    el("button",{class:"lnk",onclick:()=>go("build")},"← 원고 빌더로")));
+  m.append(el("p",{class:"eyebrow"},"원고 빌더"),
+    el("div",{class:"bar",style:"justify-content:space-between;align-items:baseline"},
+      el("h2",{style:"margin:0"},"요소별로 파기"),
+      el("button",{class:"btn",onclick:()=>{
+        DFT={name:WR.name, items:[], hyp:null,
+             picks:PICK.slice(), body:WR_ORDER.map(g=>WR.text[g]).filter(Boolean).join("\\n")};
+        go("draft");}},"원고 검증으로 넘기기 →")));
+  m.append(el("p",{class:"lede"},
+    "막히는 자리를 누르세요. 그 요소에서 어떤 종류가 잘되는지, 그 종류를 실제로 어떤 말로 썼는지, "+
+    "그 말을 쓴 성공작이 무엇인지까지 폅니다. 보고 나서 아래 칸에 바로 쓰면 됩니다."));
+
+  /* 이름 · 형식 꼬리표 */
+  const made=D.idea.filter(x=>x.ax==="제작 방식"&&x.n>=3).sort((a,b)=>b.rt-a.rt);
+  const tail=v=>(String(v).match(/^[A-Z]+/)||[""])[0];
+  const nm=el("input",{type:"text",placeholder:"원고 이름",value:WR.name,style:"flex:1;min-width:150px"});
+  nm.addEventListener("input",()=>{WR.name=nm.value;$("#wrTag").textContent=wrTag();});
+  const fs=el("select",{});
+  fs.append(el("option",{value:""},"제작 방식"));
+  made.forEach(x=>fs.append(el("option",{value:x.v},`${x.v} — ${x.w}/${x.n}편 ${pc(x.rt)} ${pp(x.lf)}`)));
+  fs.value=WR.fmt;
+  fs.addEventListener("change",()=>{WR.fmt=fs.value;$("#wrTag").textContent=wrTag();});
+  const wrTag=()=>{
+    const d=new Date(D.asof.replace(/-/g,"/"));
+    const yy=String(d.getFullYear()).slice(2),
+          mm=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0");
+    return `001_${yy}${mm}${dd}_${WR.name||"이름"}_${tail(WR.fmt)||"?"}`;
+  };
+  m.append(el("div",{class:"bar"},nm,fs,
+    el("span",{class:"dim"},"광고 이름 "),el("b",{id:"wrTag"},wrTag())));
+
+  if(PICK.length) m.append(el("div",{class:"note"},
+    el("b",{},`담아온 가설 ${PICK.length}개 — `),
+    ...PICK.map((p,i)=>el("span",{},(i?" · ":"")+`${p.v}${p.ban?"(빼기)":""}`))));
+
+  /* 요소 고르기 */
+  const tabs=el("div",{class:"qbar"});
+  /* 빌더가 단계로 다루는 것은 형식·소구·훅뿐이다. 나머지 넷은 여기서만 본다 —
+     그 사실을 표시해 둬야 「빌더에도 있는데 왜 또」 하지 않는다. */
+  const ONLY=new Set(["페르소나","구조","근거","기전","CTA"]);
+  WR_ORDER.forEach(g=>{
+    const done=WR.text[g]?" done":"";
+    tabs.append(el("button",{class:"qb"+(WR.g===g?" on":"")+done,
+      title:ONLY.has(g)?"빌더 단계에는 없는 요소입니다 — 여기서만 봅니다":"",
+      onclick:()=>{WR.g=g;WR.ax=null;WR.v=null;WR.read=null;viewWrite();}},
+      g, ONLY.has(g)?el("span",{class:"dim"},"*"):null,
+      WR.text[g]?el("span",{class:"dim"}," ✓"):null));
+  });
+  m.append(el("p",{class:"dim",style:"margin:14px 0 0"},
+    "지금 고민하는 것 — *는 빌더 단계에 없는 요소입니다"),tabs);
+
+  const two=el("div",{class:"two"}),L=el("div"),R=el("div");two.append(L,R);m.append(two);
+
+  /* ① 어떤 종류가 잘되나 */
+  const ks=wrKinds(WR.g);
+  L.append(el("h3",{},"① 어떤 종류가 잘되나"),
+    el("p",{class:"dim sm2",style:"margin:-4px 0 6px"},
+      `그동안은 판정 ${D.n}편 전체, 최근은 그중 뒤쪽 절반입니다(기저 ${pc(D.baseE)} → ${pc(D.baseL)}). 이번 주는 돈이 나간 편수입니다.`));
+  if(!ks.length) L.append(el("p",{class:"dim"},"이 요소에는 고를 만한 종류가 없습니다."));
+  const tb=el("div",{class:"lytab"});
+  tb.append(el("div",{class:"wrr lyhd"},
+    el("span",{},"판정"),el("span",{},"종류"),el("span",{},"축"),
+    el("span",{},"그동안"),el("span",{},"최근"),el("span",{title:`이번 주 그 값을 쓴 라이브 소재의 ROAS와 편수. 컷 ${D.cut}. 지출 30만원이 안 되면 숫자가 튀어 「적음」으로 둡니다`},"이번 주")));
+  ks.forEach(x=>{
+    const mk=wrMark(x), la=wrLate(x), on=(WR.ax===x.ax&&WR.v===x.v);
+    tb.append(el("div",{class:"wrr"+(on?" on":""),onclick:()=>{
+      WR.ax=x.ax;WR.v=x.v;WR.read=null;viewWrite();}},
+      el("span",{class:"mk "+mk.c},mk.t),
+      el("span",{class:"lyv",title:x.v},x.v),
+      el("span",{class:"lybr dim",title:x.ax},x.ax),
+      el("span",{class:"lyn"},el("b",{},pc(x.rt)),el("span",{class:"dim"},` ${x.w}/${x.n}편`)),
+      el("span",{class:"lyn"},la?el("span",{class:la.rt>=D.baseL?"g":"b"},pc(la.rt)):el("span",{class:"dim"},"—"),
+        el("span",{class:"dim"},la?` ${la.w}/${la.n}편`:"")),
+      el("span",{class:"lyn",title:x.wn?`이번 주 지출 ${man(x.wsp||0)}`:""},
+        (x.wn && (x.wsp||0)>=300000)
+          ? el("span",{class:x.wroas>=D.cut?"g":"b"},(x.wroas||0).toFixed(2))
+          : el("span",{class:"dim"},x.wn?"적음":"—"),
+        el("span",{class:"dim"},x.wn?` ${x.wn}편`:""))));
+  });
+  L.append(tb);
+
+  /* ② 실제로 어떻게 썼나 */
+  R.append(el("h3",{},"② 실제로 어떻게 썼나"));
+  if(!WR.v){ R.append(el("p",{class:"dim"},"왼쪽에서 종류를 하나 누르세요.")); }
+  else {
+    R.append(el("p",{class:"dim sm2",style:"margin:-4px 0 6px"},`${WR.ax} = ${WR.v}`));
+    const brs=h3Branches(WR.ax,WR.v);
+    const rows=[];
+    brs.forEach(b=>b.vs.forEach(x=>rows.push({...x, br:b.one?"":b.name})));
+    rows.sort((a,b)=>b.rt-a.rt);
+    if(!rows.length) R.append(el("p",{class:"dim"},
+      "이 종류 아래로 나뉜 워딩이 판정에 없습니다. 아래 성공작 문장을 보고 쓰세요."));
+    rows.forEach(r=>{
+      const mk=wrMark(r);
+      R.append(el("div",{class:"wrv"},
+        el("div",{class:"bar",style:"margin:0"},
+          el("span",{class:"mk "+mk.c},mk.t),
+          el("b",{},r.disp||r.v),
+          el("span",{class:"dim"},` ${r.w}/${r.n}편 ${pc(r.rt)} `),
+          el("span",{class:r.lf>=0?"g":"b"},pp(r.lf)),
+          r.br?el("span",{class:"dim"},` · ${r.br}`):null),
+        wrSay(r)));
+    });
+    if(!rows.length) R.append(wrWinLine(WR.ax,WR.v));
+  }
+
+  /* 읽고 있는 원고 전문 */
+  if(WR.read){
+    const d=DR[WR.read];
+    R.append(el("div",{class:"card"},
+      el("div",{class:"bar",style:"margin:0 0 4px"},
+        el("h3",{style:"margin:0"},WR.read),
+        el("span",{class:"pill "+(d&&d.st==="성공"?"p-ok":"p-no")},d?d.st:""),
+        el("span",{class:"dim"},d?` ROAS ${(d.r||0).toFixed(2)} · ${man(d.sp)}`:""),
+        el("button",{class:"lnk",onclick:()=>{WR.read=null;viewWrite();}},"닫기")),
+      ...((d&&d.body)||["본문이 없습니다."]).map(x=>el("p",{class:"nxq"},x))));
+  }
+
+  /* ③ 여기에 써보기 */
+  const ta=el("textarea",{rows:"5",placeholder:`${eul(WR.g)} 여기에 써보세요`,
+    style:"width:100%;font:inherit;font-size:13px;line-height:1.6"});
+  ta.value=WR.text[WR.g]||"";
+  ta.addEventListener("input",()=>{WR.text[WR.g]=ta.value;});
+  const done=WR_ORDER.filter(g=>WR.text[g]);
+  m.append(el("h3",{},"③ 여기에 써보기"),ta,
+    el("p",{class:"dim",style:"margin:6px 0 0"},
+      done.length?`쓴 것 ${done.length}개 — ${done.join(" · ")}. 위 「원고 검증으로 넘기기」를 누르면 합쳐서 넘어갑니다.`
+                 :"요소마다 따로 써 두면 마지막에 합쳐서 원고 검증으로 넘어갑니다."));
+}
+
+/* 그 워딩을 실제로 쓴 문장. 판정 문서가 문장까지 들고 있으면 그걸 그대로 보여준다 —
+   원고를 쓸 때 필요한 건 「환율 덕에 싸게 들여왔다 3/4 75%」가 아니라 그 원고가
+   실제로 쓴 「유로환율이 낮을 때 들어온거라 가격까지 이쁘게 빠진거죠」다. */
+function wrSay(r){
+  const ev=r.ev||{};
+  const ts=Object.keys(ev);
+  if(!ts.length) return wrWinLine(r.ax,r.v);
+  const box=el("div",{});
+  ts.slice(0,3).forEach(t=>{
+    const ok=DR[t]&&DR[t].st==="성공";
+    box.append(el("p",{class:"wrs"},
+      el("button",{class:"lnk "+(ok?"g":"b"),onclick:()=>{WR.read=t;viewWrite();}},t),
+      el("span",{class:"wrq"},` “${ev[t][0]}”`)));
+  });
+  if(ts.length>3) box.append(el("p",{class:"dim sm2"},`이 워딩을 쓴 원고 ${ts.length}편 중 3편`));
+  return box;
+}
+
+/* 그 값을 쓴 성공작 이름과 첫 문장 */
+function wrWinLine(ax,v){
+  const ws=wrWins(ax,v);
+  const p=el("p",{class:"wrw"});
+  if(!ws.length) return el("p",{class:"dim sm2"},"이 값을 쓴 성공작이 없습니다.");
+  p.append(el("span",{class:"dim"},"성공작 "));
+  ws.slice(0,4).forEach((w,i)=>p.append(i?" · ":"",
+    el("button",{class:"lnk",onclick:()=>{WR.read=w.t;viewWrite();}},w.t)));
+  const first=ws.find(w=>w.s);
+  if(first) p.append(el("span",{class:"wrq"},` “${first.s}”`));
+  return p;
+}
+/* ─── 소구 성과 ────────────────────────────────────────────────────────────
+   위는 전지표 판정의 소구 표 그대로 — 그 소구를 쓴 원고가 몇 편이고 몇 편이
+   성공했나. 아래는 같은 소구를 시간으로 편 것 — 언제 잘됐고 언제 식었나.
+
+   메인과 서브를 나눈다. 메인은 「첫 소구」(그 소구로 열었나), 서브는
+   「소구 조합(포함)」에서 첫 소구를 뺀 나머지(끼워 넣기만 했나). 둘은 다른 말이다.
+
+   한 원고가 서브를 넷 달았으면 그 원고 지출이 네 소구에 다 들어간다 — 안분하지
+   않는다. 합치면 실제 지출보다 커지니 소구끼리만 견준다. */
+let SG = {side:"전체", met:"roas", grain:"주", sel:{}};
+
+const SG_AX  = {전체:"소구", 메인:"첫 소구", 서브:"소구"};
+const SG_WHAT = {
+  전체:"그 소구를 쓴 원고 — 메인이든 서브든",
+  메인:"「첫 소구」로 연 원고만. 대부분 귀건강·통화품질에 몰려 있어 값이 적습니다",
+  서브:"쓰기는 했는데 첫 소구는 아니었던 원고"};
+
+function viewSogu(){
+  const m=$("#main");m.innerHTML="";
+  /* 목차에 없는 화면이다 — 「소구」에서만 들어온다. 들어왔는데 나갈 데가 없으면
+     목차를 다시 눌러 처음부터 가야 한다. */
+  m.append(el("div",{class:"bar",style:"margin:0 0 2px"},
+    el("button",{class:"lnk",onclick:()=>go("deep")},"← 소구로 돌아가기")));
+  m.append(el("p",{class:"eyebrow"},"트렌드와 가설"),el("h2",{},"소구 성과"),
+    el("p",{class:"lede"},
+      "위는 전지표 판정의 소구 표입니다. 아래는 같은 소구를 시간으로 편 것 — 월별 · 주별 16주 · 일별 14일. "+
+      "메인은 그 소구로 연 원고, 서브는 끼워 넣기만 한 원고입니다."));
+
+  const seg=el("div",{class:"cseg"});
+  ["전체","메인","서브"].forEach(k=>seg.append(el("button",{class:"csb"+(SG.side===k?" on":""),
+    onclick:()=>{SG.side=k;viewSogu();}},k)));
+  m.append(el("div",{class:"bar",style:"justify-content:space-between"},
+    el("span",{class:"dim"},SG_WHAT[SG.side]),
+    seg));
+
+  /* ① 판정 표 */
+  const ax=SG_AX[SG.side];
+  const cn=(D.sgn||{})[SG.side]||{};
+  /* 판정 행과 코딩 값을 합친다. 판정에 없는 값을 빼 두면 「메인 소구에 디자인이
+     없다」고 읽힌다 — 없는 게 아니라 판정에 걸릴 편수가 안 된 것이다. */
+  const jr={}; D.vals.filter(x=>x.ax===ax).forEach(x=>jr[x.v]=x);
+  const names=[...new Set([...Object.keys(jr), ...Object.keys(cn)])];
+  const rs=names.map(v=>jr[v] || {ax, v, n:0, w:0, rt:0, lf:0, sp:0, cod:cn[v]||0})
+    .map(x=>({...x, cod:cn[x.v]||0}))
+    .sort((a,b)=>(b.n-a.n)||(b.cod-a.cod));
+  const tb=el("div",{class:"lytab"});
+  tb.append(el("div",{class:"sgr lyhd"},
+    el("span",{},"판정"),el("span",{},"소구"),el("span",{},"성공률"),
+    el("span",{},"성공/편수"),el("span",{title:`기저 ${pc(D.base)} 대비`},"기저 대비"),
+    el("span",{},"지출"),
+    el("span",{},"")));
+  rs.forEach(x=>{
+    const mk = x.n ? wrMark(x) : {t:"판정 밖", c:"none"};
+    if(!x.n){
+      tb.append(el("div",{class:"sgr"},
+        el("span",{class:"mk none",title:"판정된 원고가 없습니다"},"판정 밖"),
+        el("span",{class:"lyv",title:x.v},x.v),
+        el("span",{class:"dim"},"—"),el("span",{class:"dim"},"—"),el("span",{class:"dim"},"—"),
+        el("span",{class:"lyn dim"},`${x.cod}편 씀`),
+        el("span",{})));
+      return;
+    }
+    tb.append(el("div",{class:"sgr"},
+      el("span",{class:"mk "+mk.c},mk.t),
+      el("span",{class:"lyv",title:x.v},x.v),
+      el("span",{class:"lyb"},
+        el("i",{style:`width:${Math.max(2,Math.min(100,x.rt*100))}%;background:${x.rt>=D.base?"var(--ok)":"var(--no)"}`}),
+        el("u",{style:`left:${D.base*100}%`,title:`기저 ${pc(D.base)}`})),
+      el("span",{class:"lyn"},el("b",{},pc(x.rt)),el("span",{class:"dim"},` ${x.w}/${x.n}편`)),
+      el("span",{class:"lyd "+(x.lf>=0?"g":"b")},pp(x.lf)),
+      el("span",{class:"lyn dim"},man(x.sp)),
+      el("button",{class:"lnk ic",onclick:()=>lyGo(ax,x.v)},"가설")));
+  });
+  m.append(el("div",{class:"bar",style:"justify-content:space-between;align-items:baseline"},
+    el("h3",{style:"margin:0"},`① 판정 — ${ax}`),
+    el("span",{class:"dim"},`${rs.length}개 · 판정된 것 ${rs.filter(x=>x.n).length}개`)),tb);
+
+  /* ② 시간 */
+  const ser=(((D.sgts||{})[SG.grain])||{})[SG.side]||[];
+  const gseg=el("div",{class:"cseg"});
+  [["월","월별"],["주","주별 16주"],["일","일별 14일"]].forEach(([k,t])=>
+    gseg.append(el("button",{class:"csb"+(SG.grain===k?" on":""),
+      onclick:()=>{SG.grain=k;viewSogu();}},t)));
+  m.append(el("div",{class:"bar",style:"justify-content:space-between;margin-top:16px"},
+    el("h3",{style:"margin:0"},"② 시간으로 어떻게 갔나"),gseg));
+  if(!ser.length){m.append(el("p",{class:"dim"},"그릴 것이 없습니다."));return;}
+  const sk=SG.grain+SG.side;
+  let sel=SG.sel[sk];
+  if(!sel) sel=SG.sel[sk]=ser.slice(0,4).map(x=>x.v);
+  sel=SG.sel[sk]=sel.filter(v=>ser.some(x=>x.v===v));
+  if(!sel.length) ser.slice(0,3).forEach(x=>sel.push(x.v));
+  const chips=el("div",{class:"cmet"});
+  ser.forEach((x,i)=>{
+    const on=sel.includes(x.v);
+    chips.append(el("button",{class:"cmb"+(on?" on":""),
+      style:`--mc:${sgColor(i)}`,
+      title:`원고 ${x.n}편 · 지출 ${man(x.sp)} · 누적 ROAS ${x.roas.toFixed(2)}`,
+      onclick:()=>{
+        const a=SG.sel[sk];
+        const j=a.indexOf(x.v); if(j>=0)a.splice(j,1); else a.push(x.v);
+        viewSogu();}},
+      x.v, el("span",{class:"dim"},` ${x.n}`)));
+  });
+  m.append(el("p",{class:"dim",style:"margin:6px 0 4px"},
+    `소구를 눌러 겹쳐 보세요. 지출이 너무 적은 칸은 뺐습니다 — 숫자가 튑니다`+
+    `(월 30만원 · 주 10만원 · 일 3만원 미만).`),chips);
+
+  const mets=[["roas","직접 ROAS"],["sp","지출"],["nt","매출"],["cpa","직접 CPA"],["od","주문"]];
+  const mseg=el("div",{class:"cseg"});
+  mets.forEach(([k,t])=>mseg.append(el("button",{class:"csb"+(SG.met===k?" on":""),
+    onclick:()=>{SG.met=k;viewSogu();}},t)));
+  m.append(el("div",{class:"bar",style:"justify-content:flex-end"},mseg));
+  m.append(multiChart(ser.filter(x=>sel.includes(x.v))
+    .map(x=>({name:x.v, color:sgColor(ser.findIndex(y=>y.v===x.v)), pts:x.pts})), SG.met));
+}
+const SG_COLORS=["#4f7fff","#22c55e","#f59e0b","#ef4444","#a78bfa","#14b8a6","#ec4899","#84cc16",
+                 "#0ea5e9","#f97316","#8b5cf6","#06b6d4"];
+const sgColor = i => SG_COLORS[i % SG_COLORS.length];
+/* ─── 원고 빌더 ────────────────────────────────────────────────────────────
+   원고를 쓸 때 실제로 밟는 순서를 그대로 화면으로 옮긴 것.
+
+     ① 형식      무엇으로 찍을까            제목 꼬리표가 따라 붙는다
+     ② 소구·기전  무엇을 주제로, 왜 그런지    메인/서브 배치까지
+     ③ 후킹      어떻게 열까                검증된 실제 문장을 가져온다
+     ④ 쓰기      쓰면서 바로 진단
+
+   1~3에서 고른 것이 4의 오른쪽에 붙박여 있고, 쓰는 동안 그 조건과 어긋나면
+   바로 알려 준다. 순서를 강제하지는 않는다 — 어느 단계로든 건너뛸 수 있다.
+
+   숫자는 전부 전지표 판정에서 온다. 「누적」은 판정 전체, 「최근」은 판정된
+   원고를 라이브 시작일로 갈라 뒤쪽 절반이다(bE → bL). */
+let BD = {step:1, fmt:null, main:null, subs:[], mech:[], hook:null, hookw:[],
+          name:"", text:{제목:"", 후킹:"", 본문:"", CTA:""}, read:null};
+
+const BD_STEPS = [[1,"형식"],[2,"소구·기전"],[3,"후킹"],[4,"쓰기"]];
+
+/* 판정 한 줄 찾기 */
+const bdRow = (ax,v) => D.idea.find(x=>x.ax===ax && x.v===v);
+const bdAx  = ax => D.idea.filter(x=>x.ax===ax && x.n>=3).sort((a,b)=>b.rt-a.rt);
+/* 값 하나를 쓴 원고의 영상 지표 */
+function bdVid(ts){
+  let im=0, th=0, sec=0;
+  (ts||[]).forEach(t=>{ const v=(DR[t]||{}).v; if(!v||!v.im)return;
+    im+=v.im; th+=v.thru*v.im; sec+=v.sec*v.im; });
+  return im ? {thru:th/im, sec:sec/im, im} : null;
+}
+const bdMark = x => wrMark(x);
+const bdPct = x => x==null ? "—" : pc(x);
+/* 누적과 최근을 나란히 */
+function bdNow(x){
+  const late = x.nL ? x.wL/x.nL : null;
+  return el("span",{class:"bdnow"},
+    el("b",{},pc(x.rt)), el("span",{class:"dim"},` ${x.w}/${x.n}편`),
+    el("span",{class:"dim"}," · 최근 "),
+    late==null ? el("span",{class:"dim"},"—")
+      : el("span",{class:late>=D.baseL?"g":"b"},`${pc(late)} ${x.wL}/${x.nL}편`),
+    (x.nL && late!=null && late-x.rt>=0.12) ? el("span",{class:"mk yes",style:"margin-left:5px"},"오름") : null);
+}
+
+function viewBuild(){
+  const m=$("#main");m.innerHTML="";
+  m.append(el("p",{class:"eyebrow"},"원고 빌더"),
+    el("div",{class:"bar",style:"justify-content:space-between;align-items:baseline"},
+      el("h2",{style:"margin:0"},"원고 빌더"),
+      el("span",{class:"dim"},`판정 ${D.n}편 · 기저 ${pc(D.base)} (이전 ${pc(D.baseE)} → 최근 ${pc(D.baseL)})`)));
+
+  const nav=el("div",{class:"bdnav"});
+  BD_STEPS.forEach(([n,t])=>{
+    const done = n===1?BD.fmt : n===2?BD.main : n===3?BD.hook : Object.values(BD.text).some(Boolean);
+    nav.append(el("button",{class:"bdb"+(BD.step===n?" on":"")+(done?" ok":""),
+      onclick:()=>{BD.step=n;viewBuild();}},
+      el("b",{},"STEP "+n), el("span",{},t),
+      done?el("span",{class:"bdok"},"✓"):null));
+  });
+  /* 빌더는 원고 한 편을 짜는 순서다. 그 요소 하나를 더 깊게 보고 싶으면
+     「요소별로 파기」로 넘긴다 — 거기엔 빌더가 안 다루는 페르소나·구조·근거도 있다. */
+  const WRG={1:"형식",2:"소구",3:"훅",4:"소구"};
+  nav.append(el("button",{class:"lnk ic",style:"margin-left:6px",
+    title:"이 요소의 종류·워딩·성공작 문장을 더 자세히",
+    onclick:()=>{WR.g=WRG[BD.step]||"훅";WR.ax=null;WR.v=null;go("write");}},
+    `${WRG[BD.step]||"이 요소"} 더 파기 →`));
+  m.append(nav);
+  m.append(bdPicked());
+  ({1:bdStep1,2:bdStep2,3:bdStep3,4:bdStep4})[BD.step](m);
+}
+
+/* 고른 것 — 어느 단계에서나 위에 붙박여 보인다 */
+function bdPicked(){
+  const box=el("div",{class:"bdpick"});
+  const chip=(lab,v,go2)=>el("span",{class:"bdc"+(v?" on":"")},
+    el("span",{class:"dim"},lab+" "),
+    el("button",{class:"lnk",onclick:()=>{BD.step=go2;viewBuild();}}, v||"안 정함"));
+  box.append(chip("형식",BD.fmt,1), chip("메인 소구",BD.main,2),
+    chip("서브",BD.subs.join(" · "),2), chip("기전",BD.mech.map(x=>x.v).join(" · "),2),
+    chip("후킹",BD.hook,3));
+  if(BD.name||BD.fmt) box.append(el("span",{class:"bdc"},
+    el("span",{class:"dim"},"광고 이름 "), el("b",{},bdTag())));
+  return box;
+}
+function bdTag(){
+  const d=new Date(D.asof.replace(/-/g,"/"));
+  const yy=String(d.getFullYear()).slice(2),
+        mm=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0");
+  const tail=(String(BD.fmt||"").match(/^[A-Z]+/)||[""])[0];
+  return `001_${yy}${mm}${dd}_${BD.name||"이름"}_${tail||"?"}`;
+}
+
+/* ── STEP 1 형식 ───────────────────────────────────────────────────────── */
+function bdStep1(m){
+  m.append(el("h3",{},"① 무엇으로 찍을까"),
+    el("p",{class:"lede"},"제작 방식을 고르면 광고 이름의 꼬리표가 따라 붙습니다. 누적과 최근을 같이 보세요 — 형식은 유행을 탑니다."));
+  ["제작 방식","형식 묶음","형식 세분(정독)","길이(문장 수)"].forEach(ax=>{
+    const rs=bdAx(ax); if(!rs.length) return;
+    m.append(el("h4",{class:"bdh"},ax));
+    const g=el("div",{class:"bdcards"});
+    rs.forEach(x=>{
+      const mk=bdMark(x), late=x.nL?x.wL/x.nL:null;
+      const hot = late!=null && late-x.rt>=0.12 && x.nL>=3;
+      const on = BD.fmt===x.v;
+      g.append(el("button",{class:"bdcard"+(on?" on":""),
+        onclick:()=>{BD.fmt=on?null:x.v;viewBuild();}},
+        el("div",{class:"bar",style:"margin:0 0 4px"},
+          el("span",{class:"mk "+mk.c},mk.t),
+          hot?el("span",{class:"mk maybe"},"최근 오름"):null),
+        el("b",{class:"bdv"},x.v),
+        el("p",{class:"bdn"},el("b",{},pc(x.rt)),el("span",{class:"dim"},` 누적 ${x.w}/${x.n}편`)),
+        el("p",{class:"bdn"},
+          late==null?el("span",{class:"dim"},"최근 —")
+            :el("span",{class:late>=D.baseL?"g":"b"},`최근 ${pc(late)}`),
+          el("span",{class:"dim"},late==null?"":` ${x.wL}/${x.nL}편`)),
+        x.wn?el("p",{class:"dim sm2"},`이번 주 ${x.wn}편 ROAS ${(x.wroas||0).toFixed(2)}`):null));
+    });
+    m.append(g);
+  });
+  const nm=el("input",{type:"text",placeholder:"소재 이름",value:BD.name,style:"flex:1;min-width:180px"});
+  nm.addEventListener("input",()=>{BD.name=nm.value;
+    const e=$("#bdtag"); if(e)e.textContent=bdTag();});
+  m.append(el("div",{class:"bar",style:"margin-top:14px"},nm,
+    el("span",{class:"dim"},"광고 이름 "),el("b",{id:"bdtag"},bdTag()),
+    el("button",{class:"btn",onclick:()=>{BD.step=2;viewBuild();}},"소구 고르러 →")));
+}
+
+/* ── STEP 2 소구 · 기전 ────────────────────────────────────────────────── */
+function bdStep2(m){
+  m.append(el("h3",{},"② 무엇을 주제로, 왜 그런지"));
+  /* 소구 개수 */
+  const cnt=bdAx("소구 개수");
+  if(cnt.length){
+    const best=cnt[0];
+    m.append(el("div",{class:"note"+(best.lf>0?" ok":"")},
+      el("b",{},"몇 개를 넣을까. "),
+      cnt.map(x=>`${x.v} ${pc(x.rt)}(${x.w}/${x.n}편)`).join(" · "),
+      el("span",{},` — 지금 데이터로는 ${best.v}가 제일 낫습니다.`)));
+  }
+  /* 소구 — 메인/서브 배치까지 */
+  m.append(el("h4",{class:"bdh"},"소구 · 메인으로 열까 서브로 넣을까"),
+    el("p",{class:"dim sm2",style:"margin:-2px 0 6px"},
+      "「메인」은 그 소구로 연 원고(첫 소구), 「서브」는 쓰기는 했는데 첫 소구는 아닌 원고입니다."));
+  const tb=el("div",{class:"lytab"});
+  tb.append(el("div",{class:"bdr lyhd"},
+    el("span",{},"판정"),el("span",{},"소구"),el("span",{},"넣기만 하면"),
+    el("span",{},"메인으로 열면"),el("span",{},"권장"),el("span",{},"메인"),el("span",{},"서브")));
+  bdAx("소구").forEach(x=>{
+    const f=bdRow("첫 소구",x.v);
+    const d=f? f.rt-x.rt : null;
+    const rec = d==null ? "—" : d>=0.10 ? "메인" : d<=-0.10 ? "서브" : "상관없음";
+    const mk=bdMark(x);
+    tb.append(el("div",{class:"bdr"},
+      el("span",{class:"mk "+mk.c},mk.t),
+      el("span",{class:"lyv",title:x.v},x.v),
+      el("span",{class:"lyn"},el("b",{},pc(x.rt)),el("span",{class:"dim"},` ${x.w}/${x.n}편`)),
+      f?el("span",{class:"lyn"},el("b",{class:f.rt>=D.base?"g":"b"},pc(f.rt)),
+         el("span",{class:"dim"},` ${f.w}/${f.n}편`)):el("span",{class:"dim"},"—"),
+      el("span",{class:"mk "+(rec==="메인"?"yes":rec==="서브"?"maybe":"none")},rec),
+      el("button",{class:"lnk ic"+(BD.main===x.v?" on":""),
+        onclick:()=>{BD.main=BD.main===x.v?null:x.v;BD.mech=[];viewBuild();}},
+        BD.main===x.v?"메인✓":"메인"),
+      el("button",{class:"lnk ic"+(BD.subs.includes(x.v)?" on":""),
+        onclick:()=>{const i=BD.subs.indexOf(x.v);
+          if(i>=0)BD.subs.splice(i,1); else BD.subs.push(x.v); viewBuild();}},
+        BD.subs.includes(x.v)?"서브✓":"서브")));
+  });
+  m.append(tb);
+
+  /* 기전 — 고른 소구마다 */
+  const picks=[BD.main,...BD.subs].filter(Boolean);
+  m.append(el("h4",{class:"bdh"},"기전 · 왜 그런지 무엇으로 댈까"));
+  if(!picks.length){ m.append(el("p",{class:"dim"},"위에서 소구를 먼저 고르세요.")); }
+  picks.forEach(sg=>{
+    const brs=h3Branches("소구",sg)||[];
+    const rows=[];
+    brs.forEach(b=>b.vs.forEach(x=>rows.push({...x, br:b.name})));
+    rows.sort((a,b)=>b.rt-a.rt);
+    m.append(el("p",{class:"bdsg"},el("b",{},sg),
+      el("span",{class:"dim"},` — 문제 · 근거 · 방식에서 고릅니다`)));
+    if(!rows.length){ m.append(el("p",{class:"dim sm2"},"이 소구 아래로 갈라 볼 것이 판정에 없습니다.")); return; }
+    const box=el("div",{class:"bdmech"});
+    rows.slice(0,14).forEach(r=>{
+      const mk=bdMark(r), on=BD.mech.some(x=>x.ax===r.ax&&x.v===r.v);
+      const ev=Object.entries(r.ev||{})[0];
+      box.append(el("div",{class:"bdm"+(on?" on":"")+(mk.t==="금지"?" no":"")},
+        el("div",{class:"bar",style:"margin:0"},
+          el("span",{class:"mk "+mk.c},mk.t),
+          el("b",{},r.disp||r.v),
+          el("span",{class:"dim"},` ${r.w}/${r.n}편 ${pc(r.rt)} `),
+          el("span",{class:r.lf>=0?"g":"b"},pp(r.lf)),
+          el("span",{class:"dim"},` · ${r.br}`),
+          el("button",{class:"lnk ic"+(on?" on":""),onclick:()=>{
+            const i=BD.mech.findIndex(x=>x.ax===r.ax&&x.v===r.v);
+            if(i>=0)BD.mech.splice(i,1); else BD.mech.push({ax:r.ax,v:r.v,rt:r.rt,n:r.n,lf:r.lf,sg,ev:r.ev});
+            viewBuild();}}, on?"담음":"담기")),
+        ev?el("p",{class:"wrs"},el("span",{class:"dim"},ev[0]+" "),
+          el("span",{class:"wrq"},`“${ev[1][0]}”`)):null));
+    });
+    m.append(box);
+  });
+  m.append(el("div",{class:"bar",style:"margin-top:12px"},
+    el("button",{class:"btn2",onclick:()=>{BD.step=1;viewBuild();}},"← 형식"),
+    el("button",{class:"btn",onclick:()=>{BD.step=3;viewBuild();}},"후킹 짜러 →")));
+}
+
+/* ── STEP 3 후킹 ───────────────────────────────────────────────────────── */
+function bdStep3(m){
+  m.append(el("h3",{},"③ 어떻게 열까"),
+    el("p",{class:"lede"},
+      "유형을 고르면 그 유형에서 실제로 성공한 문장이 아래에 나옵니다. "+
+      "끝까지 본 비율도 같이 봅니다 — 다만 그게 높다고 잘 팔리는 것은 아닙니다."));
+  const tys=(D.ptab||[]).filter(x=>x.part==="후킹"&&x.tab==="12유형"&&x.n>=4)
+    .sort((a,b)=>b.rt-a.rt);
+  const tb=el("div",{class:"lytab"});
+  tb.append(el("div",{class:"bdh3 lyhd"},
+    el("span",{},"판정"),el("span",{},"후킹 유형"),el("span",{},"성공률"),
+    el("span",{},"기저 대비"),el("span",{title:"ThruPlay ÷ 노출 — 15초 또는 끝까지 본 비율"},"끝까지"),
+    el("span",{},"평균 초"),el("span",{},"")));
+  tys.forEach(x=>{
+    const mk=bdMark({...x, ban:false, split:x.out!=="구분 안 됨"});
+    const v=bdVid(x.ts);
+    tb.append(el("div",{class:"bdh3"+(BD.hook===x.v?" on":"")},
+      el("span",{class:"mk "+mk.c},mk.t),
+      el("span",{class:"lyv",title:x.v},x.v),
+      el("span",{class:"lyn"},el("b",{},pc(x.rt)),el("span",{class:"dim"},` ${x.w}/${x.n}편`)),
+      el("span",{class:"lyd "+(x.lf>=0?"g":"b")},pp(x.lf)),
+      el("span",{class:"lyn dim"},v?pc(v.thru):"—"),
+      el("span",{class:"lyn dim"},v?v.sec.toFixed(1)+"초":"—"),
+      el("button",{class:"lnk ic"+(BD.hook===x.v?" on":""),
+        onclick:()=>{BD.hook=BD.hook===x.v?null:x.v;BD.hookw=[];viewBuild();}},
+        BD.hook===x.v?"고름":"고르기")));
+  });
+  m.append(tb);
+
+  m.append(el("h4",{class:"bdh"},"실제로 성공한 여는 문장"));
+  if(!BD.hook){ m.append(el("p",{class:"dim"},"위에서 유형을 하나 고르세요.")); }
+  else {
+    const ws=(D.ptab||[]).filter(x=>x.part==="후킹"&&x.tab==="워딩"&&x.g===BD.hook&&x.n>=3)
+      .sort((a,b)=>b.rt-a.rt);
+    if(!ws.length) m.append(el("p",{class:"dim"},"이 유형 아래로 나뉜 워딩이 판정에 없습니다."));
+    ws.forEach(r=>{
+      const mk=bdMark({...r, ban:false, split:r.out!=="구분 안 됨"});
+      const box=el("div",{class:"bdw"});
+      box.append(el("div",{class:"bar",style:"margin:0"},
+        el("span",{class:"mk "+mk.c},mk.t),
+        el("b",{},r.v),
+        el("span",{class:"dim"},` ${r.w}/${r.n}편 ${pc(r.rt)} `),
+        el("span",{class:r.lf>=0?"g":"b"},pp(r.lf))));
+      Object.entries(r.ev||{}).slice(0,3).forEach(([t,lines])=>{
+        const ok=DR[t]&&DR[t].st==="성공";
+        box.append(el("p",{class:"wrs"},
+          el("button",{class:"lnk "+(ok?"g":"b"),onclick:()=>{BD.read=t;viewBuild();}},t),
+          el("span",{class:"wrq"},` “${lines[0]}”`),
+          el("button",{class:"lnk ic",style:"margin-left:6px",onclick:()=>{
+            BD.text.후킹=(BD.text.후킹?BD.text.후킹+"\\n":"")+lines[0];
+            BD.hookw.push(r.v); BD.step=4; viewBuild();}},"에디터로")));
+      });
+      m.append(box);
+    });
+  }
+  if(BD.read){
+    const d=DR[BD.read];
+    m.append(el("div",{class:"card"},
+      el("div",{class:"bar",style:"margin:0 0 4px"},
+        el("h3",{style:"margin:0"},BD.read),
+        el("span",{class:"pill "+(d&&d.st==="성공"?"p-ok":"p-no")},d?d.st:""),
+        el("span",{class:"dim"},d?` ROAS ${(d.r||0).toFixed(2)} · ${man(d.sp)}`:""),
+        el("button",{class:"lnk",onclick:()=>{BD.read=null;viewBuild();}},"닫기")),
+      ...((d&&d.body)||["본문이 없습니다."]).map(x=>el("p",{class:"nxq"},x))));
+  }
+  m.append(el("div",{class:"bar",style:"margin-top:12px"},
+    el("button",{class:"btn2",onclick:()=>{BD.step=2;viewBuild();}},"← 소구"),
+    el("button",{class:"btn",onclick:()=>{BD.step=4;viewBuild();}},"쓰러 가기 →")));
+}
+
+/* ── STEP 4 쓰기 ───────────────────────────────────────────────────────── */
+function bdStep4(m){
+  m.append(el("h3",{},"④ 쓰면서 바로 본다"));
+  const two=el("div",{class:"two bd2"}),L=el("div"),R=el("div");two.append(L,R);m.append(two);
+
+  ["제목","후킹","본문","CTA"].forEach(k=>{
+    const ta=el("textarea",{rows:k==="본문"?12:3,placeholder:k,
+      style:"width:100%;font:inherit;font-size:13px;line-height:1.7"});
+    ta.value=BD.text[k]||"";
+    ta.addEventListener("input",()=>{BD.text[k]=ta.value;bdAudit();});
+    L.append(el("p",{class:"bdlab"},k),ta);
+  });
+  L.append(el("div",{class:"bar",style:"margin-top:8px"},
+    el("button",{class:"btn",onclick:()=>{
+      DFT={name:BD.name, items:[], hyp:null,
+           picks:[...(BD.main?[{ax:"소구",v:BD.main}]:[]),
+                  ...BD.subs.map(v=>({ax:"소구",v})),
+                  ...BD.mech.map(x=>({ax:x.ax,v:x.v})),
+                  ...(BD.hook?[{ax:"훅 유형",v:BD.hook}]:[])],
+           body:["제목","후킹","본문","CTA"].map(k=>BD.text[k]).filter(Boolean).join("\\n")};
+      go("draft");}},"원고 검증으로 넘기기 →"),
+    el("button",{class:"btn2",onclick:()=>{
+      const t=["제목","후킹","본문","CTA"].map(k=>BD.text[k]).filter(Boolean).join("\\n");
+      navigator.clipboard && navigator.clipboard.writeText(t);}},"전체 복사")));
+
+  R.append(el("div",{id:"bdaudit"}));
+  bdAudit();
+}
+
+/* 실시간 처방전 — 고른 조건과 쓴 글을 견준다 */
+function bdAudit(){
+  const host=$("#bdaudit"); if(!host) return;
+  host.innerHTML="";
+  const body=["제목","후킹","본문","CTA"].map(k=>BD.text[k]).join("\n");
+  const has=s=>body.indexOf(s)>=0;
+
+  host.append(el("h4",{class:"bdh"},"지금 상태"));
+  const chk=(ok,txt,why)=>el("p",{class:"bdchk"},
+    el("span",{class:"mk "+(ok?"yes":"none")},ok?"됨":"아직"),
+    el("span",{},txt), why?el("span",{class:"dim"}," — "+why):null);
+
+  host.append(chk(!!BD.fmt,"형식", BD.fmt||"안 정함"));
+  host.append(chk(!!BD.main,"메인 소구", BD.main||"안 정함"));
+  host.append(chk(BD.mech.length>0,`기전 ${BD.mech.length}개`,
+    BD.mech.map(x=>x.v).join(" · ")||"안 정함"));
+  host.append(chk(!!BD.hook,"후킹 유형", BD.hook||"안 정함"));
+  host.append(chk(!!(BD.text.제목||"").trim(),"제목"));
+  host.append(chk(!!(BD.text.후킹||"").trim(),"후킹 문장"));
+  host.append(chk(!!(BD.text.본문||"").trim(),"본문"));
+  host.append(chk(!!(BD.text.CTA||"").trim(),"CTA"));
+
+  /* 금지 — 고른 것 중 판정이 금지인 것 */
+  const bans=[...BD.mech].filter(x=>{
+    const r=D.vals.find(y=>y.ax===x.ax&&y.v===x.v);
+    return r && ((r.n>=5&&r.w===0)||(r.split&&r.n>=5&&r.lf<=-0.15));});
+  if(bans.length) host.append(el("div",{class:"note wa"},
+    el("b",{},"금지로 판정된 것을 골랐습니다. "),
+    bans.map(x=>`「${x.v}」`).join(" · ")));
+
+  /* 놓친 것 — 고른 소구에서 추천인데 안 담은 기전 */
+  const miss=[];
+  [BD.main,...BD.subs].filter(Boolean).forEach(sg=>{
+    (h3Branches("소구",sg)||[]).forEach(b=>b.vs.forEach(r=>{
+      if(!(r.split && r.n>=5 && r.lf>=0.15)) return;
+      if(BD.mech.some(x=>x.ax===r.ax&&x.v===r.v)) return;
+      miss.push({sg, ...r});
+    }));
+  });
+  miss.sort((a,b)=>b.lf-a.lf);
+  if(miss.length) host.append(el("div",{class:"note"},
+    el("b",{},`안 담았지만 추천인 기전 ${miss.length}개. `),
+    ...miss.slice(0,3).map((r,i)=>el("span",{},(i?" · ":""),
+      el("button",{class:"lnk",onclick:()=>{
+        BD.mech.push({ax:r.ax,v:r.v,rt:r.rt,n:r.n,lf:r.lf,sg:r.sg,ev:r.ev});viewBuild();}},
+        `${r.v} ${pc(r.rt)}`)))));
+
+  /* 담은 것의 성적 */
+  const picks=[...(BD.main?[bdRow("소구",BD.main)]:[]),
+               ...BD.subs.map(v=>bdRow("소구",v)),
+               ...BD.mech,
+               ...(BD.hook?[(D.ptab||[]).find(x=>x.part==="후킹"&&x.tab==="12유형"&&x.v===BD.hook)]:[])]
+              .filter(Boolean);
+  if(picks.length){
+    host.append(el("h4",{class:"bdh"},"고른 것의 성적"));
+    const tb=el("div",{class:"lytab"});
+    picks.forEach(x=>tb.append(el("div",{class:"bdp"},
+      el("span",{class:"lyv",title:x.v},x.v),
+      el("span",{class:"lyn"},el("b",{},pc(x.rt)),el("span",{class:"dim"},` ${x.w||0}/${x.n}편`)),
+      el("span",{class:"lyd "+((x.lf||0)>=0?"g":"b")},pp(x.lf||0)))));
+    host.append(tb);
+    const avg=picks.reduce((s,x)=>s+x.rt,0)/picks.length;
+    host.append(el("p",{class:"dim",style:"margin-top:6px"},
+      `고른 ${picks.length}개의 성공률 평균 ${pc(avg)} · 기저 ${pc(D.base)}. `+
+      `칸을 다 지킨 원고의 성적이 아니라 칸마다의 기록입니다 — 더할 수 있는 숫자가 아닙니다.`));
+  }
+}
+/* ─── 문장 뱅크 ────────────────────────────────────────────────────────────
+   쓰다가 막혔을 때 「성공한 원고가 여기서 실제로 뭐라고 썼나」를 바로 찾는 자리.
+
+   판정이 문장까지 들고 있다(part_tab의 ev). 후킹 · 본문 · CTA 어디든 값을 좁혀
+   가면 그 값을 쓴 원고의 실제 문장이 나오고, 누르면 복사된다.
+
+   기본은 성공작만 본다. 실패작 문장도 볼 수 있게 두되 꺼 둔다 — 베끼려고 여는
+   자리라 실패작이 섞이면 잘못 가져간다. */
+let BK = {part:"후킹", g:"", q:"", win:true, sort:"rt", copied:null};
+
+const BK_PARTS = ["후킹","본문","CTA"];
+/* 후킹에는 분류가 둘이다 — 문서의 「후킹 소분류」(g 없음)와 워딩이 달린
+   「12유형」(g 있음). 섞어 놓으면 같은 줄에 두 분류가 나와 헷갈린다.
+   BK.g가 「(소분류)」면 g 없는 것만 본다. */
+const BK_TOP = "(소분류)";
+const bkRows = () => (D.ptab||[]).filter(r=>r.part===BK.part &&
+  (!BK.g ? true : BK.g===BK_TOP ? !r.g : r.g===BK.g));
+
+function bkCopy(txt, el2){
+  try{ navigator.clipboard && navigator.clipboard.writeText(txt); }catch(e){}
+  BK.copied=txt;
+  if(el2){ el2.textContent="복사됨"; setTimeout(()=>{el2.textContent="복사";},1200); }
+}
+
+function viewBank(){
+  const m=$("#main");m.innerHTML="";
+  m.append(el("p",{class:"eyebrow"},"아카이브"),el("h2",{},"문장 뱅크"),
+    el("p",{class:"lede"},
+      "성공한 원고가 실제로 쓴 문장입니다. 판정이 값마다 문장을 들고 있어서, 후킹·본문·CTA "+
+      "어디든 좁혀 가면 그 값을 쓴 원고의 문장이 그대로 나옵니다. 문장을 누르면 복사됩니다."));
+
+  /* 부분 고르기 */
+  const seg=el("div",{class:"cseg"});
+  BK_PARTS.forEach(k=>seg.append(el("button",{class:"csb"+(BK.part===k?" on":""),
+    onclick:()=>{BK.part=k;BK.g="";viewBank();}},k)));
+  const q=el("input",{type:"search",placeholder:"문장·값 검색",value:BK.q,style:"min-width:190px"});
+  q.addEventListener("input",()=>{BK.q=q.value;bkDraw();});
+  const wn=el("button",{class:"btn2",onclick:()=>{BK.win=!BK.win;viewBank();}},
+    BK.win?"성공작만":"실패작도");
+  m.append(el("div",{class:"bar",style:"justify-content:space-between"},seg,
+    el("div",{class:"bar",style:"margin:0"},q,wn)));
+
+  /* 갈래 좁히기 — 그 부분 안의 상위 값 */
+  const gs=[...new Set((D.ptab||[]).filter(r=>r.part===BK.part&&r.g).map(r=>r.g))];
+  const cnt={}; (D.ptab||[]).forEach(r=>{ if(r.part===BK.part&&r.g) cnt[r.g]=(cnt[r.g]||0)+1; });
+  gs.sort((a,b)=>(cnt[b]||0)-(cnt[a]||0));
+  const chips=el("div",{class:"cmet"});
+  chips.append(el("button",{class:"cmb"+(BK.g?"":" on"),onclick:()=>{BK.g="";viewBank();}},"전체"));
+  const nTop=(D.ptab||[]).filter(r=>r.part===BK.part&&!r.g).length;
+  if(nTop) chips.append(el("button",{class:"cmb"+(BK.g===BK_TOP?" on":""),
+    title:BK.part==="후킹"?"문서의 「후킹 유형」 — 아래 칩(12유형)과는 다른 분류입니다":"",
+    onclick:()=>{BK.g=BK.g===BK_TOP?"":BK_TOP;viewBank();}},
+    BK.part==="후킹"?"후킹 소분류":BK.part==="CTA"?"CTA 갈래":"소구", el("span",{class:"dim"},` ${nTop}`)));
+  gs.forEach((g,i)=>chips.append(el("button",{class:"cmb"+(BK.g===g?" on":""),
+    style:`--mc:${sgColor(i)}`,onclick:()=>{BK.g=BK.g===g?"":g;viewBank();}},
+    g, el("span",{class:"dim"},` ${cnt[g]}`))));
+  m.append(el("p",{class:"dim",style:"margin:12px 0 4px"},
+    BK.part==="후킹"?"후킹은 분류가 둘입니다 — 「후킹 소분류」와 워딩이 달린 「12유형」"
+      :BK.part==="본문"?"소구":"CTA 갈래"),chips);
+
+  m.append(el("div",{id:"bkCount",class:"dim",style:"margin:10px 0 0"}),el("div",{id:"bkList"}));
+  bkDraw();
+}
+
+function bkDraw(){
+  const host=$("#bkList"); if(!host) return;
+  host.innerHTML="";
+  const s=BK.q.trim();
+  let rows=bkRows().filter(r=>r.n>=3);
+  const out=[];
+  rows.forEach(r=>{
+    Object.entries(r.ev||{}).forEach(([t,lines])=>{
+      const d=DR[t]; const ok=d&&d.st==="성공";
+      if(BK.win && !ok) return;
+      (lines||[]).forEach(ln=>{
+        if(s && (ln+" "+r.v+" "+t).indexOf(s)<0) return;
+        out.push({r, t, ln, ok, roas:(d&&d.r)||0, sp:(d&&d.sp)||0});
+      });
+    });
+  });
+  /* 같은 문장이 여러 값에 걸린다 — 한 번만 */
+  const seen=new Set(), uniq=[];
+  out.forEach(x=>{const k=x.t+" "+x.ln; if(seen.has(k))return; seen.add(k); uniq.push(x);});
+  uniq.sort((a,b)=>(b.r.rt-a.r.rt)||(b.roas-a.roas));
+  $("#bkCount").textContent =
+    `문장 ${uniq.length}개 · ${BK.win?"성공작만":"성공·실패 모두"}${BK.g?` · ${BK.g}`:""}` +
+    ` — 값 성공률 높은 순. 아래는 ${Math.min(uniq.length,120)}개까지 폅니다`;
+  if(!uniq.length){ host.append(el("p",{class:"dim"},"걸린 문장이 없습니다.")); return; }
+
+  let last=null;
+  uniq.slice(0,120).forEach(x=>{
+    const key=x.r.g+"｜"+x.r.tab+"｜"+x.r.v;
+    if(key!==last){
+      last=key;
+      const mk=wrMark({...x.r, ban:false, split:x.r.out!=="구분 안 됨"});
+      host.append(el("div",{class:"bkh"},
+        el("span",{class:"mk "+mk.c},mk.t),
+        x.r.g?el("span",{class:"dim"},x.r.g+" · "):null,
+        el("span",{class:"dim"},x.r.tab+" · "),
+        el("b",{},x.r.v),
+        el("span",{class:"dim"},` ${x.r.w}/${x.r.n}편 ${pc(x.r.rt)} `),
+        el("span",{class:x.r.lf>=0?"g":"b"},pp(x.r.lf))));
+    }
+    const cp=el("button",{class:"lnk ic"},"복사");
+    cp.addEventListener("click",()=>bkCopy(x.ln,cp));
+    host.append(el("div",{class:"bkl"},
+      el("button",{class:"lnk "+(x.ok?"g":"b"),title:`ROAS ${x.roas.toFixed(2)} · ${man(x.sp)}`,
+        onclick:()=>{WR.read=x.t;go("write");}},x.t),
+      el("span",{class:"bkq",onclick:()=>bkCopy(x.ln,cp)},`“${x.ln}”`),
+      cp));
+  });
+}
+/* ─── 소구 한 장 ───────────────────────────────────────────────────────────
+   「이 소구가 지금 잘되고 있나」와 「그 안에서 어떤 근거·기전이 잘되고 있나」를
+   한 화면에서 본다.
+
+   여태 두 시제가 따로 놀았다. 판정 성공률은 14일 창이 닫힌 누적이고, ROAS는
+   지금 도는 돈이다. 같은 화면에 있어도 이어지지 않아 「지금 되고 있나」에
+   답이 안 됐다. 여기서는 값마다 둘을 나란히 놓는다.
+
+     누적   성공률 — 판정이 닫힌 원고만. 무엇이 통했나
+     지금   ROAS  — 이번 주·최근 4주. 판정 밖 소재까지 다 센다
+
+   시간축은 값을 가리지 않는다. 「그 값을 쓴 원고」만 있으면 소구든 기전이든
+   워딩이든 같은 셈이라, 소재별 주간 성적(dwk)을 원고 목록으로 접기만 하면 된다. */
+let DP = {v:null, grain:"주", met:"roas", open:null};
+
+/* 원고 목록 → 시간축 */
+function dpSeries(ts, grain){
+  const src = grain==="일" ? (D.ddy||{}) : (D.dwk||{});
+  const keys = grain==="일" ? (D.dys||[]) : (D.wks||[]);
+  const acc = {};
+  (ts||[]).forEach(t=>{
+    const by=src[t]; if(!by) return;
+    for(const k in by){ const a=acc[k]=acc[k]||[0,0,0,0];
+      a[0]+=by[k][0]; a[1]+=by[k][1]; a[2]+=by[k][2]; a[3]++; }
+  });
+  const floor = grain==="일" ? 30000 : 100000;
+  return keys.filter(k=>acc[k]&&acc[k][0]>=floor)
+    .map(k=>({k:k.slice(5), sp:acc[k][0], nt:acc[k][1], od:acc[k][2], d:acc[k][3]}));
+}
+/* 지출이 이만큼은 돼야 ROAS를 숫자로 내민다. 8만원에 2.16이 나와도 신호가
+   아니라 튄 것이다 — 다른 화면과 같은 문턱을 쓴다. */
+const DP_FLOOR = 300000;
+/* 최근 n주 합 */
+function dpRecent(ts, n){
+  const wk=(D.wks||[]).slice(-n), src=D.dwk||{};
+  let sp=0,nt=0,od=0; const ds=new Set();
+  (ts||[]).forEach(t=>{ const by=src[t]; if(!by)return;
+    wk.forEach(k=>{ if(!by[k])return; sp+=by[k][0]; nt+=by[k][1]; od+=by[k][2]; ds.add(t); }); });
+  return sp ? {sp, nt, od, roas:nt/sp, cpa:od?sp/od:null, d:ds.size} : null;
+}
+const dpNum = o => o ? `ROAS ${o.roas.toFixed(2)} · ${man(o.sp)} · ${o.d}편` : "돈이 안 갔습니다";
+
+function viewDeep(){
+  const m=$("#main");m.innerHTML="";
+  const sgs=D.vals.filter(x=>x.ax==="소구"&&x.n>=8).sort((a,b)=>b.n-a.n);
+  if(!DP.v && sgs.length) DP.v=sgs[0].v;
+  m.append(el("p",{class:"eyebrow"},"트렌드와 가설"),el("h2",{},"소구"),
+    el("p",{class:"lede"},
+      "소구 하나에 세 가지를 묻습니다 — ① 지금 쓸 것인가 ② 메인으로 열까 서브로 넣을까 "+
+      "③ 그 안에서 무엇으로 밀까. 답이 나오면 아래에서 바로 원고를 쓰러 갑니다."));
+
+  const bar=el("div",{class:"lypick"});
+  sgs.forEach(x=>{
+    const r=dpRecent(x.ts||dpTs("소구",x.v),4);
+    bar.append(el("button",{class:"qb"+(DP.v===x.v?" on":""),
+      onclick:()=>{DP.v=x.v;DP.open=null;viewDeep();}},
+      el("b",{},x.v),
+      el("span",{class:x.rt>=D.base?"g":"b"},` ${pc(x.rt)}`),
+      el("span",{class:"dim"},r?` · ${r.roas.toFixed(2)}`:" · —")));
+  });
+  m.append(bar);
+
+  const S=DP.v; if(!S){m.append(el("p",{class:"dim"},"셀 만한 소구가 없습니다."));return;}
+  const A=D.vals.find(x=>x.ax==="소구"&&x.v===S);
+  const ts=dpTs("소구",S);
+
+  /* 머리 — 누적과 지금 */
+  const r4=dpRecent(ts,4), r1=dpRecent(ts,1), r12=dpRecent(ts,12);
+  m.append(el("div",{class:"dpsum"},
+    el("div",{},el("p",{class:"dpk"},"누적 성공률"),
+      el("p",{class:"dpv "+(A.lf>=0?"g":"b")},pc(A.rt)),
+      el("p",{class:"dim sm2"},`${A.w}/${A.n}편 · 기저 ${pc(D.base)}보다 ${pp(A.lf)}`)),
+    el("div",{},el("p",{class:"dpk"},"이번 주"),
+      el("p",{class:"dpv "+(r1&&r1.sp>=DP_FLOOR?(r1.roas>=D.cut?"g":"b"):"dim")},
+        !r1?"—":r1.sp<DP_FLOOR?"적음":r1.roas.toFixed(2)),
+      el("p",{class:"dim sm2"},r1?`${man(r1.sp)} · ${r1.d}편`+(r1.sp<DP_FLOOR?` · ${man(DP_FLOOR)}이 안 돼 숫자가 튑니다`:""):"돈이 안 갔습니다")),
+    el("div",{},el("p",{class:"dpk"},"최근 4주"),
+      el("p",{class:"dpv "+(r4&&r4.roas>=D.cut?"g":"b")},r4?r4.roas.toFixed(2):"—"),
+      el("p",{class:"dim sm2"},r4?`${man(r4.sp)} · ${r4.d}편`:"—")),
+    el("div",{},el("p",{class:"dpk"},"최근 12주"),
+      el("p",{class:"dpv "+(r12&&r12.roas>=D.cut?"g":"b")},r12?r12.roas.toFixed(2):"—"),
+      el("p",{class:"dim sm2"},r12?`${man(r12.sp)} · ${r12.d}편`:"—"))));
+  m.append(el("p",{class:"lysay"},dpSay(A, r4, r12)));
+  /* 가설 셋의 결론 한 줄 — 「어디서 갈리나」가 하던 말을 여기로 가져온다 */
+  const H=hyp3("소구",S);
+  if(H) m.append(el("p",{class:"h3up"},
+    el("b",{},"어디까지 정해서 써야 하나 — "),H.upto,
+    el("button",{class:"lnk ic",style:"margin-left:8px",
+      onclick:()=>lyGo("소구",S)},"가설 셋 보기 →")));
+
+  /* ② 메인으로 열까 서브로 넣을까 */
+  const F=D.vals.find(x=>x.ax==="첫 소구"&&x.v===S);
+  if(F && F.n>=4){
+    const d=F.rt-A.rt;
+    m.append(el("div",{class:"note"+(d>=0.10?" ok":"")},
+      el("b",{},"메인으로 열까 서브로 넣을까. "),
+      `넣기만 하면 ${pc(A.rt)}(${A.w}/${A.n}편) · 첫 소구로 열면 ${pc(F.rt)}(${F.w}/${F.n}편) — `,
+      el("b",{class:d>=0?"g":"b"},pp(d)),
+      el("span",{},d>=0.10?" 메인으로 여세요."
+        :d<=-0.10?" 서브로 끼워 넣으세요 — 열면 오히려 떨어집니다."
+        :" 어느 쪽이든 비슷합니다.")));
+  } else {
+    m.append(el("div",{class:"note"},
+      el("b",{},"메인으로 연 원고가 "),`${F?F.n:0}편뿐이라 메인·서브를 견줄 수 없습니다. `,
+      "지금은 서브로만 쓰이고 있다는 뜻이기도 합니다."));
+  }
+
+  /* 그림 */
+  const gseg=el("div",{class:"cseg"});
+  [["주","주별 16주"],["일","일별 14일"]].forEach(([k,t])=>
+    gseg.append(el("button",{class:"csb"+(DP.grain===k?" on":""),
+      onclick:()=>{DP.grain=k;viewDeep();}},t)));
+  const mseg=el("div",{class:"cseg"});
+  [["roas","직접 ROAS"],["sp","지출"],["cpa","직접 CPA"],["od","주문"]].forEach(([k,t])=>
+    mseg.append(el("button",{class:"csb"+(DP.met===k?" on":""),
+      onclick:()=>{DP.met=k;viewDeep();}},t)));
+  m.append(el("div",{class:"bar",style:"justify-content:space-between;margin-top:14px"},gseg,mseg));
+  m.append(multiChart([{name:S, color:"#4f7fff", pts:dpSeries(ts,DP.grain)}], DP.met));
+
+  /* 갈래마다 — 누적과 지금을 나란히 */
+  m.append(el("h3",{},"그 안에서 무엇이 되고 있나"),
+    el("p",{class:"dim sm2",style:"margin:-4px 0 6px"},
+      "성공률은 판정이 닫힌 원고, ROAS는 최근 4주에 돈이 간 원고입니다. 편수가 다를 수 있습니다."));
+  const brs=h3Branches("소구",S)||[];
+  if(!brs.length) m.append(el("p",{class:"dim"},"이 소구 아래로 갈라 볼 것이 판정에 없습니다."));
+  else {
+    /* 갈래에 최근 돈이 얼마나 갔나 — 대부분 비어 있으면 그 사실부터 말한다.
+       갈래는 판정이 닫힌(=오래된) 원고에만 붙어 있고, 지금 도는 소재는 아직
+       판정 밖이라 「최근 4주」 칸이 비는 것이 정상이다. 빈 칸을 조용히 두면
+       「요즘 안 된다」로 잘못 읽힌다. */
+    const all=brs.flatMap(b=>b.vs);
+    const live=all.filter(r=>dpRecent(r.ts,4));
+    m.append(el("div",{class:"note"+(live.length?"":" wa")},
+      el("b",{},`갈래 ${all.length}개 중 최근 4주에 돈이 간 것은 ${live.length}개. `),
+      live.length
+        ? `나머지는 그 값을 쓴 원고가 요즘 안 돌아서 「—」입니다 — 안 되는 것이 아니라 안 쓴 것입니다.`
+        : `이 소구는 요즘 돈이 안 갑니다. 아래 성공률은 지난 기록입니다.`));
+  }
+  brs.forEach(b=>{
+    m.append(el("p",{class:"bdsg"},el("b",{},b.name),
+      el("span",{class:"dim"},` — ${b.vs.length}개`)));
+    const tb=el("div",{class:"lytab"});
+    tb.append(el("div",{class:"dpr lyhd"},
+      el("span",{},"판정"),el("span",{},"어떻게 썼나"),
+      el("span",{title:"판정이 닫힌 원고의 성공률"},"누적 성공률"),
+      el("span",{},"기저 대비"),
+      el("span",{title:"최근 4주에 그 값을 쓴 원고의 직접 ROAS"},"최근 4주"),
+      el("span",{},"지출"),el("span",{},"")));
+    b.vs.slice().sort((x,y)=>y.rt-x.rt).forEach(r=>{
+      const mk=wrMark({...r, ban:false});
+      const rr=dpRecent(r.ts,4);
+      const on=DP.open===r.ax+"｜"+r.v;
+      tb.append(el("div",{class:"dpr"+(on?" on":"")},
+        el("span",{class:"mk "+mk.c},mk.t),
+        el("span",{class:"lyv",title:r.v},r.disp||r.v),
+        el("span",{class:"lyn"},el("b",{},pc(r.rt)),el("span",{class:"dim"},` ${r.w}/${r.n}편`)),
+        el("span",{class:"lyd "+(r.lf>=0?"g":"b")},pp(r.lf)),
+        el("span",{class:"lyn",title:rr?`최근 4주 지출 ${man(rr.sp)}`:""},
+          !rr ? el("span",{class:"dim"},"—")
+          : rr.sp < DP_FLOOR ? el("span",{class:"dim"},"적음")
+          : el("b",{class:rr.roas>=D.cut?"g":"b"},rr.roas.toFixed(2)),
+          el("span",{class:"dim"},rr?` ${rr.d}편`:"")),
+        el("span",{class:"lyn dim"},rr?man(rr.sp):"—"),
+        el("button",{class:"lnk ic",onclick:()=>{
+          DP.open=on?null:r.ax+"｜"+r.v; viewDeep();}}, on?"접기":"펴기")));
+      if(on){
+        const in2=el("div",{class:"h3in"});
+        const pts=dpSeries(r.ts,DP.grain);
+        if(pts.length) in2.append(multiChart([{name:r.v, color:"#22c55e", pts}], DP.met));
+        else in2.append(el("p",{class:"dim sm2"},"최근에 이 값으로 돈이 간 소재가 없습니다."));
+        Object.entries(r.ev||{}).slice(0,3).forEach(([t,lines])=>{
+          const ok=DR[t]&&DR[t].st==="성공";
+          in2.append(el("p",{class:"wrs"},
+            el("button",{class:"lnk "+(ok?"g":"b"),onclick:()=>openDraft(t)},t),
+            el("span",{class:"wrq"},` “${lines[0]}”`)));
+        });
+        tb.append(in2);
+      }
+    });
+    m.append(tb);
+  });
+
+  /* ③ 그래서 할 일 */
+  const use=brs.flatMap(b=>b.vs).filter(r=>r.split&&r.n>=5&&r.lf>=0.15)
+    .sort((a,b)=>b.lf-a.lf).slice(0,3);
+  const cut=brs.flatMap(b=>b.vs).filter(r=>(r.n>=5&&r.w===0)).slice(0,3);
+  const box=el("div",{class:"todo"});
+  box.append(el("p",{class:"todoh"},el("b",{},`${S} — 그래서 쓴다면`)));
+  if(use.length) box.append(el("p",{class:"todor"},
+    el("span",{class:"mk yes"},"넣을 것"), " ",
+    ...use.map((r,i)=>el("span",{},(i?" · ":""),
+      el("b",{},r.disp||r.v), el("span",{class:"dim"},` ${pc(r.rt)}`)))));
+  if(cut.length) box.append(el("p",{class:"todor"},
+    el("span",{class:"mk no"},"뺄 것"), " ",
+    ...cut.map((r,i)=>el("span",{},(i?" · ":""),
+      el("b",{},r.disp||r.v), el("span",{class:"dim"},` ${r.n}편 다 실패`)))));
+  box.append(el("div",{class:"bar",style:"margin:8px 0 0"},
+    el("button",{class:"btn",onclick:()=>{
+      BD.main=S; BD.mech=use.map(r=>({ax:r.ax,v:r.v,rt:r.rt,n:r.n,lf:r.lf,sg:S,ev:r.ev}));
+      BD.step=2; go("build");}},`${S}로 원고 쓰기 →`),
+    el("button",{class:"btn2",onclick:()=>{
+      if(!PICK.some(p=>p.ax==="소구"&&p.v===S))
+        PICK.push({ax:"소구",v:S,rt:A.rt,n:A.n,lf:A.lf,ban:A.lf<0});
+      use.forEach(r=>{ if(!PICK.some(p=>p.ax===r.ax&&p.v===r.v))
+        PICK.push({ax:r.ax,v:r.v,rt:r.rt,n:r.n,lf:r.lf,ban:false}); });
+      go("idea");}},`가설로 담기 (${1+use.length}개)`),
+    el("button",{class:"btn2",onclick:()=>{SG.side="전체";SG.sel={};go("sogu");}},"시간으로 더 보기 →")));
+  m.append(box);
+}
+
+/* 그 값을 쓴 원고 — 판정 rows에서 */
+function dpTs(ax,v){
+  const j=(D.jcod||{});
+  const out=[];
+  for(const t in j){ if((j[t][ax]||[]).includes(v)) out.push(t); }
+  return out;
+}
+
+/* 한 줄 해설 — 누적과 지금이 어긋나면 그것부터 말한다 */
+function dpSay(A, r4, r12){
+  const up = A.lf>=0.10, dn = A.lf<=-0.10;
+  if(!r4) return `${eun(A.v)} 최근 4주에 돈이 안 갔습니다. 누적으로는 ${pc(A.rt)}(기저 ${pp(A.lf)})입니다.`;
+  if(r4.sp < DP_FLOOR) return `${eun(A.v)} 최근 4주 지출이 ${man(r4.sp)}뿐이라 ROAS를 믿을 수 없습니다. 누적으로는 ${pc(A.rt)}(기저 ${pp(A.lf)})입니다.`;
+  const good = r4.roas>=D.cut;
+  const trend = r12 ? (r4.roas-r12.roas) : 0;
+  const t2 = r12 ? (trend>=0.15?` 12주 평균 ${r12.roas.toFixed(2)}에서 올라왔습니다.`
+                  : trend<=-0.15?` 12주 평균 ${r12.roas.toFixed(2)}에서 내려왔습니다.` : "") : "";
+  if(up && good)  return `누적으로도 되고(${pc(A.rt)}, 기저 ${pp(A.lf)}) 지금도 돌고 있습니다(최근 4주 ROAS ${r4.roas.toFixed(2)}).${t2}`;
+  if(up && !good) return `누적으로는 되는데(${pc(A.rt)}, 기저 ${pp(A.lf)}) 지금은 안 돌고 있습니다(최근 4주 ROAS ${r4.roas.toFixed(2)}, 컷 ${D.cut}).${t2} 아래 갈래에서 무엇이 죽었는지 보세요.`;
+  if(dn && good)  return `누적으로는 기저 아래인데(${pc(A.rt)}, ${pp(A.lf)}) 지금은 돌고 있습니다(최근 4주 ROAS ${r4.roas.toFixed(2)}).${t2} 아래에서 무엇이 살렸는지 보세요.`;
+  if(dn && !good) return `누적도 기저 아래고(${pc(A.rt)}, ${pp(A.lf)}) 지금도 안 돕니다(최근 4주 ROAS ${r4.roas.toFixed(2)}).${t2}`;
+  return `누적은 기저와 비슷하고(${pc(A.rt)}, ${pp(A.lf)}) 최근 4주 ROAS는 ${r4.roas.toFixed(2)}입니다.${t2} 소구 이름만으로는 갈리지 않으니 아래 갈래를 보세요.`;
+}
+function viewHome(){
+  const m=$("#main");m.innerHTML="";
+  const T=D.today,W=D.week,C=D.cum;
+  m.append(el("p",{class:"eyebrow"},"라이브 모니터 · 베이스튠"),
+    el("div",{class:"bar",style:"justify-content:space-between;align-items:baseline"},
+      el("h2",{style:"margin:0"},"성과"),
+      el("div",{class:"bar",style:"margin:0"},
+        el("span",{class:"dim"},`데이터 ${D.asof}까지 · 이번 주 ${D.wk0}~${D.asof}`),
+        el("span",{class:"dim",id:"liveNow"},""),
+        el("button",{class:"btn",id:"refBtn",onclick:doRefresh},"새로고침"))));
+  pollLive();
+  m.append(el("p",{class:"lede"},
+    `라이브 소재 ${D.live.length}편의 이번 주 숫자입니다. ${D.metric}.`));
+
+  /* 소재에서 볼 것은 직접 ROAS와 직접 CPA다.
+     직접 CPA = 메타 지출 ÷ 카페24 귀속 주문수. 주문이 0이면 셈이 안 된다. */
+  const cpa=o=>o.od?Math.round(o.sp/o.od):null;
+  const won=n=>n==null?"—":n>=10000?`${(n/10000).toFixed(1)}만`:`${n.toLocaleString()}`;
+  /* 어제와 견준다. 오늘은 아직 안 끝났고 매출이 소재에 붙는 데 시간이 걸려
+     낮게 보인다 — 그래서 「어제 이 시각」이 아니라 어제 하루 전체와 견주고,
+     그 사실을 옆에 적는다. */
+  const dlt=(a,b2,fmt,pl)=>{
+    if(b2==null||!isFinite(b2)||!b2) return null;
+    const d=a-b2, up=d>=0;
+    if(Math.abs(d)/Math.abs(b2)<0.03) return el("span",{class:"dim kd"},`→ ${pl}과 비슷`);
+    return el("span",{class:"kd "+(up?"g":"b")},
+      (up?"▲":"▼")+" "+fmt(Math.abs(d))+` ${pl}보다`);
+  };
+  const kpi=(lab,o,prev,pl)=>el("div",{},
+    el("b",{},man(o.sp)),el("span",{},lab+" 지출"),
+    el("i",{class:"kpi2"},`직접 ROAS ${o.roas.toFixed(2)} · 직접 CPA ${won(cpa(o))}원 · 주문 ${o.od} · 매출 ${man(o.nt)}`),
+    prev?el("i",{class:"kpi2"},
+      el("span",{class:"dim"},pl+" ROAS "+prev.roas.toFixed(2)+" "),
+      dlt(o.roas,prev.roas,v=>v.toFixed(2),pl)):null);
+  m.append(el("div",{class:"kpi kpi3"},
+    kpi("오늘",T,D.yday,"어제"),kpi("이번 주",W,D.prev7,"앞 7일"),kpi("누적",C)));
+  m.append(el("p",{class:"dim",id:"kpiToday",style:"margin:8px 0 0"},""));
+  /* 이번 주 한 줄 — 돈이 간 소재의 소구를 모아 제일 잘 도는 것을 짚는다 */
+  (function(){
+    const acc={};
+    D.live.forEach(r=>{
+      const w=r.w||{}; if(!w.sp) return;
+      [r.main, ...(r.subs||[])].filter(Boolean).forEach(sg=>{
+        const a=acc[sg]=acc[sg]||{sp:0,nt:0,od:0,n:0};
+        a.sp+=w.sp; a.nt+=w.nt||0; a.od+=w.od||0; a.n++;});
+    });
+    const rs=Object.entries(acc).filter(([,a])=>a.sp>=300000)
+      .map(([v,a])=>({v, ...a, roas:a.nt/a.sp, cpa:a.od?a.sp/a.od:null}))
+      .sort((x,y)=>y.roas-x.roas);
+    if(!rs.length) return;
+    const top=rs.slice(0,3);
+    m.append(el("div",{class:"note"+(top[0].roas>=D.cut?" ok":"")},
+      el("b",{},"이번 주 제일 잘 도는 소구. "),
+      top.map(x=>`${x.v} ROAS ${x.roas.toFixed(2)}(${x.n}편 ${man(x.sp)})`).join(" · "),
+      el("span",{class:"dim"},
+        " — 라이브 소재가 단 소구를 합친 것입니다. 한 소재가 소구를 여럿 달면 여러 번 세어지니 소구끼리만 견주세요.")));
+  })();
+
+  m.append(el("p",{class:"dim",style:"margin:4px 0 0"},
+    "직접 ROAS = 카페24 귀속 매출 ÷ 메타 지출 · 직접 CPA = 메타 지출 ÷ 카페24 귀속 주문수. "+"오늘 숫자는 낮게 보입니다 — 매출이 소재에 붙는 데 시간이 걸립니다. 이번 주와 누적으로 보세요."));
+
+  /* 라이브 소재 — 숫자가 먼저 */
+  /* 판정 밖 소재를 둘로 가른다. 읽어 놓고 판정 창만 기다리는 것과, 아무도
+     안 읽어서 무엇을 썼는지조차 모르는 것. 섞어 두면 「기다리면 되는 줄」 알고
+     넘어가는데, 뒤쪽이 이번 주 돈의 대부분을 쓴다. */
+  if(D.wkcov && (D.wkcov.unread||[]).length){
+    const c=D.wkcov;
+    const box=el("div",{class:"note wa"});
+    box.append(el("b",{},
+      `아무도 안 읽은 소재 ${c.unread.length}편에 이번 주 지출의 ${pc(c.unread_share)}(${man(c.unread_sp)})가 갔습니다. `),
+      "무엇을 썼는지 몰라 아래 소구·워딩 표에도, 판정에도 들어가지 않습니다. 읽고 태깅해야 합니다.");
+    const li=el("p",{class:"lrow",style:"margin:6px 0 0"});
+    c.unread.slice(0,6).forEach((t,i)=>{
+      const w=(D.live.find(x=>x.t===t)||{}).w||{};
+      li.append(i?" · ":"",
+        el("button",{class:"lnk",onclick:()=>openDraft(t)},t),
+        el("span",{class:"dim"},` ${man(w.sp||0)}`));
+    });
+    if(c.unread.length>6) li.append(el("span",{class:"dim"},` 외 ${c.unread.length-6}편`));
+    box.append(li);
+    box.append(el("div",{class:"bar",style:"margin:6px 0 0"},
+      el("button",{class:"btn",onclick:()=>{
+        DFT={name:c.unread[0]||"",items:[],hyp:null};go("draft");}},
+        `제일 많이 쓴 「${c.unread[0]}」부터 태깅 →`)));
+    m.append(box);
+  }
+  if(D.wkcov && (D.wkcov.wait||[]).length){
+    const c=D.wkcov;
+    m.append(el("div",{class:"note"},
+      el("b",{},`읽어 뒀지만 판정 대기인 소재 ${c.wait.length}편 — 이번 주 지출의 ${pc(c.wait_share)}(${man(c.wait_sp)}). `),
+      `판정 창(라이브일부터 ${D.win.days}일)이 닫히면 저절로 들어옵니다. 할 일은 없습니다 — `,
+      ...c.wait.slice(0,5).map((t,i)=>el("span",{},(i?" · ":""),
+        el("button",{class:"lnk",onclick:()=>openDraft(t)},t)))));
+  }
+  m.append(el("h3",{},`지금 라이브 ${D.live.length}편`));
+  const tb=el("table",{class:"tt"});
+  tb.append(el("thead",{},el("tr",{},...["소재","라이브","메인 소구","서브","이번 주 지출","매출",
+    "직접 ROAS","어제","직접 CPA","주문","끝까지","평균 초","누적 지출","누적 ROAS","누적 CPA","판정"]
+    .map(h=>el("th",{class:/지출|매출|ROAS|주문|CPA/.test(h)?"n":"",
+      title:h.includes("CPA")?"메타 지출 ÷ 카페24 귀속 주문수":""},h)))));
+  const tbody=el("tbody");
+  D.live.forEach(r=>{
+    const hy=(r.hyps||[]).map(h=>h.id).join(" · ");
+    const d0=DR[r.t]||{}, ws=d0.ws;
+    const live=ws?Math.max(1,Math.round((new Date(D.asof.replace(/-/g,"/"))-new Date(ws.replace(/-/g,"/")))/864e5)+1):null;
+    tbody.append(el("tr",{},
+      el("td",{},el("button",{class:"lnk",style:"font-weight:700",
+        title:"눌러서 미리보기·본문·판정값 보기",onclick:()=>openDraft(r.t)},r.t)),
+      el("td",{class:"n",title:ws?`${ws}부터`:""},live?`${live}일`:"—"),
+      el("td",{},r.main||"—"),
+      el("td",{class:"dim"},(r.subs||[]).join(" · ")||"—"),
+      el("td",{class:"n"},man(r.w.sp)),
+      el("td",{class:"n"},man(r.w.nt)),
+      el("td",{class:"n "+(r.w.sp<300000?"dim":(r.w.roas>=D.cut?"g":"b")),
+        title:r.w.sp<300000?"이번 주 지출이 30만원이 안 됩니다 — 숫자가 튑니다":""},
+        r.w.roas.toFixed(2)),
+      el("td",{class:"n "+((r.y&&r.y.sp>=100000)?(r.y.roas>=D.cut?"g":"b"):"dim")},
+        r.y&&r.y.sp?(r.y.sp>=100000?r.y.roas.toFixed(2):"적음"):"—"),
+      el("td",{class:"n "+(r.w.sp<300000?"dim":"")},won(cpa(r.w))+(r.w.od?"원":"")),
+      el("td",{class:"n"},String(r.w.od||0)),
+      el("td",{class:"n dim"},r.vw?pc(r.vw.thru):"—"),
+      el("td",{class:"n dim"},r.vw?r.vw.sec.toFixed(1):"—"),
+      el("td",{class:"n dim"},man(r.c.sp)),
+      el("td",{class:"n dim"},r.c.roas.toFixed(2)),
+      el("td",{class:"n dim"},won(cpa(r.c))+(r.c.od?"원":"")),
+      el("td",{},r.coded?el("span",{class:"pill p-ok",title:"전지표 판정에 들어와 있습니다"},"판정됨")
+        :el("button",{class:"btn2",onclick:()=>{
+            DFT={name:r.t,items:[],hyp:null};go("draft");
+            setTimeout(()=>{const i=document.querySelector("input[placeholder='원고 이름']");
+              if(i)i.value=r.t;},60);}},"판정 밖 →"))));
+  });
+  tb.append(tbody);m.append(el("div",{class:"scroll"},tb));
+
+  /* 이번 주 소구·워딩 — 라이브 소재의 이번 주 숫자만으로 */
+  ["소구","워딩"].forEach(g=>{
+    const rs=D.wkval.filter(x=>x.grp===g).slice(0,14);
+    if(!rs.length)return;
+    m.append(el("h3",{},`이번 주 ${g}`),
+      el("p",{class:"dim",style:"margin:-6px 0 8px"},
+        `이번 주에 돈이 간 소재가 판정에서 무슨 값을 받았는지 합친 것입니다. 한 소재가 값을 여럿 가지면 여러 번 세어집니다. `+
+        `라이브 ${D.wkcov.live}편 중 판정에 들어온 ${D.wkcov.coded}편만 덮습니다`+
+        (D.wkcov.uncoded.length?` — 판정 밖 ${D.wkcov.uncoded.length}편: ${D.wkcov.uncoded.slice(0,6).join(" · ")}${D.wkcov.uncoded.length>6?" 외":""}`:"")+`.`));
+    const t2=el("table",{class:"tt"});
+    t2.append(el("thead",{},el("tr",{},...["축","값","소재","이번 주 지출","매출","ROAS","주문"]
+      .map(h=>el("th",{class:/지출|매출|ROAS|주문|소재/.test(h)?"n":""},h)))));
+    const b2=el("tbody");
+    rs.forEach(r=>b2.append(el("tr",{title:(r.ts||[]).join(", ")},
+      el("td",{class:"dim"},r.ax),el("td",{},r.v),el("td",{class:"n"},String(r.n)),
+      el("td",{class:"n"},man(r.sp)),el("td",{class:"n"},man(r.nt)),
+      el("td",{class:"n "+(r.roas>=D.cut?"g":"b")},r.roas.toFixed(2)),
+      el("td",{class:"n"},String(r.od)))));
+    t2.append(b2);m.append(el("div",{class:"scroll"},t2));
+  });
+
+  /* 쌓인 성과 */
+  m.append(el("h3",{},"쌓인 성과"));
+  const CH={pick:"주", met:"roas"};
+  const chost=el("div");
+  const drawCh=()=>{
+    chost.innerHTML="";
+    const rows=(CH.pick==="월"
+      ? D.perf.map(r=>({k:r.k.slice(2), sp:r.c, nt:r.n, od:r.o}))
+      : D.wperf.slice(-26).map(r=>({k:r.w.slice(5), sp:r.c, nt:r.n, od:r.o})));
+    chost.append(el("div",{class:"bar",style:"margin:0 0 6px;justify-content:space-between"},
+      el("span",{class:"dim"},CH.pick==="월"?`월별 ${rows.length}달`:`주별 최근 ${rows.length}주`),
+      el("div",{class:"cseg"},...["주","월"].map(k=>el("button",
+        {class:"csb"+(CH.pick===k?" on":""),onclick:()=>{CH.pick=k;drawCh();}},k+"별")))));
+    chost.append(trendChart(rows,CH));
+  };
+  m.append(chost); drawCh();
+  const pt=el("table",{class:"tt"});
+  pt.append(el("thead",{},el("tr",{},...["월","소재","지출","노출","클릭","CTR","CPC","주문","매출","직접 ROAS","직접 CPA"]
+    .map(h=>el("th",{class:h==="월"?"":"n",
+      title:h==="직접 CPA"?"메타 지출 ÷ 카페24 귀속 주문수":""},h)))));
+  const pb=el("tbody");
+  D.perf.forEach(r=>pb.append(el("tr",{},
+    el("td",{},r.k),el("td",{class:"n"},String(r.d)),el("td",{class:"n"},man(r.c)),
+    el("td",{class:"n"},num(r.i)),el("td",{class:"n"},num(r.l)),
+    el("td",{class:"n"},(r.i?r.l/r.i*100:0).toFixed(2)+"%"),
+    el("td",{class:"n"},man(r.l?r.c/r.l:0)),el("td",{class:"n"},num(r.o)),
+    el("td",{class:"n"},man(r.n)),
+    el("td",{class:"n "+(r.c&&r.n/r.c>=D.cut?"g":"")},(r.c?r.n/r.c:0).toFixed(2)),
+    el("td",{class:"n"},won(cpa({sp:r.c,od:r.o}))+(r.o?"원":"")))));
+  pt.append(pb);m.append(el("div",{class:"scroll"},pt));
+
+  const wk=D.wperf.slice(-10);
+  const wt=el("table",{class:"tt"});
+  wt.append(el("thead",{},el("tr",{},...["주","소재","지출","클릭","주문","매출","직접 ROAS","직접 CPA"]
+    .map(h=>el("th",{class:h==="주"?"":"n",
+      title:h==="직접 CPA"?"메타 지출 ÷ 카페24 귀속 주문수":""},h)))));
+  const wb=el("tbody");
+  wk.forEach(r=>wb.append(el("tr",{},
+    el("td",{},r.w),el("td",{class:"n"},String(r.d)),el("td",{class:"n"},man(r.c)),
+    el("td",{class:"n"},num(r.l)),el("td",{class:"n"},num(r.o)),el("td",{class:"n"},man(r.n)),
+    el("td",{class:"n "+(r.c&&r.n/r.c>=D.cut?"g":"")},(r.c?r.n/r.c:0).toFixed(2)),
+    el("td",{class:"n"},won(cpa({sp:r.c,od:r.o}))+(r.o?"원":"")))));
+  wt.append(wb);
+  m.append(el("h4",{},"주별"),el("div",{class:"scroll"},wt));
+  if((D.gloss||[]).length){
+    const g=el("details",{class:"gbox"},el("summary",{},el("b",{},"말뜻"),
+      el("span",{class:"dim"}," 표에 나오는 말")));
+    D.gloss.forEach(x=>g.append(el("p",{class:"lrow"},el("b",{},x.t),
+      el("span",{}," — "+x.d),x.n?el("span",{class:"dim"}," ("+x.n+")"):null)));
+    m.append(g);
+  }
+}
+function addDays(s,n){const d=new Date(s);d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);}
+
+/* ── 가설 검증 현황 ──────────────────────────── */
+function viewWk(){
+  const m=$("#main");m.innerHTML="";
+  m.append(el("p",{class:"eyebrow"},"가설"),el("h2",{},"가설 검증 현황"),
+    el("p",{class:"lede"},
+      "가설을 정해놓고 원고를 쓰고 있는 상태가 아닙니다. 그래서 가설 하나만으로는 판정할 수 없습니다. "+
+      "여기서는 ① 세워둔 가설이 실제로 점검되고 있는지 ② 가설이 없어도 분류별로 무엇이 되고 있는지를 봅니다."));
+  m.append(el("div",{class:"note wa"},el("b",{},"읽는 법. "),
+    "「판정까지 간 편수」가 0이면 그 가설은 아직 아무것도 말해주지 않습니다. "+
+    "「이번 주」는 지금 라이브인 소재에서 그 값이 얼마를 쓰고 얼마를 벌었는지입니다."));
+
+  m.append(el("h3",{},`세워둔 가설 ${D.hchk.length}개`));
+  const t=el("table",{class:"tt"});
+  t.append(el("thead",{},el("tr",{},...["가설","방향","주장","붙은 원고","판정까지","성공률",
+    "지금 라이브","이번 주 지출","이번 주 ROAS","상태"]
+    .map(h=>el("th",{class:/원고|판정|성공률|라이브|지출|ROAS/.test(h)?"n":""},h)))));
+  const b=el("tbody");
+  D.hchk.forEach(h=>{
+    b.append(el("tr",{title:h.basis||""},
+      el("td",{},el("b",{},h.id)),
+      el("td",{},el("span",{class:"pill "+(h.dir==="금지"?"p-no":"p-ok")},h.dir||"—")),
+      el("td",{class:"dim sm"},h.claim||"—"),
+      el("td",{class:"n"},String(h.n||0)),
+      el("td",{class:"n "+((h.judged||0)?"":"b")},String(h.judged||0)),
+      el("td",{class:"n"},h.rt==null?"—":pc(h.rt)),
+      el("td",{class:"n"},String(h.live||0)),
+      el("td",{class:"n"},h.wsp?man(h.wsp):"—"),
+      el("td",{class:"n "+(h.wroas==null?"":h.wroas>=D.cut?"g":"b")},
+        h.wroas==null?"—":h.wroas.toFixed(2)),
+      el("td",{},h.st||"—")));
+  });
+  t.append(b);m.append(el("div",{class:"scroll"},t));
+
+  m.append(el("h3",{},"분류별로 무엇이 되고 있나"),
+    el("p",{class:"dim",style:"margin:-6px 0 10px"},
+      `전 기간 성공률 순입니다. 기저율 ${pc(D.base)}. 「이번 주」가 비어 있으면 이번 주에 그 값으로 돈이 안 나갔다는 뜻입니다.`));
+  Object.keys(D.bygrp).forEach(g=>{
+    const rs=D.bygrp[g];
+    const box=el("details",{class:"gbox"},el("summary",{},
+      el("b",{},g),el("span",{class:"dim"},` 값 ${rs.length}개 · 갈린 것 ${rs.filter(r=>r.split).length}개`)));
+    const t2=el("table",{class:"tt"});
+    t2.append(el("thead",{},el("tr",{},...["축","값","편","성공률","기저대비","지출",
+      "이번 주 소재","이번 주 지출","이번 주 ROAS"]
+      .map(h=>el("th",{class:/편|성공률|기저|지출|ROAS|소재/.test(h)?"n":""},h)))));
+    const b2=el("tbody");
+    rs.forEach(r=>b2.append(el("tr",{},
+      el("td",{class:"dim"},r.ax),
+      el("td",{},r.split?el("b",{},r.v):r.v),
+      el("td",{class:"n"},`${r.w}/${r.n}`),
+      el("td",{class:"n "+(r.rt>=D.base?"g":"b")},pc(r.rt)),
+      el("td",{class:"n "+(r.lf>0?"g":"b")},pp(r.lf)),
+      el("td",{class:"n dim"},man(r.sp)),
+      el("td",{class:"n"},r.wn?String(r.wn):"—"),
+      el("td",{class:"n"},r.wsp?man(r.wsp):"—"),
+      el("td",{class:"n "+(r.wroas==null?"":r.wroas>=D.cut?"g":"b")},
+        r.wroas==null?"—":r.wroas.toFixed(2)))));
+    t2.append(b2);box.append(el("div",{class:"scroll"},t2));
+    m.append(box);
+  });
+}
+function viewBelief(){
+  const m=$("#main");m.innerHTML="";
+  m.append(el("p",{class:"eyebrow"},"가설"),el("h2",{},"가설 믿음"),
+    el("p",{class:"lede"},
+      "가설 하나를 믿을지 접을지는 주간 신호가 쌓여야 정해집니다. 지금은 가설을 정해놓고 "+
+      "원고를 쓰는 상태가 아니라 신호가 붙은 가설이 거의 없습니다. 그래서 대신 "+
+      "분류별로 지금 무엇이 살아 있고 무엇이 죽었는지를 봅니다."));
+  const rows=[];
+  Object.keys(D.bygrp).forEach(g=>{
+    const rs=D.bygrp[g];
+    rows.push({g:g,n:rs.length,
+      alive:rs.filter(r=>r.wroas!=null&&r.wroas>=D.cut),
+      dead:rs.filter(r=>r.wroas!=null&&r.wroas<D.cut),
+      idle:rs.filter(r=>r.wroas==null).length,
+      wsp:rs.reduce((a,r)=>a+(r.wsp||0),0)});
+  });
+  rows.sort((a,b)=>b.wsp-a.wsp);
+  const t=el("table",{class:"tt"});
+  t.append(el("thead",{},el("tr",{},...["분류","값","이번 주 지출","이번 주 컷 위","컷 아래","이번 주 안 씀"]
+    .map(h=>el("th",{class:h==="분류"?"":"n"},h)))));
+  const b=el("tbody");
+  rows.forEach(r=>b.append(el("tr",{},
+    el("td",{},el("b",{},r.g)),
+    el("td",{class:"n"},String(r.n)),
+    el("td",{class:"n"},man(r.wsp)),
+    el("td",{class:"n g"},String(r.alive.length)),
+    el("td",{class:"n b"},String(r.dead.length)),
+    el("td",{class:"n dim"},String(r.idle)))));
+  t.append(b);m.append(el("div",{class:"scroll"},t));
+
+  rows.forEach(r=>{
+    if(!r.alive.length&&!r.dead.length)return;
+    m.append(el("h3",{},r.g));
+    const two=el("div",{class:"two"});
+    const mk=(title,list,cls)=>{
+      const c=el("div",{class:"card tight"},el("h4",{class:cls},title));
+      if(!list.length){c.append(el("p",{class:"dim"},"없음"));return c;}
+      list.slice(0,8).forEach(x=>c.append(el("p",{class:"lrow"},
+        el("b",{},x.v),el("span",{class:"dim"}," "+x.ax),
+        el("span",{class:"n"}," 이번 주 "+man(x.wsp)+" · ROAS "+x.wroas.toFixed(2)+" · 소재 "+x.wn+"편"),
+        el("span",{class:"dim"}," / 전 기간 "+x.w+"/"+x.n+" "+pc(x.rt)))));
+      return c;};
+    two.append(mk("이번 주 컷 위 — 지금 살아 있다",r.alive,"g"),
+               mk("이번 주 컷 아래 — 지금 안 된다",r.dead,"b"));
+    m.append(two);
+  });
+}
+
+/* ── 가설 제안 ─────────────────────────────────────────
+   전 지표 판정은 값이 319개다. 표로 다 펴면 사람이 못 고른다.
+   그래서 걸러서 카드로 보이고, 고른 것을 담아 원고로 넘긴다. */
+let PICK = [];
+const IF = {grp:"", kind:"", tag:"", turn:"", q:"", min:4, sort:"rt", card:false};
+
+/* ─── 가설 세 단 ───────────────────────────────────────────────────────────
+   값 하나를 고르면 가설이 저절로 셋 선다. 통화품질이면 —
+     가설1  통화품질 자체가 되는가            (그 값 대 기저)
+     가설2  통화품질 안에서 갈래가 중요한가    (갈래끼리 벌어지는가)
+     가설3  그 갈래 안에서 워딩이 중요한가     (갈래 안 워딩끼리 벌어지는가)
+   셋은 서로 다른 말이고, 어디까지 성립하느냐가 곧 「원고를 쓸 때 어디까지 정해야
+   하나」다. 1만 성립하면 값만 지키면 되고, 2까지면 갈래를 골라야 하고, 3까지면
+   워딩을 지정해야 한다.
+
+   판정을 다시 하지 않는다. 전지표 판정이 낸 값별 성적을 모아 벌어짐을 재는 것뿐이다.
+
+   아래층을 찾는 법이 묶음마다 다르다. 같은 층인데 이름 짓는 방식만 다르다 —
+     소구  「소구 = 통화품질」 → 축 「통화품질 · 마이크」          값이름 + ○○
+     CTA  「CTA = 할인·혜택」 → 축 「CTA · 할인·혜택」            축이름 · 값이름
+     훅    「훅 유형 = 피하고 싶은 결과」
+            → 축 「훅 워딩」 안의 값 「피하고 싶은 결과 · 이러면 못 듣게 된다고 한다」
+                                                                 값이름이 값 앞머리
+   그래서 축 이름과 값 이름을 다 뒤진다. */
+
+/* 받침이 있으면 은/을, 없으면 는/를. 「귀건강는」·「훅을(를)」이 나오면 안 된다.
+   화면 여러 곳에서 쓰므로 여기 한 군데에 둔다. */
+function jo(w, pair){
+  const c=String(w||" ").slice(-1).charCodeAt(0);
+  const has = c>=0xAC00 && c<=0xD7A3 ? (c-0xAC00)%28!==0 : /[0-9a-zA-Z]$/.test(String(w||""));
+  return w + pair[has?0:1];
+}
+const eun = w => jo(w,["은","는"]), eul = w => jo(w,["을","를"]);
+
+const H3_STEP = 0.15;      // 갈래·워딩이 이만큼 벌어져야 「중요하다」고 본다
+const H3_LIFT = 0.15;      // 값 하나가 기저에서 이만큼 움직여야 「된다」고 본다
+                           // 가설 제안 줄의 「추천/금지」와 같은 기준이어야 한다.
+                           // 한 화면에 숫자가 두 벌이면 어느 쪽을 믿을지 알 수 없다.
+const H3_MIN  = 3;         // 이 편수는 돼야 셈에 넣는다
+
+const h3Row  = (ax,v) => D.vals.find(x=>x.ax===ax && x.v===v);
+const h3Vals = ax => D.vals.filter(x=>x.ax===ax && x.n>=H3_MIN);
+
+/* 데이터는 심어서 올 수도, 열 때 받아 올 수도 있다. 여기서 바로 읽으면
+   받아 오는 판에서 아직 null이라 화면이 통째로 죽는다 — 부를 때 채운다. */
+let H3_GRP = null;
+function h3Grp(){
+  if(!H3_GRP){ H3_GRP={}; (D.idea||[]).forEach(x=>{ if(x.grp) H3_GRP[x.ax]=x.grp; }); }
+  return H3_GRP;
+}
+/* 값 이름이 묶음 이름과 같으면(「첫 소구 위치 = 훅」) 그 이름으로 시작하는 축을
+   갈래로 삼으면 안 된다. 「훅 유형」·「훅 워딩」은 그 값의 아래층이 아니라 남이다. */
+const h3GrpName = () => new Set(Object.values(h3Grp()));
+const h3Pre = (ax,v) => [(h3GrpName().has(v)?null:v), ax+" · "+v,
+                         (h3Grp()[ax]?h3Grp()[ax]+" · "+v:null)].filter(Boolean);
+
+/* 그 값 아래에 달린 축 */
+function h3Subs(ax, v){
+  const pre=h3Pre(ax,v), hit=new Set();
+  D.vals.forEach(x=>{ if(x.ax===ax)return;
+    pre.forEach(p=>{ if(x.ax===p || x.ax.startsWith(p+" ") || x.ax.startsWith(p+"·")) hit.add(x.ax); });});
+  return [...hit].sort();
+}
+function h3Short(sub, ax, v){
+  for(const p of h3Pre(ax,v)) if(sub===p) return v;
+  for(const p of h3Pre(ax,v)) if(sub.startsWith(p)) return sub.slice(p.length).replace(/^[ ·]+/,"")||sub;
+  return sub;
+}
+/* 한 축을 (조건에 맞는 값으로) 쓴 원고를 판정 코딩에서 그러모아 성적을 낸다.
+   값별 성적을 그냥 더하면 값을 둘 가진 원고가 두 번 세어진다. */
+function h3Pool(ax, ok){
+  const C=D.jcod||{}; let n=0,w=0;
+  for(const t in C){ const vv=C[t][ax]; if(!vv||!DR[t]) continue;
+    if(DR[t].st!=="성공" && DR[t].st!=="실패") continue;
+    if(!vv.some(ok)) continue;
+    n++; if(DR[t].st==="성공") w++; }
+  return {n, w, rt:n?w/n:0};
+}
+const h3Spread = rs => rs.length<2 ? 0 :
+  Math.max(...rs.map(x=>x.rt)) - Math.min(...rs.map(x=>x.rt));
+
+/* 후킹 · 본문 · CTA 표 — 판정 문서가 원고를 이 셋으로 가른 것.
+   세 곳 다 「상위 값 → 그 아래 워딩」 두 층이고, 문장 분류에서 나온 것이라
+   축·값 표와 뿌리가 다르다. 이름으로 앞머리를 맞춰 짐작하던 것을 대신한다.
+     후킹  훅 유형 = 피하고 싶은 결과   → 그 유형의 워딩
+     본문  소구 = 가성비               → 문제 · 근거 · 방식 → 각각의 워딩
+     CTA  CTA 갈래 = 할인·혜택        → 그 갈래의 워딩 */
+const H3_TABORD = ["문제","근거","방식","워딩"];
+let H3_PT=null;
+function h3PT(){
+  if(H3_PT) return H3_PT;
+  H3_PT={by:{}, top:{}};
+  (D.ptab||[]).forEach(r=>{
+    if(r.g){ (H3_PT.by[r.g]=H3_PT.by[r.g]||{})[r.tab]=(H3_PT.by[r.g]||{})[r.tab]||[];
+             H3_PT.by[r.g][r.tab].push(r); }
+    else   { (H3_PT.top[r.part]=H3_PT.top[r.part]||[]).push(r); }
+  });
+  return H3_PT;
+}
+/* 그 값이 상위 값이면(소구 · 훅 유형 · CTA 갈래) 아래 표를 갈래로 돌려준다 */
+function h3Stab(v){
+  const by=h3PT().by[v]; if(!by) return null;
+  const ord=t=>{const i=H3_TABORD.indexOf(t); return i<0?9:i;};
+  return Object.keys(by).sort((a,b)=>ord(a)-ord(b)).map(t=>{
+    const vs=by[t].filter(r=>r.n>=H3_MIN).map(r=>({
+      ax:`${v} — ${t}`, v:r.v, disp:r.v, n:r.n, w:r.w, rt:r.rt, lo:r.lo, hi:r.hi,
+      lf:r.lf, sp:r.sp, split:r.out!=="구분 안 됨", ev:r.ev, ts:r.ts}));
+    const seen=new Set(); by[t].forEach(r=>(r.ts||[]).forEach(x=>seen.add(x)));
+    let n=0,w=0; seen.forEach(x=>{ const d=DR[x]; if(!d)return;
+      if(d.st!=="성공"&&d.st!=="실패")return; n++; if(d.st==="성공")w++; });
+    return {a:`${v} — ${t}`, name:t, vs, n, w, rt:n?w/n:0};
+  }).filter(b=>b.vs.length);
+}
+
+/* 그 값 아래 갈래를 다 모은다 — 축으로 달린 것과 값 앞머리로 달린 것 둘 다 */
+function h3Branches(ax, v){
+  const st=h3Stab(v);
+  if(st && st.length) return st;          // 소구는 판정 문서가 가른 그대로 쓴다
+  const out=[];
+  h3Subs(ax,v).forEach(a=>{
+    const vs=h3Vals(a).map(x=>({...x, disp:x.v}));
+    if(vs.length) out.push({a, name:h3Short(a,ax,v), vs, ...h3Pool(a, ()=>true)});
+  });
+  const pre=v+" · ", by={};
+  if(!h3GrpName().has(v)) D.vals.forEach(x=>{ if(x.ax===ax || !x.v.startsWith(pre) || x.n<H3_MIN) return;
+    (by[x.ax]=by[x.ax]||[]).push({...x, disp:x.v.slice(pre.length)}); });
+  Object.entries(by).forEach(([a,vs])=>
+    out.push({a, name:a, vs, ...h3Pool(a, s=>s.startsWith(pre))}));
+  return out.filter(b=>b.n>=H3_MIN).sort((x,y)=>y.rt-x.rt);
+}
+
+/* 값 하나에 대해 가설 셋을 세우고 각각 성립하는지 본다 */
+function hyp3(ax, v){
+  const R=h3Row(ax,v);
+  if(!R) return null;
+  const out={ax, v, row:R};
+
+  /* 가설1 — 이 값 자체가 되는가 */
+  out.h1={
+    say:`「${v}」 자체가 된다`,
+    num:`${R.w}/${R.n}편 ${pc(R.rt)} · 기저 ${pc(D.base)}보다 ${pp(R.lf)}`,
+    ok: R.split && R.n>=5 && R.lf>=H3_LIFT,
+    no: (R.w===0&&R.n>=5) || (R.split && R.n>=5 && R.lf<=-H3_LIFT),
+    why: R.w===0&&R.n>=5 ? `${R.n}편을 썼는데 성공이 하나도 없습니다 — 빼야 합니다.`
+      : R.lf>=H3_LIFT ? (R.n>=5 && R.split ? `값 하나만으로 기저를 넘습니다. 넣기만 해도 됩니다.`
+                         : R.n<5 ? `기저를 넘지만 ${R.n}편뿐이라 아직 못박을 수 없습니다.`
+                         : `기저를 넘지만 구간이 기저를 건넙니다 — 아직 못박을 수 없습니다.`)
+      : R.lf<=-H3_LIFT ? `기저보다 아래입니다. 값 하나로는 쓸 이유가 없습니다.`
+      : `기저와 비슷합니다(${pp(R.lf)}). 값 이름만으로는 갈리지 않습니다.`};
+
+  /* 가설2 — 갈래가 중요한가. 아래층이 없으면 「이 칸을 뭘로 채우느냐」로 올라간다 */
+  const brs=h3Branches(ax,v);
+  if(brs.length){
+    /* 값이 하나뿐인 축은 갈래가 아니다. 「가성비 · 3구간으로 가른다」 안에
+       「싸구려와 사치품 사이라고 한다」 하나뿐이면 축 이름은 그 워딩을 다르게
+       부른 것일 뿐이라, 갈래라고 부르면 없는 층이 있는 것처럼 보인다. */
+    brs.forEach(b=>{ b.one=b.vs.length===1; b.br=b.one?b.vs[0].disp:b.name; });
+    const sp=h3Spread(brs), many=brs.filter(b=>!b.one);
+    out.h2={kind:"갈래", list:brs, spread:sp, many:many.length, one:brs.length-many.length,
+      say:`「${v}」 안에서 어느 갈래로 미느냐가 중요하다`,
+      num: brs.length<2 ? `아래가 갈래로 나뉘지 않고 바로 워딩입니다`
+        : `${brs.length}개가 ${pc(brs[brs.length-1].rt)}~${pc(brs[0].rt)}로 ${pp(sp)} 벌어집니다`
+          + (brs.length-many.length ? ` · 그중 ${brs.length-many.length}개는 값이 하나뿐이라 갈래가 아니라 워딩입니다` : ""),
+      ok: brs.length>=2 && sp>=H3_STEP,
+      why: brs.length<2 ? `이 값 아래는 갈래가 나뉘어 있지 않습니다. 고를 것은 갈래가 아니라 워딩이니 가설 3으로 바로 갑니다.`
+        : !many.length ? `아래가 전부 값 하나짜리입니다 — 갈래가 아니라 워딩 ${brs.length}개를 늘어놓은 것입니다. 「${brs[0].br}」 ${pc(brs[0].rt)}부터 「${brs[brs.length-1].br}」 ${pc(brs[brs.length-1].rt)}까지 ${pp(sp)} 벌어지니, 고를 것은 갈래가 아니라 워딩입니다.`
+        : sp>=H3_STEP ? `고르는 것만으로 ${pp(sp)}가 갈립니다 — 지금은 「${brs[0].br}」가 ${pc(brs[0].rt)}로 제일 낫고 「${brs[brs.length-1].br}」가 ${pc(brs[brs.length-1].rt)}로 제일 낮습니다.`
+        : `서로 ${pp(sp)}밖에 차이가 없습니다. 어느 쪽으로 밀든 비슷하니 여기서 고민할 게 없습니다.`};
+  } else {
+    const sib=h3Vals(ax), sp=h3Spread(sib);
+    out.h2={kind:"칸", list:sib.slice().sort((x,y)=>y.rt-x.rt), spread:sp,
+      say:`「${ax}」라는 칸을 뭘로 채우느냐가 중요하다`,
+      num: sib.length<2 ? `이 칸에 견줄 값이 없습니다`
+        : `값 ${sib.length}개가 ${pc(Math.min(...sib.map(x=>x.rt)))}~${pc(Math.max(...sib.map(x=>x.rt)))}로 ${pp(sp)} 벌어집니다`,
+      ok: sib.length>=2 && sp>=H3_STEP,
+      why: sib.length<2 ? `견줄 값이 없습니다.`
+        : sp>=H3_STEP ? `이 칸을 뭘로 채우느냐로 ${pp(sp)}가 갈립니다. 아무거나 쓰면 안 되는 칸입니다.`
+        : `값끼리 ${pp(sp)}밖에 차이가 없습니다. 이 칸은 뭘 써도 비슷하니 신경 쓸 데가 아닙니다.`};
+  }
+
+  /* 가설3 — 갈래 안에서 워딩이 중요한가 */
+  if(brs.length){
+    const each=brs.filter(b=>b.vs.length>=2)
+      .map(b=>({a:b.a, br:b.name, rs:b.vs.slice().sort((x,y)=>y.rt-x.rt), spread:h3Spread(b.vs)}))
+      .sort((x,y)=>y.spread-x.spread);
+    const hit=each.filter(e=>e.spread>=H3_STEP);
+    out.h3={list:each, hit,
+      say:`갈래를 정한 뒤에도 어떤 워딩을 쓰느냐가 중요하다`,
+      num: each.length? `${each.length}개 중 ${hit.length}개에서 워딩이 ${(H3_STEP*100).toFixed(0)}%p 넘게 갈립니다` : `견줄 워딩이 없습니다`,
+      ok: hit.length>0,
+      why: !each.length ? `아래에 워딩이 둘 이상 달린 갈래가 없습니다.`
+        : hit.length ? `워딩까지 지정해야 합니다. `+
+            hit.slice(0,2).map(e=>`「${e.br}」 안에서 ${pc(e.rs[e.rs.length-1].rt)}~${pc(e.rs[0].rt)}(${pp(e.spread)})`).join(" · ")+`.`
+        : `어느 갈래에서도 워딩끼리 ${(H3_STEP*100).toFixed(0)}%p 넘게 갈리지 않습니다. 갈래까지만 정하면 됩니다.`};
+  } else {
+    out.h3={list:[], hit:[], say:`그 아래로 더 내려갈 층이 있다`, num:`이 값 아래로는 갈래도 워딩도 없습니다`,
+      ok:false, why:`판정에 「${v} · ○○」 같은 축이나 값이 없습니다. ${v}까지가 지금 갈 수 있는 끝입니다.`};
+  }
+
+  /* 어디까지 정해서 써야 하나.
+     아래층이 없는 값에서 「이 칸이 중요한가」는 값이 아니라 축의 성질이다 —
+     값마다 「갈래까지」로 세면 319개 중 181개가 거기 몰려 아무 말도 안 된다.
+     아래층이 실제로 달린 값만 2·3단으로 내려간다. */
+  if(out.h1.no){ out.depth=0; out.upto=`「${v}」는 빼는 것이 결론입니다`; }
+  else if(brs.length){
+    out.depth = out.h3.ok ? 3 : out.h2.ok ? 2 : 1;
+    out.upto = out.depth===3 ? `워딩까지 정해야 합니다 — 갈래를 골라도 안에서 갈립니다`
+             : out.depth===2 ? `갈래까지 정하면 됩니다 — 갈래 안에서는 워딩이 갈리지 않습니다`
+             : `「${v}」까지만 정하면 됩니다 — 아래를 골라도 달라지지 않습니다`;
+  } else {
+    out.depth = out.h2.ok ? 1 : -1;
+    out.upto = out.h2.ok ? `「${v}」까지 정하면 됩니다 — 이 칸은 뭘 쓰느냐가 갈립니다`
+                         : `이 칸은 뭘 써도 비슷합니다 — 여기서 정할 게 없습니다`;
+  }
+  return out;
+}
+
+/* 가설 제안의 모든 줄에 돌린다 */
+function hyp3All(){
+  const seen=new Set(), out=[];
+  D.idea.forEach(x=>{
+    const k=x.ax+" "+x.v; if(seen.has(k))return; seen.add(k);
+    const h=hyp3(x.ax,x.v); if(h){h.grp=x.grp; out.push(h);}
+  });
+  return out;
+}
+/* ─── 어디서 갈리나 ────────────────────────────────────────────────────────
+   값 하나를 골라 가설 셋을 세우고, 어디까지 성립하는지 본다. 판정 표가 아니라
+   가설을 세우는 자리다 — 세우고, 근거를 보고, 쓸 만한 것만 담는다.
+   셈은 _hyp3.js가 한다. 여기는 보여주는 일만 한다. */
+let LY = {ax:null, v:null, open:null};
+
+function lyBar(rt, ref){
+  return el("span",{class:"lyb"},
+    el("i",{style:`width:${Math.max(2,Math.min(100,rt*100))}%;`+
+      `background:${rt>=(ref==null?D.base:ref)?"var(--ok)":"var(--no)"}`}),
+    el("u",{style:`left:${Math.min(99,D.base*100)}%`,title:`기저 ${pc(D.base)}`}));
+}
+const lyPick = (ax,v,x,neg) => {
+  const on=PICK.some(p=>p.ax===ax&&p.v===v);
+  return el("button",{class:"lnk ic",title:on?"담은 것 빼기":"가설로 담기",onclick:()=>{
+    if(on)PICK=PICK.filter(p=>!(p.ax===ax&&p.v===v));
+    else PICK.push({ax,v,rt:x.rt,n:x.n,lf:x.lf,ban:!!neg});
+    viewLayer();}}, on?"담음":"담기");
+};
+function lyGo(ax,v){ LY.ax=ax; LY.v=v; LY.open=null; go("layer"); }
+
+/* 가설 한 칸 */
+function lyCard(no, h, body){
+  const st = h.ok ? {t:"성립", c:"yes"} : h.no ? {t:"뒤집힘", c:"no"} : {t:"안 섬", c:"none"};
+  const c=el("div",{class:"h3c"+(h.ok?" on":"")});
+  c.append(el("div",{class:"h3h"},
+    el("span",{class:"h3no"},"가설 "+no),
+    el("b",{class:"h3s"},h.say),
+    el("span",{class:"mk "+st.c},st.t)));
+  c.append(el("p",{class:"h3n"},h.num));
+  c.append(el("p",{class:"lysay"},h.why));
+  if(body)c.append(body);
+  return c;
+}
+
+function viewLayer(){
+  const m=$("#main");m.innerHTML="";
+  /* 목차에 없는 화면이다 — 가설 제안 줄이나 소구에서 들어온다. */
+  m.append(el("div",{class:"bar",style:"margin:0 0 2px"},
+    el("button",{class:"lnk",onclick:()=>go("idea")},"← 가설 제안으로"),
+    el("button",{class:"lnk",onclick:()=>go("deep")},"소구로")));
+  m.append(el("p",{class:"eyebrow"},"트렌드와 가설"),el("h2",{},"어디서 갈리나"),
+    el("p",{class:"lede"},
+      "값 하나를 고르면 가설이 셋 섭니다 — ① 이 값 자체가 되는가 ② 그 안에서 갈래가 중요한가 "+
+      "③ 갈래를 정한 뒤에도 워딩이 중요한가. 어디까지 성립하느냐가 곧 「원고를 쓸 때 어디까지 정해야 하나」입니다."));
+
+  /* 고르기 — 갈래가 달린 값을 먼저, 그다음 묶음별로 */
+  const all=hyp3All();
+  const deep=all.filter(h=>h.h2.kind==="갈래").sort((a,b)=>b.row.n-a.row.n);
+  if(!LY.v){const d=deep[0]||all[0]; if(d){LY.ax=d.ax;LY.v=d.v;}}
+  const bar=el("div",{class:"lypick"});
+  deep.forEach(h=>bar.append(el("button",{class:"qb"+(LY.v===h.v&&LY.ax===h.ax?" on":""),
+    onclick:()=>lyGo(h.ax,h.v)},
+    el("b",{},h.v), el("span",{class:h.row.rt>=D.base?"g":"b"},` ${pc(h.row.rt)}`),
+    el("span",{class:"dim"},` ${h.row.n}편`))));
+  m.append(el("p",{class:"dim",style:"margin:8px 0 3px"},"갈래가 달린 값"),bar);
+
+  const other=el("div",{class:"bar"});
+  const gsel=el("select",{});
+  gsel.append(el("option",{value:""},"다른 묶음에서 고르기"));
+  [...new Set(all.map(h=>h.grp).filter(Boolean))].forEach(g=>gsel.append(el("option",{value:g},g)));
+  const vsel=el("select",{style:"min-width:230px"});
+  const fillv=()=>{vsel.innerHTML="";
+    all.filter(h=>h.grp===gsel.value).sort((a,b)=>b.row.n-a.row.n)
+      .forEach(h=>vsel.append(el("option",{value:h.ax+""+h.v},
+        `${h.v} — ${h.ax} · ${h.row.w}/${h.row.n}편 ${pc(h.row.rt)}`)));};
+  gsel.addEventListener("change",()=>{fillv(); if(vsel.value){const[a,v]=vsel.value.split("");lyGo(a,v);}});
+  vsel.addEventListener("change",()=>{const[a,v]=vsel.value.split("");lyGo(a,v);});
+  other.append(gsel,vsel);
+  m.append(other);
+
+  const H=hyp3(LY.ax,LY.v);
+  if(!H){m.append(el("p",{class:"dim"},"고른 값의 판정이 없습니다."));return;}
+  const R=H.row;
+
+  m.append(el("div",{class:"lytop"},
+    el("p",{class:"lybig"},el("b",{},H.v),
+      el("span",{class:"dim"},` · ${H.ax}`),
+      " — ", el("span",{class:R.lf>=0?"g":"b"},`${R.w}/${R.n}편 ${pc(R.rt)}`),
+      el("span",{class:"dim"},` · 기저 ${pc(D.base)}보다 `),el("span",{class:R.lf>=0?"g":"b"},pp(R.lf)),
+      lyPick(H.ax,H.v,R,R.lf<0)),
+    el("p",{class:"h3up"},el("b",{},"어디까지 정해서 써야 하나 — "),H.upto)));
+
+  /* 가설1 */
+  m.append(lyCard(1,H.h1));
+
+  /* 가설2 — 갈래(또는 칸)를 표로 */
+  let b2=null;
+  if(H.h2.list.length>=2){
+    const tb=el("div",{class:"lytab"});
+    tb.append(el("div",{class:"lyr2 lyhd"},
+      el("span",{},H.h2.kind==="갈래"?"갈래":"이 칸의 값"),
+      el("span",{},"성공률"),el("span",{},"성공/편수"),el("span",{},"기저 대비"),el("span",{},"")));
+    H.h2.list.forEach(b=>{
+      const nm=H.h2.kind==="갈래"?b.br:b.v;
+      const one=H.h2.kind==="갈래"&&b.one;
+      const lf=b.rt-D.base;
+      tb.append(el("div",{class:"lyr2"},
+        el("span",{class:"lyv",title:one?`${b.a} — 값이 이것 하나뿐입니다`:nm},
+          nm, one?el("span",{class:"dim wone"}," · 워딩 하나"):null),
+        lyBar(b.rt),
+        el("span",{class:"lyn"},el("b",{},pc(b.rt)),el("span",{class:"dim"},` ${b.w}/${b.n}편`)),
+        el("span",{class:"lyd "+(lf>=0?"g":"b")},pp(lf)),
+        H.h2.kind!=="갈래" ? lyPick(H.ax,b.v,b,lf<0)
+        : one ? lyPick(b.a,b.vs[0].v,b.vs[0],b.vs[0].lf<0)
+        : el("button",{class:"lnk ic",onclick:()=>{LY.open=(LY.open===b.a?null:b.a);viewLayer();}},
+            LY.open===b.a?"접기":"워딩")));
+      if(H.h2.kind==="갈래" && !one && LY.open===b.a){
+        const rs=h3Vals(b.a).sort((x,y)=>y.rt-x.rt);
+        const in2=el("div",{class:"h3in"});
+        rs.forEach(r=>{
+          in2.append(el("div",{class:"lyr2"},
+            el("span",{class:"lyv",title:r.v},r.disp||r.v), lyBar(r.rt),
+            el("span",{class:"lyn"},el("b",{},pc(r.rt)),el("span",{class:"dim"},` ${r.w}/${r.n}편`)),
+            el("span",{class:"lyd "+(r.lf>=0?"g":"b")},pp(r.lf)),
+            lyPick(b.a,r.v,r,r.lf<0)));
+          const t0=Object.keys(r.ev||{})[0];
+          if(t0) in2.append(el("p",{class:"wrs"},
+            el("span",{class:"dim"},t0+" "),el("span",{class:"wrq"},`“${r.ev[t0][0]}”`)));
+        });
+        tb.append(in2);
+      }
+    });
+    b2=tb;
+  }
+  m.append(lyCard(2,H.h2,b2));
+
+  /* 가설3 — 갈래 안 워딩이 벌어지는 곳 */
+  let b3=null;
+  if(H.h3.list.length){
+    const tb=el("div",{class:"lytab"});
+    tb.append(el("div",{class:"lyr3 lyhd"},
+      el("span",{},"갈래"),el("span",{},"제일 나은 워딩"),el("span",{},"제일 낮은 워딩"),
+      el("span",{},"벌어짐"),el("span",{},"")));
+    H.h3.list.forEach(e=>{
+      const hi=e.rs[0], lo=e.rs[e.rs.length-1];
+      tb.append(el("div",{class:"lyr3"},
+        el("span",{class:"lybr dim",title:e.a},e.br),
+        el("span",{class:"lyv",title:hi.v},`${hi.disp||hi.v} ${pc(hi.rt)}`),
+        el("span",{class:"lyv dim",title:lo.v},`${lo.disp||lo.v} ${pc(lo.rt)}`),
+        el("span",{class:e.spread>=H3_STEP?"g":"dim"},pp(e.spread)),
+        el("span",{class:"mk "+(e.spread>=H3_STEP?"yes":"none")},
+          e.spread>=H3_STEP?"갈림":"안 갈림")));
+    });
+    b3=tb;
+  }
+  m.append(lyCard(3,H.h3,b3));
+
+  m.append(el("div",{class:"bar",style:"margin-top:12px"},
+    el("button",{class:"btn",onclick:()=>go("idea")},`담은 가설 보기 (${PICK.length}) →`),
+    el("button",{class:"btn2",onclick:()=>{if(!NX.pick)nxRoll(false);go("next");}},"원고 짜러 가기 →")));
+}
+function viewIdea(){
+  const m=$("#main");m.innerHTML="";
+  m.append(el("p",{class:"eyebrow"},"트렌드와 가설"),el("h2",{},"가설 제안"),
+    el("p",{class:"lede"},
+      `전 지표 판정 ${D.idea.length}개 값입니다. 기저율 ${pc(D.base)} — `+
+      `이전 ${pc(D.baseE)} → 최근 ${pc(D.baseL)}. 아래에서 걸러 보고, 세울 가설을 담으세요.`));
+
+  if(D.alarm.length){
+    const top=D.alarm.filter(a=>a.lv==="급함").slice(0,3);
+    if(top.length){
+      const box=el("div",{class:"note wa"});
+      box.append(el("b",{},"먼저 볼 것. "));
+      top.forEach((a,i)=>box.append(el("span",{},(i?" / ":"")+a.g+" — "+a.t)));
+      m.append(box);
+    }
+  }
+
+  /* 빠른 고르기 — 자주 쓰는 묶음 */
+  const quick=[["추천만",{tag:"",kind:"",turn:"",grp:"",q:"",min:4,sort:"lf",only:"in"}],
+               ["금지만",{only:"out",min:4,sort:"lfd"}],
+               ["지금 뜨는 것",{kind:"트렌드",min:2}],
+               ["항상 되던 것",{kind:"위닝",min:4}],
+               ["식은 것",{turn:"식었다",min:4}],
+               ["아직 모르는 것",{kind:"잠재력",min:1}]];
+  const qbar=el("div",{class:"qbar"});
+  quick.forEach(([lab,st])=>qbar.append(el("button",{class:"qb"+(IF._q===lab?" on":""),
+    onclick:()=>{Object.assign(IF,{grp:"",kind:"",tag:"",turn:"",q:"",min:4,sort:"rt",only:""},st);IF._q=lab;viewIdea();}},lab)));
+  qbar.append(el("button",{class:"qb"+(IF._q?"":" on"),
+    onclick:()=>{Object.assign(IF,{grp:"",kind:"",tag:"",turn:"",q:"",min:4,sort:"rt",only:"",_q:""});viewIdea();}},"전체"));
+  m.append(qbar);
+
+  /* 자세한 필터 */
+  const grps=[...new Set(D.idea.map(x=>x.grp).filter(Boolean))].sort();
+  const sel=(id,opts,cur,ph)=>{const s=el("select",{});
+    s.append(el("option",{value:""},ph));
+    opts.forEach(o=>s.append(el("option",{value:o},o)));
+    s.value=cur||"";s.addEventListener("change",()=>{IF[id]=s.value;IF._q="";viewIdea();});return s;};
+  const q=el("input",{type:"search",placeholder:"값·축 검색",value:IF.q,style:"width:170px"});
+  q.addEventListener("input",()=>{IF.q=q.value;renderCards();});
+  const mn=el("input",{type:"number",value:String(IF.min),min:"1",style:"width:58px"});
+  mn.addEventListener("change",()=>{IF.min=+mn.value||1;renderCards();});
+  const so=el("select",{});
+  [["rt","성공률 높은 순"],["lf","기저대비 큰 순"],["lfd","기저대비 낮은 순"],
+   ["n","편수 많은 순"],["sp","지출 큰 순"],["wk","이번 주 지출 순"]].forEach(([v,t])=>
+    so.append(el("option",{value:v},t)));
+  so.value=IF.sort;so.addEventListener("change",()=>{IF.sort=so.value;renderCards();});
+  m.append(el("div",{class:"bar filt"},
+    sel("grp",grps,IF.grp,"분류 전체"),
+    sel("kind",["위닝","트렌드","잠재력"],IF.kind,"구분 전체"),
+    sel("tag",["확정","검증 중","갈렸다","안 갈렸다","미검증"],IF.tag,"상태 전체"),
+    sel("turn",["식었다","올라왔다"],IF.turn,"트렌드 전체"),
+    el("span",{class:"dim"},"최소 편수"),mn,q,so,
+    el("button",{class:"btn2",onclick:()=>{IF.card=!IF.card;renderCards();}},
+      IF.card?"줄로 보기":"카드로 보기")));
+
+  m.append(el("h3",{style:"margin:14px 0 4px"},"다음에 해볼 것"),ideaTodo());
+  m.append(ideaHypBox());
+  m.append(el("div",{id:"ideaCount",class:"dim"}));
+  m.append(el("div",{class:"ideawrap"},
+    el("aside",{id:"ideaToc",class:"toc"}),
+    el("div",{id:"ideaCards"})));
+  m.append(el("div",{id:"basket",class:"basket"}));
+  renderCards();
+}
+
+function ideaRows(){
+  let rs=D.idea.slice();
+  if(IF.only==="in")rs=rs.filter(x=>x.split&&x.lf>0);
+  if(IF.only==="out")rs=rs.filter(x=>x.ban||(x.split&&x.lf<0));
+  if(IF.grp)rs=rs.filter(x=>x.grp===IF.grp);
+  if(IF.kind)rs=rs.filter(x=>x.kind===IF.kind);
+  if(IF.tag)rs=rs.filter(x=>x.tag===IF.tag);
+  if(IF.turn)rs=rs.filter(x=>x.turn===IF.turn);
+  if(IF.q){const s=IF.q.trim();rs=rs.filter(x=>(x.v+" "+x.ax).indexOf(s)>=0);}
+  rs=rs.filter(x=>x.n>=IF.min);
+  const key={rt:x=>-x.rt,lf:x=>-x.lf,lfd:x=>x.lf,n:x=>-x.n,sp:x=>-x.sp,wk:x=>-(x.wsp||0)}[IF.sort];
+  rs.sort((a,b)=>key(a)-key(b));
+  return rs;
+}
+
+/* 가설 제안 — 묶음별로 갈라 줄로 편다.
+   카드는 한 화면에 여섯 개밖에 안 들어가서 319개를 훑을 수가 없었다.
+   원고 쓰는 순서대로 묶음을 세우고, 묶음 안에서는 해야 하는 것을 먼저 둔다. */
+const IDEA_ORDER = ["페르소나","영상형식","구조","훅","소구","근거","기전","포지션","CTA","운영"];
+/* 못박는 기준.
+   추천 — 갈렸고, 5편 이상이고, 기저에서 15%p 이상 위로.
+   금지 — 5편 이상 썼는데 성공이 한 편도 없거나, 갈렸고 15%p 이상 아래로.
+     0/11편을 신뢰구간이 기저를 건넌다는 이유로 「안갈림」에 두면 안 된다. 열한 번
+     써서 한 번도 안 된 것은 지금 쓸 이유가 없다 — 못박는 근거는 그 편수 자체다. */
+const IDEA_MUST_N = 5, IDEA_MUST_LF = 0.15;
+/* 판정 문서가 뺀 축은 추천·금지로 내밀지 않는다 — 문서에 없는 값을 근거로
+   「이걸 해봐라」 하면 안 된다. 감추지는 않고 「참고」로 둔다. */
+const ideaMark = x => x.ref ? "ref"
+  : x.ban ? "no"
+  : (x.n>=IDEA_MUST_N && x.w===0) ? "no"
+  : (x.split && x.n>=IDEA_MUST_N && x.lf>=IDEA_MUST_LF) ? "yes"
+  : (x.split && x.n>=IDEA_MUST_N && x.lf<=-IDEA_MUST_LF) ? "no"
+  : (x.lf>=IDEA_MUST_LF) ? "maybe" : "";
+const IDEA_MK = {yes:"추천", no:"금지", maybe:"대기", ref:"참고", "":"—"};
+
+/* ── 다음에 해볼 것 ───────────────────────────────────────────────────────
+   성적표만 있으면 「이런 원고를 쓰고 있구나」에서 끝난다. 「그래서 이걸 해봐야지」가
+   되려면 지금 하고 있는 것과의 차이가 보여야 한다. 둘만 본다.
+
+     넣어볼 것   잘되는데 요즘 안 쓰는 값 — 하다가 놓친 것
+     지금 어기는 것  라이브 원고가 실제로 쓰고 있는 금지 값 — 돈이 나가는 중
+
+   둘 다 셈이 분명하다. 앞은 「추천인데 최근 절반에 0편」, 뒤는 「금지인데 라이브
+   원고의 판정 코딩에 있음」. 예상 승률 같은 지어낸 숫자는 쓰지 않는다. */
+function ideaTodo(){
+  const box=el("div",{class:"todo"});
+  /* 넣어볼 것 */
+  const cold=D.idea.filter(x=>!x.ref && x.split && x.n>=5 && x.lf>=0.15 && !(x.nL||0))
+    .map(x=>{
+      const ts=[...(x.wins||[]),...(x.loses||[])];
+      const last=ts.reduce((a,t)=>{const w=(DR[t]||{}).ws; return w&&w>a?w:a;},"");
+      return {...x, last};
+    }).sort((a,b)=>b.lf-a.lf);
+  /* 지금 어기는 것 */
+  const live=new Set(D.live.map(x=>x.t));
+  const cod=D.jcod||{};
+  const bans=D.idea.filter(x=>!x.ref && ((x.n>=5&&x.w===0)||(x.split&&x.n>=5&&x.lf<=-0.15)))
+    .map(x=>({...x, lts:[...live].filter(t=>((cod[t]||{})[x.ax]||[]).includes(x.v))}))
+    .filter(x=>x.lts.length)
+    .sort((a,b)=>b.lts.length-a.lts.length || a.rt-b.rt);
+
+  const head=(t,n,c)=>el("p",{class:"todoh"},el("span",{class:"mk "+c},n),el("b",{},t));
+  if(cold.length){
+    box.append(head("넣어볼 것",`${cold.length}개`,"yes"),
+      el("p",{class:"dim sm2"},"잘되는데 최근 절반에 한 편도 안 쓴 값입니다. 하다가 놓친 것입니다."));
+    cold.slice(0,5).forEach(x=>box.append(el("p",{class:"todor"},
+      el("button",{class:"lnk tv",onclick:()=>lyGo(x.ax,x.v)},x.v),
+      el("span",{class:"dim"},` ${x.ax} · `),
+      el("b",{class:"g"},pc(x.rt)), el("span",{class:"dim"},` ${x.w}/${x.n}편 `),
+      el("span",{class:"g"},pp(x.lf)),
+      x.last?el("span",{class:"dim"},` · 마지막 ${x.last}`):null,
+      el("button",{class:"lnk ic",onclick:()=>{
+        if(!PICK.some(p=>p.ax===x.ax&&p.v===x.v))
+          PICK.push({ax:x.ax,v:x.v,rt:x.rt,n:x.n,lf:x.lf,ban:false});
+        viewIdea();}},"담기"))));
+  }
+  if(bans.length){
+    box.append(head("지금 어기고 있는 것",`${bans.length}개`,"no"),
+      el("p",{class:"dim sm2"},"라이브 원고가 실제로 쓰고 있는 금지 값입니다. 지금 돈이 나가는 중입니다."));
+    bans.slice(0,5).forEach(x=>box.append(el("p",{class:"todor"},
+      el("button",{class:"lnk tv",onclick:()=>lyGo(x.ax,x.v)},x.v),
+      el("span",{class:"dim"},` ${x.ax} · `),
+      el("b",{class:"b"},`${x.w}/${x.n}편 ${pc(x.rt)}`),
+      el("span",{class:"dim"}," · 라이브 "),
+      ...x.lts.slice(0,4).map((t,i)=>el("span",{},(i?" · ":""),
+        el("button",{class:"lnk b",onclick:()=>openDraft(t)},t))),
+      x.lts.length>4?el("span",{class:"dim"},` 외 ${x.lts.length-4}편`):null)));
+  }
+  if(!cold.length && !bans.length)
+    box.append(el("p",{class:"dim"},"지금은 놓친 것도 어기는 것도 없습니다."));
+  return box;
+}
+
+function ideaHypBox(){
+  const all=hyp3All(), box=el("div",{class:"h3box"});
+  const deep=all.filter(h=>h.h2.kind==="갈래");
+  const cut=all.filter(h=>!h.row.ref && h.h1.no);
+  const d3=deep.filter(h=>h.depth===3), d2=deep.filter(h=>h.depth===2);
+  const ok1=all.filter(h=>!h.row.ref && !h.h1.no && h.h1.ok);
+  const flat=all.filter(h=>h.depth===-1);
+  /* 「이 칸이 갈리는가」는 값이 아니라 축의 성질이라 축마다 한 번만 센다 */
+  const byAx={}; all.forEach(h=>{ if(h.h2.kind==="칸") byAx[h.ax]=h; });
+  const axOk=Object.values(byAx).filter(h=>h.h2.ok), axNo=Object.values(byAx).filter(h=>!h.h2.ok);
+
+  box.append(el("p",{class:"h3bh"},el("b",{},"세운 가설"),
+    el("span",{class:"dim"}," — 값마다 셋씩 세웠습니다. ① 이 값이 되는가 ② 갈래(또는 이 칸)가 중요한가 ③ 워딩이 중요한가. 값을 누르면 근거가 열립니다.")));
+
+  const line=(lab,cls,note,arr,name)=>{
+    if(!arr.length)return null;
+    const p=el("p",{class:"h3bl"});
+    p.append(el("span",{class:"mk "+cls},lab), el("b",{},` ${arr.length}`),
+      el("span",{class:"dim"},` · ${note} — `));
+    arr.slice().sort((a,b)=>(b.row?b.row.n:0)-(a.row?a.row.n:0)).slice(0,4).forEach((h,i)=>
+      p.append(i?" · ":"", el("button",{class:"lnk",onclick:()=>lyGo(h.ax,h.v)},name(h))));
+    if(arr.length>4)p.append(el("span",{class:"dim"},` 외 ${arr.length-4}`));
+    return p;};
+
+  box.append(el("p",{class:"h3bs"},"갈래가 달린 값 — 어디까지 내려가야 하나"));
+  box.append(
+    line("워딩까지","yes","갈래를 골라도 그 안에서 워딩이 갈린다",d3,h=>h.v),
+    line("갈래까지","maybe","갈래만 고르면 된다. 워딩은 안 갈린다",d2,h=>h.v),
+    line("값까지","none","갈래를 골라도 달라지지 않는다",deep.filter(h=>h.depth===1),h=>h.v));
+
+  box.append(el("p",{class:"h3bs"},"칸 — 그 칸을 뭘로 채우느냐가 갈리나 (축마다 한 번)"));
+  box.append(
+    line("갈린다","yes",`값끼리 ${(H3_STEP*100).toFixed(0)}%p 넘게 벌어진다. 아무거나 쓰면 안 되는 칸`,axOk,h=>h.ax),
+    line("안 갈린다","none","뭘 써도 비슷하다. 여기서 고민할 게 없다",axNo,h=>h.ax));
+
+  box.append(el("p",{class:"h3bs"},"값 하나 — 넣을 것과 뺄 것"));
+  box.append(
+    line("된다","yes",`기저 ${pc(D.base)}보다 ${(H3_LIFT*100).toFixed(0)}%p 위 · 5편 이상`,ok1,h=>h.v),
+    line("뺀다","no","성공이 없거나 기저보다 아래",cut,h=>h.v));
+  return box;
+}
+
+/* ── 소구를 타고 내려간다 ──────────────────────────────────────────────────
+   판정 문서는 소구 → 그 소구를 쓴 원고의 문장에 나온 근거 → 그 근거를 뭐라고
+   썼나 순으로 안쪽을 판다. 가설 제안이 그 순서를 뒤엎으면 안 된다.
+
+   89줄을 한 표에 늘어놓으면 「배터리가 된다」와 「통화품질 마이크를 어떻게
+   말하나」가 같은 줄에 선다 — 어느 것이 어느 것 안에 있는지 사라진다.
+   그래서 소구 묶음만은 표가 아니라 안쪽으로 접힌 나무로 편다.
+
+     소구        배터리가 되는가            ← 소구 축
+       근거      배터리를 무엇으로 대는가      ← 그 소구를 쓴 원고의 문장에서
+       기전      왜 그런지 무엇으로 대는가
+       워딩      그것을 실제로 뭐라고 썼나     ← 판정이 들고 있는 진짜 문장 */
+let SG_OPEN = "";
+const IDEA_RANK = {yes:0, no:1, maybe:2, "":3, ref:4};
+const SG_TABS = [["문제","무엇을 문제라고 했나","그 소구를 쓴 원고가 무엇을 문제라고 열었나"],
+                 ["근거","근거가 무엇인가","그 소구를 무엇으로 뒷받침했나"],
+                 ["방식","방식이 무엇인가","그 근거를 어떤 수로 들이밀었나"]];
+
+/* 한 소구 안의 층. ptab(문장이 달린 판정)이 먼저, 축·값 코딩이 뒤. */
+function soguLayers(g){
+  const P=(D.ptab||[]).filter(r=>r.part==="본문" && r.g===g), L=[];
+  SG_TABS.forEach(([t,lab,why])=>{
+    const rs=P.filter(r=>r.tab===t).map(r=>({v:r.v, n:r.n, w:r.w, rt:r.rt, lf:r.lf,
+      split:r.out!=="구분 안 됨", ev:r.ev, ax:g+" — "+lab}));
+    if(rs.length) L.push({lab, why, rs});
+  });
+  const mech=D.idea.filter(x=>x.ax===g+" 기전 계열");
+  if(mech.length) L.push({lab:"기전", why:"그 근거가 왜 되는지 대는 자리", rs:mech});
+  const wd=D.idea.filter(x=>x.ax.indexOf(g+" · ")===0);
+  if(wd.length) L.push({lab:"워딩 갈래", why:"같은 근거라도 말을 어떻게 골랐나", rs:wd});
+  return L;
+}
+
+/* 그 값의 실제 문장. ptab 줄은 제 문장을 들고 있고, 축·값 줄은 없어서
+   그 값을 쓴 성공작이 이 소구에서 쓴 문장을 가져온다 — 같은 원고의 같은 소구다. */
+function sgLines(g, r){
+  const out=[];
+  if(r.ev){
+    Object.entries(r.ev).forEach(([t,ls])=>(ls||[]).forEach(ln=>out.push({t,ln})));
+  }else{
+    const ok=new Set(r.wins||[]);
+    if(ok.size)(D.ptab||[]).forEach(p=>{
+      if(p.part!=="본문"||p.g!==g)return;
+      Object.entries(p.ev||{}).forEach(([t,ls])=>{ if(ok.has(t))(ls||[]).forEach(ln=>out.push({t,ln})); });
+    });
+  }
+  const seen=new Set();
+  return out.filter(x=>{const k=x.t+"｜"+x.ln; if(seen.has(k))return false; seen.add(k); return true;})
+            .sort((a,b)=>{const A=(DR[a.t]||{}).st==="성공"?0:1, B=(DR[b.t]||{}).st==="성공"?0:1;
+                          return A-B || ((DR[b.t]||{}).r||0)-((DR[a.t]||{}).r||0);});
+}
+
+const sgBar = x => el("span",{class:"ib"},
+  el("i",{style:`width:${Math.max(2,Math.min(100,x.rt*100))}%;`+
+    `background:${x.rt>=D.base?"var(--ok)":"var(--no)"}`}),
+  el("u",{style:`left:${D.base*100}%`,title:`기저율 ${pc(D.base)}`}));
+const sgNum = x => el("span",{class:"in2"},el("b",{},pc(x.rt)),
+  el("span",{class:"dim"},` ${x.w}/${x.n}편 `), el("span",{class:x.lf>0?"g":"b"},pp(x.lf)));
+
+function soguTree(){
+  const wrap=el("div",{class:"sgt"});
+  wrap.append(el("p",{class:"dim sm2",style:"margin:2px 0 10px;line-height:1.6"},
+    "판정이 판 순서 그대로입니다 — 어떤 소구를 쓸지 고르고, 그 소구를 쓴 원고가 실제로 "+
+    "댄 근거 중에서 고르고, 그 근거를 뭐라고 썼는지 문장을 고릅니다. 소구를 누르면 안이 열립니다."));
+  const tops=D.idea.filter(x=>x.ax==="소구").slice()
+    .sort((a,b)=>(IDEA_RANK[ideaMark(a)]-IDEA_RANK[ideaMark(b)])||(b.n-a.n));
+  tops.forEach(x=>{
+    const open=SG_OPEN===x.v, mk=ideaMark(x);
+    const picked=PICK.some(p=>p.ax===x.ax&&p.v===x.v);
+    const hd=el("div",{class:"sgh"+(open?" on":"")});
+    hd.append(el("span",{class:"mk "+(mk||"none")},IDEA_MK[mk]),
+      el("button",{class:"sgn lnk",onclick:()=>{SG_OPEN=open?"":x.v;renderCards();
+        if(!open){const e=document.getElementById("sg_"+x.v); if(e)e.scrollIntoView({block:"nearest"});}}},
+        (open?"▾ ":"▸ ")+x.v),
+      sgBar(x), sgNum(x),
+      el("button",{class:"lnk ic",onclick:()=>{
+        if(picked)PICK=PICK.filter(p=>!(p.ax===x.ax&&p.v===x.v));
+        else PICK.push({ax:x.ax,v:x.v,lf:x.lf,ban:x.ban||x.lf<0,rt:x.rt,n:x.n});
+        renderCards();}},picked?"담음":"담기"),
+      el("button",{class:"lnk ic",onclick:()=>lyGo(x.ax,x.v)},"가설"));
+    hd.id="sg_"+x.v;
+    wrap.append(hd);
+    if(open) wrap.append(soguBody(x.v));
+  });
+  return wrap;
+}
+
+function soguBody(g){
+  const b=el("div",{class:"sgb"});
+  const L=soguLayers(g);
+  if(!L.length){ b.append(el("p",{class:"dim sm2"},"판정에 이 소구의 안쪽이 없습니다.")); return b; }
+  L.forEach(lay=>{
+    b.append(el("p",{class:"sgl"},el("b",{},lay.lab),el("span",{class:"dim"}," — "+lay.why),
+      el("span",{class:"dim"},` · ${lay.rs.length}개`)));
+    const rs=lay.rs.slice().sort((a,b2)=>
+      (IDEA_RANK[ideaMark(a)]-IDEA_RANK[ideaMark(b2)])||(b2.rt-a.rt)||(b2.n-a.n));
+    const all=SG_ALL[g+"｜"+lay.lab];
+    rs.slice(0, all?99:6).forEach(r=>b.append(sgRow(g,r,lay)));
+    if(!all && rs.length>6) b.append(el("button",{class:"lnk more",
+      onclick:()=>{SG_ALL[g+"｜"+lay.lab]=true;renderCards();}},
+      `${lay.lab} ${rs.length-6}개 더`));
+  });
+  return b;
+}
+const SG_ALL={};
+
+function sgRow(g, r, lay){
+  const mk=ideaMark(r), lines=sgLines(g,r);
+  const row=el("div",{class:"sgr"});
+  const picked=r.ax && PICK.some(p=>p.ax===r.ax&&p.v===r.v);
+  row.append(el("span",{class:"mk "+(mk||"none")},IDEA_MK[mk]),
+    el("span",{class:"sgv",title:r.ax||""},r.v),
+    sgBar(r), sgNum(r),
+    el("button",{class:"lnk ic",onclick:()=>{
+      if(picked)PICK=PICK.filter(p=>!(p.ax===r.ax&&p.v===r.v));
+      else PICK.push({ax:r.ax||g,v:r.v,lf:r.lf,ban:r.lf<0,rt:r.rt,n:r.n});
+      renderCards();}},picked?"담음":"담기"));
+  const box=el("div",{class:"sgi"});
+  box.append(row);
+  /* 워딩 — 판정이 들고 있는 진짜 문장. 감춰 두면 아무도 안 연다. */
+  if(lines.length){
+    const one=lines[0], ok=(DR[one.t]||{}).st==="성공";
+    const cp=el("button",{class:"lnk ic"},"복사");
+    cp.addEventListener("click",()=>bkCopy(one.ln,cp));
+    box.append(el("div",{class:"sgq"+(ok?"":" bad")},
+      el("span",{class:"sgqt"},`“${one.ln}”`),
+      el("button",{class:"lnk "+(ok?"g":"b"),onclick:()=>openDraft(one.t)},one.t),
+      cp,
+      lines.length>1?el("button",{class:"lnk ic",onclick:e=>{
+        const t=e.target.closest(".sgi"), old=t.querySelector(".sgqs");
+        if(old){old.remove();e.target.textContent=`문장 ${lines.length-1}개 더`;return;}
+        const w=el("div",{class:"sgqs"});
+        lines.slice(1,9).forEach(L2=>{
+          const c2=el("button",{class:"lnk ic"},"복사");
+          c2.addEventListener("click",()=>bkCopy(L2.ln,c2));
+          const ok2=(DR[L2.t]||{}).st==="성공";
+          w.append(el("div",{class:"sgq"+(ok2?"":" bad")},el("span",{class:"sgqt"},`“${L2.ln}”`),
+            el("button",{class:"lnk "+(ok2?"g":"b"),onclick:()=>openDraft(L2.t)},L2.t), c2));
+        });
+        t.append(w); e.target.textContent="접기";
+      }},`문장 ${lines.length-1}개 더`):null));
+  }else{
+    box.append(el("p",{class:"dim sm2",style:"margin:2px 0 0 6px"},"판정에 이 값의 문장이 없습니다."));
+  }
+  return box;
+}
+
+function renderCards(){
+  const rs=ideaRows(), box=$("#ideaCards");
+  box.innerHTML=""; box.className = IF.card ? "cards3" : "";
+  const yes=rs.filter(x=>ideaMark(x)==="yes").length, no=rs.filter(x=>ideaMark(x)==="no").length,
+        ref=rs.filter(x=>x.ref).length;
+  $("#ideaCount").textContent =
+    `${rs.length}개 — 추천 ${yes} · 금지 ${no} · 참고 ${ref}(판정 문서가 뺀 축) · 나머지는 아직 못박을 게 아닙니다`;
+  const toc=$("#ideaToc"); if(toc)toc.innerHTML="";
+  if(!rs.length){box.append(el("p",{class:"dim"},"걸린 게 없습니다. 필터를 푸세요."));drawBasket();return;}
+
+  if(IF.card){ rs.slice(0,60).forEach(x=>box.append(ideaCard(x))); drawBasket(); return; }
+
+  /* 묶음별 — 원고 쓰는 순서.
+     「{소구} 기전 계열」은 묶음이 기전으로 잡혀 있지만 실은 소구 안쪽 층이다.
+     소구 나무가 그것을 삼키므로 기전 묶음에 또 두면 같은 줄이 두 번 나온다. */
+  const SG_IN = new Set(D.idea.filter(x=>x.ax==="소구").map(x=>x.v));
+  const grpOf = x => (SG_IN.has(x.ax.replace(/ 기전 계열$/,"")) && / 기전 계열$/.test(x.ax))
+    ? "소구" : (x.grp||"그 밖");
+  const by={}; rs.forEach(x=>(by[grpOf(x)]=by[grpOf(x)]||[]).push(x));
+  const gs=[...IDEA_ORDER.filter(g=>by[g]), ...Object.keys(by).filter(g=>!IDEA_ORDER.includes(g))];
+  const rank=IDEA_RANK;
+
+  /* 왼쪽 목차 — 묶음이 열 개라 위아래로 찾아다니게 된다 */
+  if(toc){
+    toc.append(el("p",{class:"tochd"},"묶음"));
+    gs.forEach(g=>{
+      const a=by[g], y=a.filter(x=>ideaMark(x)==="yes").length, n=a.filter(x=>ideaMark(x)==="no").length;
+      toc.append(el("button",{class:"tocb"+(IF.grp===g?" on":""),
+        onclick:()=>{const e=document.getElementById("g_"+g); if(e)e.scrollIntoView({behavior:"smooth",block:"start"});}},
+        el("b",{},g),
+        el("span",{class:"tocn"},
+          y?el("span",{class:"mk yes"},"추천 "+y):null,
+          n?el("span",{class:"mk no"},"금지 "+n):null,
+          el("span",{class:"dim"},` ${a.length}개`))));
+    });
+    toc.append(el("p",{class:"dim sm2",style:"margin:10px 4px 0;line-height:1.55"},
+      "추천 — 5편 이상, 기저보다 15%p 위, 갈림. 금지 — 5편 이상인데 성공 0편이거나 15%p 아래. "+
+      "대기 — 15%p 위지만 편수가 모자람."));
+  }
+
+  /* 머리글 — 어느 열이 무엇인지 */
+  box.append(el("div",{class:"irow ihead"},
+    el("span",{title:"추천 / 금지 / 대기 — 못박을 수 있나"},"판정"),
+    el("span",{title:"원고에 넣거나 뺄 것"},"값"),
+    el("span",{title:"그 값이 무엇을 정하는 칸인가"},"축"),
+    el("span",{title:`막대는 성공률. 세로선이 기저 ${pc(D.base)}`},"성공률"),
+    el("span",{title:"성공률 · 성공/편수 · 기저대비 몇 %p"},"성적"),
+    el("span",{title:"위닝·트렌드·잠재력 / 식었다·올라왔다"},"구분"),
+    el("span",{},"담기"),el("span",{},"원고")));
+
+  gs.forEach(g=>{
+    const rows=by[g].slice().sort((a,b)=>
+      (rank[ideaMark(a)]-rank[ideaMark(b)]) || (b.lf-a.lf));
+    const tree = g==="소구" && !IF.q && !IF.only && !IF.kind && !IF.tag && !IF.turn;
+    box.append(el("div",{class:"bar ghead",id:"g_"+g},
+      el("h3",{style:"margin:0"},g),
+      el("span",{class:"dim"},tree?`소구 ${SG_IN.size}개 — 안쪽까지 ${rows.length}개`:`${rows.length}개`),
+      el("button",{class:"lnk",onclick:()=>{IF.grp=(IF.grp===g?"":g);IF._q="";viewIdea();}},
+        IF.grp===g?"묶음 풀기":"이 묶음만")));
+    if(tree){ box.append(soguTree()); return; }
+    const tb=el("div",{class:"irows"});
+    rows.slice(0, IF.grp===g?999:12).forEach(x=>tb.append(ideaRow(x)));
+    if(IF.grp!==g && rows.length>12)
+      tb.append(el("button",{class:"lnk more",onclick:()=>{IF.grp=g;IF._q="";viewIdea();}},
+        `${g} ${rows.length-12}개 더 보기`));
+    box.append(tb);
+  });
+  drawBasket();
+}
+/* 값마다 가설 셋을 세워 「어디까지 정해야 하나」를 줄에 붙인다.
+   한 번만 세고 쟁여 둔다 — 319개 × 갈래마다 원고를 훑어서 매번 하면 느리다. */
+let IDEA_H3=null;
+function ideaH3(x){
+  if(!IDEA_H3){ IDEA_H3={}; hyp3All().forEach(h=>IDEA_H3[h.ax+" "+h.v]=h); }
+  return IDEA_H3[x.ax+" "+x.v];
+}
+const IDEA_UPTO = {"-1":"정할 게 없음", 0:"빼기", 1:"이 값까지", 2:"갈래까지", 3:"워딩까지"};
+const IDEA_UPC  = {"-1":"none", 0:"no", 1:"yes", 2:"maybe", 3:"maybe"};
+
+function ideaRow(x){
+  const picked=PICK.some(p=>p.ax===x.ax&&p.v===x.v);
+  const mk=ideaMark(x);
+  const r=el("div",{class:"irow"+(picked?" on":"")});
+  r.append(
+    el("span",{class:"mk "+(mk||"none")},IDEA_MK[mk]),
+    el("button",{class:"iv lnk",title:"가설 셋 보기 — "+x.v,
+      onclick:()=>lyGo(x.ax,x.v)},x.v),
+    el("span",{class:"ia dim",title:x.ax},x.ax),
+    el("span",{class:"ib"},el("i",{style:`width:${Math.max(2,Math.min(100,x.rt*100))}%;`+
+      `background:${x.rt>=D.base?"var(--ok)":"var(--no)"}`}),
+      el("u",{style:`left:${D.base*100}%`,title:`기저율 ${pc(D.base)}`})),
+    el("span",{class:"in2"},el("b",{},pc(x.rt)),el("span",{class:"dim"},` ${x.w}/${x.n}편 `),
+      el("span",{class:x.lf>0?"g":"b"},pp(x.lf))),
+    (()=>{ const h=ideaH3(x);
+      if(!h) return el("span",{class:"it dim"},"—");
+      return el("span",{class:"mk "+IDEA_UPC[h.depth],title:h.upto},IDEA_UPTO[h.depth]); })(),
+    el("button",{class:"lnk ic",onclick:()=>{
+      if(picked)PICK=PICK.filter(p=>!(p.ax===x.ax&&p.v===x.v));
+      else PICK.push({ax:x.ax,v:x.v,lf:x.lf,ban:x.ban||x.lf<0,rt:x.rt,n:x.n});
+      renderCards();}},picked?"담음":"담기"),
+    el("button",{class:"lnk ic",title:"가설 셋과 근거를 이 자리에서 편다",onclick:()=>{
+      const o=r.nextSibling;
+      if(o&&o.classList&&o.classList.contains("idet")){o.remove();return;}
+      r.after(ideaDetail(x));}},"가설"));
+  return r;
+}
+
+/* 펼치면 「어디서 갈리나」와 같은 모양 — 가설 셋과 그 근거, 그리고 실제 문장.
+   알림창은 쓰지 않는다. 뜨면 화면이 멈춘다. */
+function ideaDetail(x){
+  const d=el("div",{class:"idet"});
+  const h=ideaH3(x);
+  if(h){
+    d.append(el("p",{class:"h3up"},el("b",{},"어디까지 정해서 써야 하나 — "),h.upto));
+    d.append(lyCard(1,h.h1));
+    /* 가설2 — 갈래(또는 칸)를 표로 */
+    let b2=null;
+    if(h.h2.list.length>=2){
+      const tb=el("div",{class:"lytab"});
+      tb.append(el("div",{class:"lyr2 lyhd"},
+        el("span",{},h.h2.kind==="갈래"?"갈래":"이 칸의 값"),
+        el("span",{},"성공률"),el("span",{},"성공/편수"),el("span",{},"기저 대비"),el("span",{},"")));
+      h.h2.list.slice(0,8).forEach(b=>{
+        const nm=h.h2.kind==="갈래"?b.br:b.v, one=h.h2.kind==="갈래"&&b.one;
+        const lf=b.rt-D.base;
+        tb.append(el("div",{class:"lyr2"},
+          el("span",{class:"lyv",title:one?`${b.a} — 값이 이것 하나뿐입니다`:nm},
+            nm, one?el("span",{class:"dim wone"}," · 워딩 하나"):null),
+          el("span",{class:"lyb"},
+            el("i",{style:`width:${Math.max(2,Math.min(100,b.rt*100))}%;background:${b.rt>=D.base?"var(--ok)":"var(--no)"}`}),
+            el("u",{style:`left:${D.base*100}%`})),
+          el("span",{class:"lyn"},el("b",{},pc(b.rt)),el("span",{class:"dim"},` ${b.w}/${b.n}편`)),
+          el("span",{class:"lyd "+(lf>=0?"g":"b")},pp(lf)),
+          el("span",{})));
+      });
+      b2=tb;
+    }
+    d.append(lyCard(2,h.h2,b2));
+    /* 가설3 — 갈래 안 워딩 */
+    let b3=null;
+    if(h.h3.list.length){
+      const tb=el("div",{class:"lytab"});
+      tb.append(el("div",{class:"lyr3 lyhd"},
+        el("span",{},"갈래"),el("span",{},"제일 나은 워딩"),el("span",{},"제일 낮은 워딩"),
+        el("span",{},"벌어짐"),el("span",{},"")));
+      h.h3.list.slice(0,6).forEach(e=>{
+        const hi=e.rs[0], lo=e.rs[e.rs.length-1];
+        tb.append(el("div",{class:"lyr3"},
+          el("span",{class:"lybr dim",title:e.a},e.br),
+          el("span",{class:"lyv",title:hi.v},`${hi.disp||hi.v} ${pc(hi.rt)}`),
+          el("span",{class:"lyv dim",title:lo.v},`${lo.disp||lo.v} ${pc(lo.rt)}`),
+          el("span",{class:e.spread>=H3_STEP?"g":"dim"},pp(e.spread)),
+          el("span",{class:"mk "+(e.spread>=H3_STEP?"yes":"none")},
+            e.spread>=H3_STEP?"갈림":"안 갈림")));
+      });
+      b3=tb;
+    }
+    d.append(lyCard(3,h.h3,b3));
+  }
+  /* 그 값을 쓴 원고 */
+  const list=(lab,arr,cls)=>{
+    if(!arr||!arr.length)return el("p",{class:"dim sm2"},lab+" 없음");
+    const p=el("p",{class:"sm2"},el("span",{class:"dim"},lab+" "));
+    arr.slice(0,8).forEach((t,i)=>p.append(i?" · ":"",
+      el("button",{class:"lnk "+cls,onclick:()=>openDraft(t)},t)));
+    return p;};
+  d.append(list("성공작",x.wins,"g"),list("실패작",x.loses,"b"),
+    el("div",{class:"bar",style:"margin:6px 0 0"},
+      el("button",{class:"btn2",onclick:()=>lyGo(x.ax,x.v)},"이 값만 크게 보기 →"),
+      el("button",{class:"btn2",onclick:()=>{
+        DFT={name:"",items:[],hyp:{ax:x.ax,v:x.v,ban:x.lf<0||x.ban}};go("draft");}},
+        (x.lf<0||x.ban)?"빼고 써보기 →":"넣고 써보기 →")));
+  return d;
+}
+function ideaCard(x){
+  const picked=PICK.some(p=>p.ax===x.ax&&p.v===x.v);
+  const bar=el("div",{class:"pbar"},
+    el("i",{style:`width:${Math.max(2,x.rt*100)}%;background:${x.rt>=D.base?"var(--ok)":"var(--no)"}`}),
+    el("u",{style:`left:${D.base*100}%`,title:`기저율 ${pc(D.base)}`}));
+  const tags=el("div",{class:"tags"});
+  if(x.kind)tags.append(el("span",{class:"pill "+(x.kind==="위닝"?"p-ok":x.kind==="트렌드"?"p-wa":"p-dim")},x.kind));
+  if(x.turn)tags.append(el("span",{class:"pill "+(x.turn==="올라왔다"?"p-ok":"p-no")},x.turn));
+  if(x.ban)tags.append(el("span",{class:"pill p-no"},"금지 가설"));
+  tags.append(el("span",{class:"pill p-dim"},x.tag));
+  const c=el("div",{class:"icard"+(picked?" on":"")},
+    el("p",{class:"iax"},x.grp+" · "+x.ax),
+    el("p",{class:"ival"},x.v),
+    bar,
+    el("p",{class:"inum"},
+      el("b",{},pc(x.rt)),el("span",{class:"dim"},` ${x.w}/${x.n}편 · 기저대비 `),
+      el("span",{class:x.lf>0?"g":"b"},pp(x.lf)),
+      el("span",{class:"dim"},` · ${man(x.sp)}`)),
+    (x.nE||x.nL)?el("p",{class:"dim sm"},
+      (x.nE?`이전 ${x.wE}/${x.nE}`:"이전에 안 씀")+" → "+(x.nL?`최근 ${x.wL}/${x.nL}`:"최근에 안 씀")
+      +(x.wroas!=null?` · 이번 주 ${x.wn||0}편 ROAS ${x.wroas.toFixed(2)}`:"")):null,
+    tags,
+    el("div",{class:"bar",style:"margin:8px 0 0"},
+      el("button",{class:picked?"btn":"btn2",onclick:()=>{
+        if(picked)PICK=PICK.filter(p=>!(p.ax===x.ax&&p.v===x.v));
+        else PICK.push({ax:x.ax,v:x.v,lf:x.lf,ban:x.ban||x.lf<0,rt:x.rt,n:x.n});
+        renderCards();}},picked?"담음":"담기"),
+      el("button",{class:"btn2",onclick:()=>{
+        DFT={name:"",items:[],hyp:{ax:x.ax,v:x.v,ban:x.lf<0||x.ban}};go("draft");}},
+        (x.lf<0||x.ban)?"빼고 써보기":"넣고 써보기"),
+      (x.wins&&x.wins.length)?el("button",{class:"btn2",onclick:()=>{
+        const o=c.querySelector(".idet"); if(o){o.remove();return;}
+        c.append(ideaDetail(x));}},"원고"):null));
+  return c;
+}
+
+function drawBasket(){
+  const b=$("#basket");if(!b)return;b.innerHTML="";
+  if(!PICK.length)return;
+  b.append(el("b",{},`담은 가설 ${PICK.length}개`));
+  PICK.forEach(p=>b.append(el("span",{class:"pill "+(p.ban?"p-no":"p-ok"),
+    onclick:()=>{PICK=PICK.filter(z=>z!==p);renderCards();},title:"눌러서 뺍니다"},
+    (p.ban?"빼기 ":"넣기 ")+p.v)));
+  b.append(el("button",{class:"btn",onclick:()=>{
+    DFT={name:"",items:[],hyp:null,picks:PICK.slice()};go("draft");}},"이 가설로 원고 쓰기 →"));
+}
+
+/* 프로그램 태깅 — P1_규칙태깅.py가 배운 규칙을 브라우저에서 그대로 돌린다.
+   파이썬 쪽 grams()·apply()와 같은 방식이라야 결과가 같다. */
+function gramsJS(lines){
+  const g = new Set();
+  const put = (s, pre) => {
+    (s.match(/[가-힣]+/g) || []).forEach(w => {
+      for (let n = 2; n <= 4; n++)
+        for (let i = 0; i + n <= w.length; i++) g.add(pre + w.slice(i, i + n));
+    });
+    (s.match(/[A-Za-z]{2,}|\d+[가-힣A-Za-z]*/g) || []).forEach(w => g.add(pre + w.toLowerCase()));
+  };
+  put(lines.join(" "), "");
+  put(lines.slice(0, 2).join(" "), "«앞»");
+  put(lines.slice(-3).join(" "), "«끝»");
+  return g;
+}
+
+function tagByRule(lines){
+  const R = D.rules || {};
+  if (!R.rules) return {items: [], note: "규칙 파일이 없습니다. python P1_규칙태깅.py 를 돌리세요."};
+  const g = gramsJS(lines), sc = {};
+  for (const key in R.rules) {
+    const r = R.rules[key];
+    if (!R.thr[r.ax]) continue;                     // 믿을 만하다고 확인된 축만
+    let hit = 0, tot = 0;
+    r.kw.forEach(k => { tot += k.d; if (g.has(k.w)) hit += k.d; });
+    const s = tot ? hit / tot : 0;
+    if (s > 0) (sc[r.ax] = sc[r.ax] || []).push({s: s, v: r.v, kw: r.kw.filter(k => g.has(k.w)).slice(0, 3)});
+  }
+  const multi = new Set(R.multi || []);
+  const out = [];
+  const done = new Set();
+  for (const ax in sc) {
+    done.add(ax);
+    const lst = sc[ax].sort((a, b) => b.s - a.s);
+    const th = (R.thr[ax] || {}).th || 0.55;
+    const take = multi.has(ax) ? lst.filter(x => x.s >= th) : (lst[0] && lst[0].s >= th * 0.7 ? [lst[0]] : []);
+    take.forEach(x => out.push({axis: ax, val: x.v, ok: true, src: "프로그램",
+      conf: Math.round((R.thr[ax] || {}).p * 100) || null,
+      why: "걸린 말 — " + x.kw.map(k => k.w.replace("«앞»", "앞:").replace("«끝»", "끝:")).join(" · ")}));
+  }
+  // 신호가 없으면 그 축에서 절반을 넘는 값을 찍는다(파이썬 쪽과 같은 규칙)
+  for (const ax in (R.major || {})) {
+    if (done.has(ax) && out.some(x => x.axis === ax)) continue;
+    out.push({axis: ax, val: R.major[ax].v, ok: true, src: "프로그램",
+      conf: Math.round((R.major[ax].p || 0) * 100),
+      why: "신호가 없어 가장 흔한 값으로 찍음"});
+  }
+  return {items: out, note: `규칙이 믿을 만한 축 ${Object.keys(R.thr).length}개만 봅니다. `
+    + `남겨둔 원고로 잰 정밀도 ${Math.round(R.p * 100)}% · 재현율 ${Math.round(R.r * 100)}% — `
+    + `놓치는 게 많으니 클로드도 함께 돌려 견주세요.`};
+}
+
+/* 두 결과를 견준다 */
+function mergeTags(a, b){
+  const key = x => x.axis + "␟" + x.val;
+  const A = new Map(a.map(x => [key(x), x])), Bm = new Map(b.map(x => [key(x), x]));
+  const out = [];
+  for (const [k, x] of A) out.push(Object.assign({}, x, {both: Bm.has(k), only: Bm.has(k) ? "" : "프로그램만"}));
+  for (const [k, x] of Bm) if (!A.has(k)) out.push(Object.assign({}, x, {both: false, only: "클로드만"}));
+  return out;
+}
+
+/* ── 원고 검증 ─────────────────────────────────────────
+   쓰거나 붙여넣는다 → 태깅한다(클로드·프로그램·수기) → 그 원고에 해당하는 것만 말해준다.
+   전체 목록은 펴지 않는다. 사람은 많은 글을 한 번에 못 본다. */
+let DFT = {name:"", items:[], hyp:null};
+const SEPJ = String.fromCharCode(9247);
+
+function viewDraft(){
+  const m=$("#main");m.innerHTML="";
+  m.append(el("p",{class:"eyebrow"},"원고 빌더"),el("h2",{},"원고 검증"),
+    el("p",{class:"lede",html:
+      "쓰거나 이미 쓴 원고를 붙여넣습니다. 태깅하면 그 원고에 <b>해당하는 것만</b> 말해줍니다 — "+
+      "빼야 할 것, 좋은 것, 없는데 넣으면 좋은 것."}));
+
+  if(DFT.picks&&DFT.picks.length){
+    const c=el("div",{class:"card tight"},el("h3",{},"담아온 가설 "+DFT.picks.length+"개"));
+    DFT.picks.forEach(p=>c.append(el("p",{class:"lrow"},
+      el("span",{class:"pill "+(p.ban?"p-no":"p-ok")},p.ban?"빼고 쓴다":"넣고 쓴다"),
+      el("b",{}," "+p.v),el("span",{class:"dim"}," "+p.ax+" · "+pc(p.rt)+" "+p.n+"편"))));
+    c.append(el("p",{class:"dim"},"「빼고 쓴다」는 A/B로 가르지 않습니다. 이 원고에서 통째로 빼고 그대로 태웁니다."));
+    m.append(c);
+  }
+  if(DFT.hyp){
+    const h=DFT.hyp;
+    m.append(el("div",{class:"card tight"},
+      el("h3",{},"이 가설로 씁니다"),
+      el("p",{},el("b",{},h.ax+" = "+h.v),
+        el("span",{class:"pill "+(h.ban?"p-no":"p-ok")},h.ban?"빼고 써서 확인":"넣고 써서 확인")),
+      el("p",{class:"dim"},h.ban
+        ? "안 된다는 분석이 나온 값입니다. A/B로 가르지 않고 이 원고에서 통째로 뺍니다. 빼고도 잘 나오면 빼는 게 맞습니다."
+        : "된다는 분석이 나온 값입니다. 이 원고에 넣고 확인합니다."),
+      el("button",{class:"btn2",onclick:()=>{DFT.hyp=null;viewDraft();}},"가설 없이 쓰기")));
+  }
+
+  const nameIn=el("input",{type:"text",placeholder:"원고 이름",value:DFT.name,style:"flex:1"});
+  nameIn.addEventListener("input",()=>DFT.name=nameIn.value);
+  const ta=el("textarea",{id:"dText",rows:"16",style:"width:100%",placeholder:"여기에 쓰거나 붙여넣으세요. 한 줄에 한 문장이면 가장 좋습니다."});
+  /* 빌더에서 쓴 글을 안고 왔으면 채워 둔다. 안 채우면 넘어와도 빈 칸이라
+     다시 붙여넣게 된다. */
+  if(DFT.body) ta.value=DFT.body;
+  m.append(el("div",{class:"bar"},nameIn),ta);
+
+  m.append(el("div",{class:"bar"},
+    el("b",{style:"font-size:12.5px"},"태깅"),
+    el("button",{class:"btn",onclick:()=>tagBy("claude")},"클로드로"),
+    el("button",{class:"btn2",onclick:()=>tagBy("rule")},"프로그램으로"),
+    el("button",{class:"btn2",onclick:()=>tagBy("hand")},"수기로"),
+    el("span",{class:"dim",id:"dMsg"},"")));
+  m.append(el("div",{id:"dOut"}),el("div",{id:"dAdv"}));
+
+  const box=el("details",{class:"gbox"},el("summary",{},el("b",{},"갖다 쓸 문장"),
+    el("span",{class:"dim"}," 성공작 "+D.sent.length+"편 — 누르면 위에 들어갑니다")));
+  D.sent.forEach(w=>{
+    const c=el("div",{class:"wcard"},el("p",{class:"jt"},el("b",{},w.t),
+      el("span",{class:"dim"}," "+(w.main||"")+" · "+man(w.sp)+" · ROAS "+w.roas)));
+    w.lines.forEach(x=>c.append(el("p",{class:"wl",onclick:()=>insDraft(x)},x)));
+    box.append(c);
+  });
+  m.append(box);
+  if(DFT.items.length){drawTag();advise();}
+}
+
+function insDraft(s){
+  const t=$("#dText");const a=t.selectionStart||t.value.length;
+  const pre=t.value.slice(0,a),post=t.value.slice(a);
+  const add=(pre&&!pre.endsWith("\n")?"\n":"")+s+"\n";
+  t.value=pre+add+post;t.focus();t.selectionStart=t.selectionEnd=(pre+add).length;
+}
+function dsay(t){const e=$("#dMsg");if(e)e.textContent=t;}
+
+async function tagBy(how){
+  const body=$("#dText").value.trim();
+  if(!DFT.name)DFT.name=($("input[placeholder='원고 이름']")||{}).value||"";
+  if(!body){dsay("원고를 먼저 넣으세요.");return;}
+  if(how==="hand"){DFT.items=[];addRow();dsay("수기로 넣습니다. 축과 값을 고르세요.");return;}
+  if(how==="rule"){
+    const res=tagByRule(body.split(String.fromCharCode(10)).filter(x=>x.trim()));
+    DFT.items=mergeTags(res.items,DFT.items.filter(x=>x.src==="클로드"));
+    drawTag();advise();dsay(res.note);
+    return;
+  }
+  const k=(localStorage.getItem("anthropic_key")||"").trim()||askKeyD();
+  if(!k){dsay("API 키가 필요합니다.");return;}
+  dsay("클로드가 읽는 중…");
+  try{
+    const items=await callClaudeTag(k,DFT.name||"이름 없음",body);
+    const mine=items.map(x=>({axis:x.axis,val:x.val,why:x.why,ok:true,src:"클로드"}));
+    const rule=DFT.items.filter(x=>x.src==="프로그램");
+    DFT.items=mergeTags(rule,mine);
+    drawTag();advise();
+    const both=DFT.items.filter(x=>x.both).length;
+    dsay(rule.length?`클로드 ${mine.length}개 · 프로그램 ${rule.length}개 · 둘 다 본 것 ${both}개. 「둘만」 표시된 줄을 눈여겨보세요.`
+                    :`${mine.length}개를 붙였습니다. 아닌 것은 끄세요.`);
+  }catch(e){dsay("실패: "+e.message);}
+}
+function askKeyD(){
+  const cur=localStorage.getItem("anthropic_key")||"";
+  const k=prompt("Anthropic API 키 (console.anthropic.com에서 발급). 이 브라우저에만 저장됩니다.",cur);
+  if(k)localStorage.setItem("anthropic_key",k.trim());
+  return (localStorage.getItem("anthropic_key")||"").trim();
+}
+async function callClaudeTag(key,name,body){
+  const lines=[];
+  for(const ax in D.axd){const d=D.axd[ax];
+    lines.push("- "+ax+" ["+d.grp+"] "+d.note+(d.free?" — 원문을 그대로 짧게":" — 고를 값: "+d.vals.slice(0,40).join(" / ")));}
+  const p=["너는 퍼포먼스 광고 원고를 정해진 축으로 코딩하는 사람이다.","",
+    "규칙","- 「고를 값」이 있는 축은 그 안에서만 고른다. 아니면 그 축은 건너뛴다.",
+    "- 「원문을 그대로」인 축은 원고에 실제로 쓰인 표현을 짧게 옮긴다.",
+    "- 값마다 근거 문장을 원고에서 그대로 하나 뽑는다.",
+    "- 확신이 없으면 비운다. 지어내지 않는다.","",
+    "축",lines.join("\n"),"","원고 이름: "+name,"원고",'"""',body,'"""'].join("\n");
+  const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
+    headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01",
+             "anthropic-dangerous-direct-browser-access":"true"},
+    body:JSON.stringify({model:"claude-opus-5",max_tokens:16000,
+      messages:[{role:"user",content:p}],
+      output_config:{format:{type:"json_schema",schema:{type:"object",properties:{items:{type:"array",
+        items:{type:"object",properties:{axis:{type:"string"},val:{type:"string"},why:{type:"string"}},
+        required:["axis","val","why"],additionalProperties:false}}},required:["items"],
+        additionalProperties:false}}}})});
+  if(!res.ok){let d="";try{const e=await res.json();d=(e.error&&e.error.message)||"";}catch(x){}
+    throw new Error("HTTP "+res.status+" "+d);}
+  const j=await res.json();
+  if(j.stop_reason==="refusal")throw new Error("모델이 거절했습니다.");
+  const t=(j.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+  return JSON.parse(t.trim()).items||[];
+}
+
+function addRow(){DFT.items.push({axis:"",val:"",why:"",ok:true});drawTag();}
+function drawTag(){
+  const box=$("#dOut");box.innerHTML="";
+  box.append(el("h3",{},"태깅 "+DFT.items.filter(x=>x.ok).length+"개"));
+  const t=el("table",{class:"tt"});
+  t.append(el("thead",{},el("tr",{},...["축","값","출처","근거","","맞음"].map(h=>el("th",{},h)))));
+  const b=el("tbody");
+  DFT.items.forEach((it,i)=>{
+    // 축은 53개다. 드롭다운으로 훑게 하면 못 고른다 — 쳐서 좁히게 한다.
+    const axIn=el("input",{type:"text",list:"axList",value:it.axis||"",placeholder:"축",
+      style:"width:100%"});
+    const vIn=el("input",{type:"text",list:"vList"+i,value:it.val||"",placeholder:"값",
+      style:"width:100%"});
+    const vList=el("datalist",{id:"vList"+i});
+    const fillV=()=>{vList.innerHTML="";const d=D.axd[axIn.value];
+      (d&&!d.free?d.vals:[]).forEach(v=>vList.append(el("option",{value:v})));};
+    fillV();
+    axIn.addEventListener("change",()=>{it.axis=axIn.value.trim();fillV();advise();});
+    vIn.addEventListener("change",()=>{it.val=vIn.value.trim();advise();});
+    const cx=el("input",{type:"checkbox"});cx.checked=it.ok!==false;
+    cx.addEventListener("change",()=>{it.ok=cx.checked;advise();});
+    const del=el("button",{class:"btn2",onclick:()=>{DFT.items.splice(i,1);drawTag();advise();}},"×");
+    const known=D.axd[it.axis];
+    const bad=!it.axis?"":!known?"없는 축":(!known.free&&known.vals.indexOf(it.val)<0?"없던 값":"");
+    const src=el("td",{},
+      it.src?el("span",{class:"pill "+(it.src==="클로드"?"p-run":"p-dim")},it.src):null,
+      it.conf?el("span",{class:"dim"}," "+it.conf+"%"):null,
+      it.only?el("span",{class:"pill p-wa"},it.only):(it.both?el("span",{class:"pill p-ok"},"둘 다"):null),
+      bad?el("span",{class:"pill p-no"},bad):null);
+    b.append(el("tr",{},el("td",{},axIn),el("td",{},vIn,vList),src,
+      el("td",{class:"dim sm l"},it.why||""),el("td",{},del),el("td",{},cx)));
+  });
+  t.append(b);box.append(el("div",{class:"scroll"},t));
+  box.append(el("div",{class:"bar"},
+    el("button",{class:"btn2",onclick:addRow},"줄 더하기"),
+    el("button",{class:"btn2",onclick:dlDraft},"수기판정 내려받기")));
+}
+function dlDraft(){
+  const out={draft:DFT.name||"이름없음",made:new Date().toISOString().slice(0,19),
+    items:DFT.items.filter(x=>x.ok&&x.axis&&x.val).map(x=>({axis:x.axis,val:x.val,why:x.why,ok:true}))};
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,1)],{type:"application/json"}));
+  a.download="수기판정_"+out.draft+".json";a.click();
+}
+
+/* 해당하는 것만 말한다 */
+function advise(){
+  const box=$("#dAdv");box.innerHTML="";
+  const has=new Set(DFT.items.filter(x=>x.ok&&x.axis&&x.val).map(x=>x.axis+SEPJ+x.val));
+  const bad=D.advice.out.filter(x=>has.has(x.ax+SEPJ+x.v));
+  const good=D.advice.in.filter(x=>has.has(x.ax+SEPJ+x.v));
+  const miss=D.advice.in.filter(x=>!has.has(x.ax+SEPJ+x.v)).slice(0,5);
+  const card=(title,cls,list,render,empty)=>{
+    const c=el("div",{class:"card tight"},el("h3",{class:cls},title+" "+list.length));
+    if(!list.length){c.append(el("p",{class:"dim"},empty));return c;}
+    list.forEach(x=>c.append(render(x)));return c;};
+  const line=x=>{
+    const der=(D.derived||{})[x.ax];
+    const ex=x.words&&x.words.length
+      ? el("p",{class:"dim sm"},"이렇게 씁니다 — "+
+          x.words.slice(0,2).map(w=>"「"+w.v+"」("+w.t+")").join(" · "))
+      : (x.wins&&x.wins.length
+          ? el("p",{class:"dim sm"},"이 값을 쓴 성공작 — "+x.wins.slice(0,3).join(" · ")
+              +(der?" · 본문에 안 나오는 값입니다(제작 지시)":""))
+          : null);
+    return el("div",{class:"advrow"},
+      el("p",{class:"lrow"},el("b",{},x.v),el("span",{class:"dim"}," "+x.ax),
+        el("span",{class:"n"}," "+x.w+"/"+x.n+"편 "+pc(x.rt)),
+        el("span",{class:x.lf>0?"g":"b"}," "+pp(x.lf))),
+      ex);
+  };
+  box.append(el("h3",{},"이 원고에 대해"));
+  const two=el("div",{class:"two"});
+  two.append(card("빼세요","b",bad,line,"뺄 것이 없습니다."),
+             card("좋습니다","g",good,line,"갈린 값이 아직 안 붙었습니다."));
+  box.append(two);
+  box.append(card("없는데 넣으면 좋은 것","g",miss,line,"—"));
+  if(bad.length)box.append(el("div",{class:"note wa"},
+    el("b",{},"빼고 확인하는 방법. "),
+    "A/B로 가르지 않습니다. 위 「빼세요」를 통째로 빼고 그대로 태워, 그래도 잘 나오면 빼는 게 맞습니다."));
+}
+
+// 전지표 판정 원문. 콘솔이 다시 짜지 않고 전지표 판정 프로그램이 만든 문서를 그대로 띄운다 —
+// 표를 다시 계산하면 콘솔과 문서가 어긋난다.
+function viewFull(){
+  const m=$("#main");m.innerHTML="";
+  const src="베이스튠_전지표_판정.html";
+  m.append(el("p",{class:"eyebrow"},"전지표 판정"),el("h2",{},"판정 원문"),
+    el("p",{class:"lede"},"판정 문서 원문입니다. 콘솔이 다시 짠 것이 아니라 갱신할 때 만들어진 그 파일입니다. "+
+      "12절 — 판정 창과 컷 · 표에 나오는 말 · 영상 구조 · 페르소나 · 구조와 위치 · 후킹 · 소구 · CTA · 운영 · 시기별 흐름 · 프로모션 · 못 읽은 것."),
+    el("div",{class:"bar"},
+      el("a",{class:"btn",href:src,target:"_blank",rel:"noopener"},"새 창으로 열기"),
+      el("span",{class:"dim"},"문서가 커서 뜨는 데 몇 초 걸립니다")));
+  const fr=el("iframe",{src:src,title:"전지표 판정",
+    style:"width:100%;height:calc(100vh - 210px);min-height:520px;border:1px solid var(--line);"+
+          "border-radius:var(--r);background:var(--paper)"});
+  m.append(fr);
+}
+function viewJudge(){
+  const m=$("#main");m.innerHTML="";
+  m.append(el("p",{class:"eyebrow"},"전지표 판정"),el("h2",{},"지표값 찾기"),
+    el("p",{class:"lede"},`전지표 판정의 지표값 319개를 축·편수로 찾아보는 곳입니다. 기저율 ${pc(D.base)}에서 얼마나 움직이는지. `+
+      `줄을 누르면 그 값을 쓴 원고가 실제로 뭐라고 썼는지 오른쪽에 펼쳐집니다.`));
+  const solid=D.vals.filter(v=>v.split&&v.n>=5),thin=D.vals.filter(v=>v.split&&v.n<5);
+  const near=[];
+  const und=D.vals.length-solid.length-thin.length;
+  m.append(el("div",{class:"kpi"},
+    el("div",{},el("b",{},String(und)),el("span",{},`구분 안 됨 (${pc(und/D.vals.length)})`)),
+    el("div",{},el("b",{class:"g"},String(solid.length)),el("span",{},"갈림 · 5편 이상")),
+    el("div",{},el("b",{},String(thin.length)),el("span",{},"갈림 · 표본 부족")),
+    
+    el("div",{},el("b",{},String(D.vals.length)),el("span",{},"지표값 전체"))));
+  m.append(el("div",{class:"note wa"},el("b",{},"개별 지표값은 시간을 못 넘습니다. "),
+    "앞 기간에서 채택된 값이 뒤 기간에도 기저 이상인 비율은 37~50%였습니다. "+
+    "여기 숫자는 지금까지의 기록이지 다음 달의 예측이 아닙니다."));
+  const axSel=el("select",{},el("option",{value:""},"축 전체"),
+    ...[...new Set(D.vals.map(v=>v.ax))].sort().map(a=>el("option",{value:a},a)));
+  const minIn=el("input",{type:"number",value:"5",min:"1",style:"width:64px"});
+  const q=el("input",{type:"search",placeholder:"값 검색",style:"width:150px"});
+  m.append(el("div",{class:"bar"},axSel,"최소 편수",minIn,q));
+  const host=el("div");m.append(host);
+  const two=el("div",{class:"two"}),L2=el("div"),R2=el("div");two.append(L2,R2);m.append(two);
+  const render=()=>{let rs=D.vals.filter(v=>v.n>=(+minIn.value||1));
+    if(axSel.value)rs=rs.filter(v=>v.ax===axSel.value);
+    if(q.value.trim())rs=rs.filter(v=>(v.v+" "+v.ax).includes(q.value.trim()));
+    L2.innerHTML="";L2.append(table([
+      {h:"축",l:1,k:r=>r.ax,c:r=>el("span",{class:"dim"},r.ax)},
+      {h:"값",l:1,k:r=>r.v,c:r=>r.split?el("b",{},r.v):r.v},
+      {h:"편",k:r=>r.n},{h:"성공",k:r=>r.w},
+      {h:"성공률",k:r=>r.rt,c:r=>el("span",{class:r.rt>=D.base?"g":"b"},pc(r.rt))},
+      {h:"기저대비",k:r=>r.lf,c:r=>el("span",{class:r.lf>0?"g":"b"},pp(r.lf))},
+      {h:"판정",k:r=>r.split?1:0,c:r=>el("span",{class:"pill "+(r.split?"p-ok":"p-dim")},r.split?"갈림":"구분 안 됨")},
+      {h:"지출",k:r=>r.sp,c:r=>man(r.sp)}],rs,{sort:5,onrow:v=>showVal(v,R2)}));
+    if(rs.length)showVal(rs[0],R2);};
+  [axSel,minIn,q].forEach(x=>x.addEventListener("input",render));render();
+}
+function showVal(v,host){
+  host.innerHTML="";
+  const der=(D.derived||{})[v.ax];
+  host.append(el("div",{class:"card"},
+    el("div",{class:"bar",style:"margin:0 0 6px"},el("h3",{style:"margin:0"},v.v),
+      el("span",{class:"pill "+(v.split?"p-ok":"p-dim")},v.split?"갈림":"구분 안 됨")),
+    el("p",{class:"mut"},`${v.ax} · ${v.grp||""}`),
+    der?el("div",{class:"note wa"},el("b",{},"이 축은 파생입니다. "),der):null,
+    el("p",{class:"dim"},`${v.w}/${v.n}편 ${pc(v.rt)} · 기저 ${pc(D.base)} 대비 ${pp(v.lf)} · `+
+      `95% 구간 ${pc(v.lo)}~${pc(v.hi)} · 지출 ${man(v.sp)}`),
+    el("h4",{},"이 값을 쓴 원고 — 실제로 뭐라고 썼나"),
+    ...(v.det||[]).map(d=>el("div",{class:"vd"},
+      el("p",{class:"jt"},el("span",{class:"pill "+(d.st==="성공"?"p-ok":"p-no")},d.st),
+        el("b",{}," "+d.t),el("span",{class:"dim"},` ${man(d.sp)} · ROAS ${d.roas}`)),
+      d.first?el("p",{class:"jl"},d.first):null,
+      ...(d.raw||[]).map(r=>el("p",{class:"vraw"},el("b",{},r.ax+" "),r.v)))),
+    (v.det&&v.det.length)?null:el("p",{class:"dim"},"본문이 없는 원고입니다.")));
+}
+/* ─── 소재 서랍 ────────────────────────────────────────────────────────────
+   어느 화면에서든 소재 이름을 누르면 옆에서 열린다. 미리보기 · 본문 · 판정값 ·
+   그 소재에 걸린 금지가 한 자리에 있다. 화면을 갈아타면 보던 자리를 잃는다. */
+function openDraft(name){
+  const d=DR[name]; if(!d) return;
+  let dr=$("#drawer");
+  if(!dr){
+    dr=el("div",{id:"drawer",class:"drawer"});
+    const back=el("div",{id:"drawerbg",class:"drawerbg",onclick:closeDraft});
+    document.body.append(back,dr);
+    document.addEventListener("keydown",e=>{ if(e.key==="Escape")closeDraft(); });
+  }
+  dr.innerHTML="";
+  dr.append(el("div",{class:"bar drtop"},
+    el("b",{},name),
+    el("button",{class:"lnk",onclick:()=>{go("drafts");closeDraft();}},"소재 화면에서 보기"),
+    el("button",{class:"btn2",onclick:closeDraft},"닫기 ✕")));
+  const body=el("div",{class:"drbody"});
+  showDraft(d, body);
+  dr.append(body);
+  dr.classList.add("on"); $("#drawerbg").classList.add("on");
+}
+function closeDraft(){
+  const dr=$("#drawer"), bg=$("#drawerbg");
+  if(dr)dr.classList.remove("on"); if(bg)bg.classList.remove("on");
+}
+
+function viewDrafts(){
+  const m=$("#main");m.innerHTML="";
+  m.append(el("p",{class:"eyebrow"},"아카이브"),el("h2",{},"소재 189편"),
+    el("p",{class:"lede"},`집행된 ${D.drafts.length}편 전부. 조기 중단도 실패로 남깁니다.`));
+  const two=el("div",{class:"two"}),L=el("div"),R=el("div");two.append(L,R);m.append(two);
+  const q=el("input",{type:"search",placeholder:"소재 검색",style:"width:190px"});
+  const sSel=el("select",{},el("option",{value:""},"상태 전체"),
+    ...[...new Set(D.drafts.map(d=>d.st))].map(s=>el("option",{value:s},s)));
+  L.append(el("div",{class:"bar"},q,sSel));
+  const host=el("div");L.append(host);
+  const render=()=>{let rs=D.drafts.slice();
+    if(q.value.trim())rs=rs.filter(d=>d.t.includes(q.value.trim()));
+    if(sSel.value)rs=rs.filter(d=>d.st===sSel.value);
+    host.innerHTML="";host.append(table([
+      {h:"소재",l:1,k:r=>r.t,c:r=>el("b",{},r.t)},
+      {h:"상태",k:r=>r.st,c:r=>el("span",{class:"pill "+(SP[r.st]||"p-dim")},r.st)},
+      {h:"판정 창",k:r=>r.w1?r.w1.roas:-1,
+       c:r=>r.w1&&r.w1.call?el("span",{class:"pill "+(CP[r.w1.call]||"p-dim")},r.w1.call):"—"},
+        {h:"판정 창 ROAS",k:r=>r.w??-1,c:r=>r.w==null?"—":el("span",{class:r.w>=D.cut?"g":"b"},r.w.toFixed(2))},
+      {h:"지출",k:r=>r.sp,c:r=>man(r.sp)},{h:"매출",k:r=>r.nt,c:r=>man(r.nt)},
+      {h:"집행일",k:r=>r.days,c:r=>r.days}],rs,{sort:5,onrow:d=>showDraft(d,R)}));};
+  [q,sSel].forEach(x=>x.addEventListener("input",render));render();
+  if(D.drafts.length)showDraft([...D.drafts].sort((a,b)=>b.sp-a.sp)[0],R);
+}
+function showDraft(d,host){
+  host.innerHTML="";const cod=COD[d.t]||{};
+  const bans=BANS.filter(h=>(cod[h.ax]||[]).includes(h.val));
+  host.append(el("div",{class:"card"},
+    el("div",{class:"bar",style:"margin:0 0 9px"},el("h3",{style:"margin:0"},d.t),
+      el("span",{class:"pill "+(SP[d.st]||"p-dim")},d.st)),
+    el("p",{class:"mut"},`${d.w!=null?`창 ROAS ${d.w.toFixed(2)} · `:""}누적 ${d.r.toFixed(2)} · `+
+      `지출 ${man(d.sp)} · 매출 ${man(d.nt)} · ${d.days}일`),
+    (d.ads&&d.ads.length)?el("p",{class:"dim"},"광고 미리보기 — ",
+      ...d.ads.map((a,i)=>el("a",{href:a.u,target:"_blank",rel:"noopener",
+        title:a.n+" · "+man(a.sp)},(i?" · ":"")+a.n))):null,
+    d.w1?el("p",{class:"dim"},`판정 창 ${d.w1.days}일 · ROAS ${d.w1.roas} · ${d.w1.call||"—"} · `+
+      `지출 ${man(d.w1.sp)} · 주문 ${d.w1.od}건`):null,
+    bans.length?el("div",{class:"note no"},el("b",{},`금지 ${bans.length}개`),
+      el("ul",{style:"margin:6px 0 0;padding-left:18px"},...bans.map(h=>el("li",{},h.claim))))
+      :el("div",{class:"note ok"},"금지 위반 없음"),
+    (d.body&&d.body.length)?el("details",{class:"gbox",open:""},
+      el("summary",{},el("b",{},"본문"),el("span",{class:"dim"}," "+d.body.length+"문장")),
+      ...d.body.map(x=>el("p",{class:"wl",style:"cursor:default"},x))):null,
+    Object.keys(cod).length?el("details",{class:"gbox"},
+      el("summary",{},el("b",{},"판정 값"),el("span",{class:"dim"}," 축 "+Object.keys(cod).length+"개")),
+      ...Object.keys(cod).sort().map(a=>el("div",{style:"margin-top:8px"},
+        el("p",{class:"eyebrow",style:"margin:0 0 2px"},a),
+        el("div",{style:"font-size:12.5px"},cod[a].join(" · "))))):null));
+}
+function viewPerf(){
+  const m=$("#main");m.innerHTML="";
+  m.append(el("p",{class:"eyebrow"},"라이브 모니터"),el("h2",{},"계정 전체가 어디로 가고 있나"),
+    el("p",{class:"lede"},
+      "소재 하나가 아니라 계정 전체입니다. 이 자리가 필요한 이유는 하나입니다 — "+
+      "소재를 견줄 때 그 시기의 계정 성적을 알아야 하기 때문입니다. "+
+      "계정이 통째로 내려앉은 달에는 잘 만든 소재도 컷을 못 넘습니다. "+
+      `${D.metric}. 메타 보고 전환이 아니라 카페24 실주문 기준입니다.`));
+  /* 성공률과 같이 봐야 뜻이 생긴다 — 기저가 반토막인데 ROAS만 보면 모른다 */
+  m.append(el("div",{class:"note"+(D.baseL>=D.baseE?" ok":" wa")},
+    el("b",{},`판정 성공률이 ${pc(D.baseE)} → ${pc(D.baseL)}로 `),
+    D.baseL>=D.baseE?"올라왔습니다. ":"내려앉았습니다. ",
+    `판정된 ${D.n}편을 라이브 시작일로 절반씩 가른 것입니다. `,
+    D.baseL<D.baseE
+      ? "아래 ROAS가 그대로여도 소재는 더 안 되고 있습니다 — 같은 성적을 내려면 더 잘 써야 한다는 뜻입니다."
+      : "소재가 잘 나오고 있습니다."));
+  const P=D.perf,tc=P.reduce((s,p)=>s+p.c,0),tn=P.reduce((s,p)=>s+p.n,0);
+  const WP=D.wperf,mx=Math.max(...WP.map(p=>p.c));
+  m.append(el("div",{class:"kpi"},
+    el("div",{},el("b",{},man(tc)),el("span",{},"누적 지출")),
+    el("div",{},el("b",{},man(tn)),el("span",{},"누적 매출")),
+    el("div",{},el("b",{class:tn/tc>=D.cut?"g":""},(tn/tc).toFixed(2)),el("span",{},"직접 ROAS"))));
+
+  /* 월별 ROAS 추세 — 숫자만 두면 떨어지는 게 안 보인다 */
+  const mx2=Math.max(...P.map(p=>p.c?p.n/p.c:0),D.cut);
+  const tr=el("div",{class:"card tight"},el("h3",{},"월별 ROAS"),
+    el("p",{class:"dim",style:"margin:-4px 0 8px"},`가로선이 컷 ${D.cut}입니다.`));
+  const rows=el("div",{class:"rtrend"});
+  P.forEach(p=>{
+    const v=p.c?p.n/p.c:0;
+    rows.append(el("div",{class:"rt"},
+      el("span",{class:"rtl"},p.k.slice(2)),
+      el("div",{class:"rtb"},
+        el("i",{style:`width:${Math.max(2,v/mx2*100)}%;background:${v>=D.cut?"var(--ok)":"var(--no)"}`}),
+        el("u",{style:`left:${D.cut/mx2*100}%`,title:`컷 ${D.cut}`})),
+      el("b",{class:v>=D.cut?"g":"b"},v.toFixed(2)),
+      el("span",{class:"dim"},man(p.c))));
+  });
+  tr.append(rows);m.append(tr);
+
+  m.append(el("h3",{},"주별 집행"));
+  const bars=el("div",{class:"spark"});
+  WP.forEach(p=>bars.append(el("i",{style:`height:${Math.max(3,p.c/mx*100)}%`,
+    title:`${p.w} · 지출 ${man(p.c)} · ROAS ${(p.c?p.n/p.c:0).toFixed(2)}`})));
+  m.append(el("div",{class:"card tight"},bars));
+
+  m.append(el("h3",{},"월별"));
+  m.append(table([
+    {h:"기간",l:1,k:r=>r.k},{h:"소재",k:r=>r.d},
+    {h:"COST",k:r=>r.c,c:r=>num(r.c)},{h:"노출",k:r=>r.i,c:r=>num(r.i)},
+    {h:"클릭",k:r=>r.l,c:r=>num(r.l)},
+    {h:"CTR",k:r=>r.i?r.l/r.i:0,c:r=>(r.i?r.l/r.i*100:0).toFixed(2)+"%"},
+    {h:"CPC",k:r=>r.l?r.c/r.l:0,c:r=>num(r.l?r.c/r.l:0)},
+    {h:"CPM",k:r=>r.i?r.c/r.i*1000:0,c:r=>num(r.i?r.c/r.i*1000:0)},
+    {h:"전환",k:r=>r.o,c:r=>num(r.o)},
+    {h:"CVR",k:r=>r.l?r.o/r.l:0,c:r=>(r.l?r.o/r.l*100:0).toFixed(2)+"%"},
+    {h:"매출",k:r=>r.n,c:r=>num(r.n)},
+    {h:"AOV",k:r=>r.o?r.n/r.o:0,c:r=>num(r.o?r.n/r.o:0)},
+    {h:"ROAS",k:r=>r.c?r.n/r.c:0,c:r=>el("b",{class:(r.c&&r.n/r.c>=D.cut)?"g":"b"},
+      (r.c?r.n/r.c:0).toFixed(2))}],P,{sort:0,dir:1}));
+  m.append(el("p",{class:"dim"},
+    "이번 달은 아직 매출이 다 붙지 않았습니다 — 카페24 귀속이 며칠 걸립니다."));
+}
+const VIEWS={build:viewBuild,deep:viewDeep,bank:viewBank,write:viewWrite,sogu:viewSogu,layer:viewLayer,home:viewHome,full:viewFull,idea:viewIdea,draft:viewDraft,
+  judge:viewJudge,drafts:viewDrafts,perf:viewPerf};
+document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()=>go(b.dataset.v)));
+function boot(data){
+  D=data; COD=D.jcod; DR=Object.fromEntries(D.drafts.map(d=>[d.t,d]));
+  BANS=(D.hyps||[]).filter(h=>h.dir==="금지"&&h.ax&&h.val);
+  $("#navsub").textContent=`${D.asof} · 판정 ${D.n}편 · 기저율 ${pc(D.base)}`;
+  $("#navfoot").innerHTML=`${D.metric}<br>최종: 롤링 ${D.win.days}일 · 컷 ${D.cut}<br>`+
+    `주간: 첫 ${D.wk.days}일 · ${man(D.wk.spend)}+ · 컷 ${D.wk.cut}`;
+  /* 새로고침 뒤에도 보던 화면으로 돌아온다 */
+  let v="build";
+  try{const k=localStorage.getItem("bt_view"); if(k&&VIEWS[k])v=k;}catch(e){}
+  go(v);
+}
+function bootFail(e){
+  $("#main").innerHTML="";
+  $("#main").append(el("h2",{},"데이터를 못 받았습니다"),
+    el("p",{class:"lede"},String(e&&e.message||e)),
+    el("p",{class:"dim"},"로컬에서 파일로 열었다면 실행.bat으로 여세요 — 브라우저가 파일 읽기를 막습니다."));
+}
+if(DATA) boot(DATA);
+else if(typeof window.HYP_LOAD==="function")
+  window.HYP_LOAD().then(boot).catch(bootFail);
+else bootFail(new Error("데이터를 어디서 받을지 정해지지 않았습니다"));
+</script>
