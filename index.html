@@ -1,6 +1,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>베이스튠 가설 프로그램</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%231a1d21%27/%3E%3Ctext x=%2716%27 y=%2723%27 font-size=%2718%27 text-anchor=%27middle%27 fill=%27white%27 font-family=%27sans-serif%27%3E%EA%B0%80%3C/text%3E%3C/svg%3E">
 <style>
 /* 잉크와 종이. 중성색은 푸른 쪽으로 살짝 기울이고 강조는 코발트 하나만 쓴다.
    성공·실패는 강조색과 분리한다 — 상태는 상태색으로만 읽혀야 한다. */
@@ -548,6 +549,40 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
   .sgh .ib,.sgr .ib{display:none}
   .sgq{margin-left:44px}
 }
+
+/* 원고 검증 — 왼쪽 원고 · 오른쪽 코딩 */
+.vwrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:16px;
+  align-items:start;margin:10px 0 0}
+.vhd{margin:0 0 8px;font-size:12.5px;display:flex;gap:8px;align-items:baseline}
+.vbody{border:1px solid var(--line);border-radius:var(--rs);padding:12px;background:var(--paper);
+  max-height:640px;overflow:auto}
+.vln{display:flex;gap:8px;align-items:baseline;margin:0;padding:5px 7px;border-radius:7px;
+  cursor:pointer;line-height:1.6;font-size:13px}
+.vln:hover{background:var(--hov)}
+.vln.on{background:var(--ok2);outline:1px solid var(--ok)}
+.vln.has .vtx{color:var(--ink)}
+.vln .vtx{color:var(--ink2);flex:1;min-width:0}
+.vno{flex:none;min-width:20px;font-size:10.5px;color:var(--ink4);
+  font-variant-numeric:tabular-nums;text-align:right}
+.vmk{flex:none;font-size:10.5px;color:var(--ink4);border:1px dashed var(--line);
+  border-radius:5px;padding:1px 5px;white-space:nowrap}
+.vcode{max-height:640px;overflow:auto}
+.vgh{margin:10px 0 4px;font-size:12.5px;cursor:pointer;display:flex;gap:8px;align-items:baseline}
+.vgh:hover b{color:var(--ink)}
+.vri{padding:3px 0 6px;border-bottom:1px solid var(--line2)}
+.vr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) 96px 58px 46px;
+  gap:8px;align-items:center}
+.vr.off{opacity:.5}
+.vr input{width:100%;font-size:12.5px;padding:4px 6px}
+.vax{font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vbt{display:flex;gap:3px}
+.mkb{font-size:11px;padding:2px 7px;border-radius:6px;border:1px solid var(--line);
+  background:transparent;color:var(--ink4);cursor:pointer;white-space:nowrap}
+.mkb.on.y{background:var(--ok2);border-color:var(--ok);color:var(--ok)}
+.mkb.on.n{background:var(--no2);border-color:var(--no);color:var(--no)}
+.vwhy{margin:2px 0 0;font-size:11.5px;line-height:1.55;display:flex;gap:6px;align-items:baseline}
+.vadd{margin:12px 0 0;padding:10px;border:1px dashed var(--line);border-radius:var(--rs)}
+@media (max-width:1100px){ .vwrap{grid-template-columns:minmax(0,1fr)} }
 </style>
 
 <div class="wrap">
@@ -623,19 +658,32 @@ const DATA = (function(){
     function 물어보기(뭉치){
       return new Promise(function(done){
         var 막 = document.createElement("div");
+        /* 콘솔은 밝은 화면인데 이 막만 까맸다. 비번을 치고 나면 화면이 확 뒤집혀
+           다른 프로그램에 들어온 것처럼 보인다. 콘솔이 쓰는 색을 그대로 쓴다 —
+           변수(var(--ink) 따위)는 이 막이 뜰 때 이미 살아 있다. */
         막.style.cssText = "position:fixed;inset:0;z-index:9999;display:flex;align-items:center;"
-          + "justify-content:center;background:#14161a;color:#e8eaed;"
+          + "justify-content:center;background:var(--bg,#f7f8fa);color:var(--ink,#1a1d21);"
           + "font:15px/1.6 'Malgun Gothic',system-ui,sans-serif";
         막.innerHTML =
-          '<form style="width:300px;text-align:center">'
-          + '<div style="font-size:19px;font-weight:700;margin-bottom:6px">가설 프로그램</div>'
-          + '<div id="lk-say" style="color:#9aa0a6;margin-bottom:18px">비밀번호를 넣어 주세요</div>'
+          '<form style="width:320px;text-align:left;padding:26px 24px;border-radius:14px;'
+          + 'background:var(--paper,#fff);border:1px solid var(--line,#e3e6ea);'
+          + 'box-shadow:0 8px 32px rgba(0,0,0,.06)">'
+          + '<div style="font-size:11px;letter-spacing:.06em;color:var(--ink4,#8b9099);'
+          + 'margin-bottom:6px">베이스튠</div>'
+          + '<div style="font-size:20px;font-weight:700;margin-bottom:6px;letter-spacing:-.02em">'
+          + '가설 프로그램</div>'
+          + '<div id="lk-say" style="color:var(--ink3,#6b7078);margin-bottom:18px;font-size:13px">'
+          + '비밀번호를 넣어 주세요</div>'
           + '<input id="lk-pw" type="password" autocomplete="current-password" autofocus '
-          + 'style="width:100%;padding:11px 13px;border:1px solid #3c4043;border-radius:7px;'
-          + 'background:#202124;color:#e8eaed;font-size:15px;box-sizing:border-box">'
-          + '<button id="lk-go" style="width:100%;margin-top:10px;padding:11px;border:0;'
-          + 'border-radius:7px;background:#8ab4f8;color:#14161a;font-size:15px;font-weight:700;'
-          + 'cursor:pointer">열기</button></form>';
+          + 'style="width:100%;padding:10px 12px;border:1px solid var(--line,#e3e6ea);'
+          + 'border-radius:9px;background:var(--bg,#f7f8fa);color:var(--ink,#1a1d21);'
+          + 'font-size:14px;box-sizing:border-box;outline:none">'
+          + '<button id="lk-go" style="width:100%;margin-top:10px;padding:10px;border:0;'
+          + 'border-radius:9px;background:var(--ink,#1a1d21);color:var(--paper,#fff);'
+          + 'font-size:14px;font-weight:600;cursor:pointer">열기</button>'
+          + '<div style="margin-top:14px;font-size:11.5px;color:var(--ink4,#8b9099);line-height:1.6">'
+          + '데이터는 잠긴 채로 올라와 있습니다. 비밀번호를 넣어야 이 브라우저에서 풀립니다.'
+          + '</div></form>';
         document.body.appendChild(막);
 
         var 말 = 막.querySelector("#lk-say"), 칸 = 막.querySelector("#lk-pw"),
@@ -644,7 +692,7 @@ const DATA = (function(){
           e.preventDefault();
           var pw = 칸.value;
           if(!pw) return;
-          단추.disabled = true; 말.textContent = "여는 중…"; 말.style.color = "#9aa0a6";
+          단추.disabled = true; 말.textContent = "여는 중…"; 말.style.color = "var(--ink3,#6b7078)";
           풀기(pw, 뭉치).then(function(글){
             var 자료 = JSON.parse(글);
             sessionStorage.setItem(기억칸, pw);
@@ -654,7 +702,7 @@ const DATA = (function(){
           }).catch(function(){
             단추.disabled = false;
             말.textContent = "비밀번호가 다릅니다";
-            말.style.color = "#f28b82";
+            말.style.color = "var(--no,#c5372c)";
             칸.select();
           });
         });
@@ -3307,10 +3355,13 @@ function gramsJS(lines){
 function tagByRule(lines){
   const R = D.rules || {};
   if (!R.rules) return {items: [], note: "규칙 파일이 없습니다. python P1_규칙태깅.py 를 돌리세요."};
+  /* 판정 문서가 뺀 축은 찍지 않는다. 「성공 경로 = A 또는 B」를 붙여 놓고
+     판정과 대보라고 하면 안 된다 — 문서에 없는 축이다. */
+  const DROP = new Set(D.dropped || []);
   const g = gramsJS(lines), sc = {};
   for (const key in R.rules) {
     const r = R.rules[key];
-    if (!R.thr[r.ax]) continue;                     // 믿을 만하다고 확인된 축만
+    if (!R.thr[r.ax] || DROP.has(r.ax)) continue;   // 믿을 만하고, 문서가 안 뺀 축만
     let hit = 0, tot = 0;
     r.kw.forEach(k => { tot += k.d; if (g.has(k.w)) hit += k.d; });
     const s = tot ? hit / tot : 0;
@@ -3330,6 +3381,7 @@ function tagByRule(lines){
   }
   // 신호가 없으면 그 축에서 절반을 넘는 값을 찍는다(파이썬 쪽과 같은 규칙)
   for (const ax in (R.major || {})) {
+    if (DROP.has(ax)) continue;
     if (done.has(ax) && out.some(x => x.axis === ax)) continue;
     out.push({axis: ax, val: R.major[ax].v, ok: true, src: "프로그램",
       conf: Math.round((R.major[ax].p || 0) * 100),
@@ -3385,7 +3437,9 @@ function viewDraft(){
 
   const nameIn=el("input",{type:"text",placeholder:"원고 이름",value:DFT.name,style:"flex:1"});
   nameIn.addEventListener("input",()=>DFT.name=nameIn.value);
-  const ta=el("textarea",{id:"dText",rows:"16",style:"width:100%",placeholder:"여기에 쓰거나 붙여넣으세요. 한 줄에 한 문장이면 가장 좋습니다."});
+  const ta=el("textarea",{id:"dText",rows:"12",style:"width:100%",placeholder:"여기에 쓰거나 붙여넣으세요. 한 줄에 한 문장이면 가장 좋습니다."});
+  /* 왼쪽 판이 이 글을 그대로 읽는다. 안 담아 두면 태깅한 뒤 본문이 사라진다. */
+  ta.addEventListener("input",function(){ DFT.body=ta.value; });
   /* 빌더에서 쓴 글을 안고 왔으면 채워 둔다. 안 채우면 넘어와도 빈 칸이라
      다시 붙여넣게 된다. */
   if(DFT.body) ta.value=DFT.body;
@@ -3478,111 +3532,173 @@ async function callClaudeTag(key,name,body){
 }
 
 function addRow(){DFT.items.push({axis:"",val:"",why:"",ok:true});drawTag();}
+/* ── 원고 검증 — 옛 코딩 검증 도구의 짜임 그대로 ─────────────────────────
+   표 한 장에 축·값을 늘어놓으면 「이 코딩이 이 원고의 어디를 보고 붙은 것인가」를
+   알 수가 없다. 옛 도구(V1_검증도구.py)는 그래서 화면을 둘로 갈랐다.
+
+     왼쪽  원고 본문. 코딩의 근거가 된 문장에 표시가 붙는다.
+     오른쪽 그 원고에 붙은 코딩 전부. 묶음별로 갈라 놓았다.
+            줄마다 맞음 / 아님을 누르고, 값을 바꾸고, 근거 문장을 다시 지정한다.
+     아래  그 줄에 코딩을 새로 붙인다. 값은 그 축에 이미 쓰인 값 중에서 고른다.
+
+   그 짜임을 그대로 가져오되 겉은 이 콘솔이다. 데이터도 이 콘솔 것만 쓴다 —
+   본문은 위에 쓴 글, 축과 값은 판정의 축 목록(axd), 판정은 전 지표 판정.
+   고친 것은 브라우저에 저장되고 「수기판정 내려받기」로 파일이 떨어진다. */
+let VSEL = null;      // 왼쪽에서 고른 문장 번호
+const VSHUT = new Set();   // 접어 둔 묶음. 기본은 다 펴 둔다 —
+                           // 검증하러 들어온 자리라 접혀 있으면 아무것도 못 본다.
+
+const vLines = () => (DFT.body||"").split(/\n+/).map(s=>s.trim()).filter(Boolean);
+const vSave  = () => { try{ localStorage.setItem("hyp_draft", JSON.stringify(DFT)); }catch(e){} };
+
+/* 같은 값이 같은 문장을 가리키면 한 줄로 묶는다 — 같은 것을 네 번 확인하게
+   하지 않으려고 옛 도구가 하던 일이다. 축 이름만 나란히 적는다. */
+function vMerge(items){
+  const by={}, out=[];
+  items.forEach(function(it,i){
+    const k=(it.val||"")+"｜"+(it.li===undefined?"":it.li);
+    if(it.val && by[k]!==undefined){ out[by[k]].also.push({i:i, it:it}); return; }
+    if(it.val) by[k]=out.length;
+    out.push({i:i, it:it, also:[]});
+  });
+  return out;
+}
+
 function drawTag(){
-  const box=$("#dOut");box.innerHTML="";
-  box.append(el("h3",{},"태깅 "+DFT.items.filter(x=>x.ok).length+"개"));
-  const t=el("table",{class:"tt"});
-  t.append(el("thead",{},el("tr",{},...["축","값","출처","근거","","맞음"].map(h=>el("th",{},h)))));
-  const b=el("tbody");
-  DFT.items.forEach((it,i)=>{
-    // 축은 53개다. 드롭다운으로 훑게 하면 못 고른다 — 쳐서 좁히게 한다.
-    const axIn=el("input",{type:"text",list:"axList",value:it.axis||"",placeholder:"축",
-      style:"width:100%"});
-    const vIn=el("input",{type:"text",list:"vList"+i,value:it.val||"",placeholder:"값",
-      style:"width:100%"});
-    const vList=el("datalist",{id:"vList"+i});
-    const fillV=()=>{vList.innerHTML="";const d=D.axd[axIn.value];
-      (d&&!d.free?d.vals:[]).forEach(v=>vList.append(el("option",{value:v})));};
-    fillV();
-    axIn.addEventListener("change",()=>{it.axis=axIn.value.trim();fillV();advise();});
-    vIn.addEventListener("change",()=>{it.val=vIn.value.trim();advise();});
-    const cx=el("input",{type:"checkbox"});cx.checked=it.ok!==false;
-    cx.addEventListener("change",()=>{it.ok=cx.checked;advise();});
-    const del=el("button",{class:"btn2",onclick:()=>{DFT.items.splice(i,1);drawTag();advise();}},"×");
-    const known=D.axd[it.axis];
-    const bad=!it.axis?"":!known?"없는 축":(!known.free&&known.vals.indexOf(it.val)<0?"없던 값":"");
-    const src=el("td",{},
-      it.src?el("span",{class:"pill "+(it.src==="클로드"?"p-run":"p-dim")},it.src):null,
-      it.conf?el("span",{class:"dim"}," "+it.conf+"%"):null,
-      it.only?el("span",{class:"pill p-wa"},it.only):(it.both?el("span",{class:"pill p-ok"},"둘 다"):null),
-      bad?el("span",{class:"pill p-no"},bad):null);
-    b.append(el("tr",{},el("td",{},axIn),el("td",{},vIn,vList),src,
-      el("td",{class:"dim sm l"},it.why||""),el("td",{},del),el("td",{},cx)));
+  const box=$("#dOut"); if(!box) return;
+  box.innerHTML="";
+  const lines=vLines(), on=DFT.items.filter(x=>x.ok!==false).length;
+  box.append(el("h3",{},"코딩 검증"),
+    el("p",{class:"lede"},
+      "왼쪽이 원고, 오른쪽이 그 원고에 붙은 코딩입니다. 코딩 "+DFT.items.length+
+      "줄 중 "+on+"줄을 맞다고 두었습니다. 왼쪽에서 문장을 누르고 오른쪽 줄의 "+
+      "「근거로」를 누르면 그 문장이 그 코딩의 근거가 됩니다."));
+
+  /* 어느 문장이 어느 코딩의 근거인가 */
+  const byLine={};
+  DFT.items.forEach(function(it,i){ if(it.li!==undefined&&it.li!==null)
+    (byLine[it.li]=byLine[it.li]||[]).push(i); });
+
+  const wrap=el("div",{class:"vwrap"});
+
+  /* ── 왼쪽 — 원고 본문 ── */
+  const L=el("div",{class:"vbody"});
+  L.append(el("p",{class:"vhd"},el("b",{},DFT.name||"이름 없는 원고"),
+    el("span",{class:"dim"}," · "+lines.length+"문장")));
+  if(!lines.length) L.append(el("p",{class:"dim"},"위에 원고를 쓰거나 붙여넣으세요."));
+  lines.forEach(function(ln,li){
+    const hit=byLine[li]||[];
+    const p=el("p",{class:"vln"+(VSEL===li?" on":"")+(hit.length?" has":""),
+      onclick:function(){ VSEL=(VSEL===li?null:li); drawTag(); }});
+    p.append(el("span",{class:"vno"},String(li+1)), el("span",{class:"vtx"},ln));
+    if(hit.length) p.append(el("span",{class:"vmk"},hit.length+"개 코딩의 근거"));
+    L.append(p);
   });
-  t.append(b);box.append(el("div",{class:"scroll"},t));
+
+  /* ── 오른쪽 — 붙은 코딩, 묶음별 ── */
+  const R=el("div",{class:"vcode"});
+  const rows=vMerge(DFT.items);
+  const gof=x=>((D.axd[x.axis]||{}).grp)||"그 밖";
+  const gs={}; rows.forEach(r=>(gs[gof(r.it)]=gs[gof(r.it)]||[]).push(r));
+  const order=["훅","소구","근거","기전","CTA","페르소나","영상형식","구조","포지션","운영","그 밖"];
+  const keys=[...order.filter(g=>gs[g]), ...Object.keys(gs).filter(g=>order.indexOf(g)<0)];
+
+  R.append(el("p",{class:"vhd"},el("b",{},"붙은 코딩"),
+    el("span",{class:"dim"}," · 묶음 "+keys.length+"개"),
+    el("button",{class:"lnk ic",onclick:function(){
+      if(VSHUT.size) VSHUT.clear(); else keys.forEach(g=>VSHUT.add(g));
+      drawTag();}}, VSHUT.size?"모두 펴기":"모두 접기")));
+  if(!rows.length) R.append(el("p",{class:"dim"},"아직 코딩이 없습니다. 위에서 태깅하거나 아래에서 한 줄 더하세요."));
+
+  keys.forEach(function(g){
+    const rs=gs[g], bad=rs.filter(r=>r.it.ok===false).length;
+    const open = !VSHUT.has(g);
+    R.append(el("p",{class:"vgh"+(open?" on":""),
+      onclick:function(){ if(open)VSHUT.add(g); else VSHUT.delete(g); drawTag(); }},
+      el("b",{},(open?"▾ ":"▸ ")+g),
+      el("span",{class:"dim"}," "+rs.length+"줄"),
+      bad?el("span",{class:"mk no"},"아님 "+bad):null));
+    if(!open) return;
+    rs.forEach(r=>R.append(vRow(r, lines)));
+  });
+
+  /* ── 아래 — 코딩 새로 붙이기 ── */
+  const axIn=el("input",{type:"text",list:"axList",placeholder:"축 — 쳐서 좁히세요",style:"flex:1"});
+  const vIn=el("input",{type:"text",list:"vNew",placeholder:"값",style:"flex:1"});
+  const vList=el("datalist",{id:"vNew"});
+  const fill=function(){ vList.innerHTML="";
+    const d=D.axd[axIn.value]; (d&&!d.free?d.vals:[]).forEach(v=>vList.append(el("option",{value:v}))); };
+  axIn.addEventListener("input",fill);
+  const add=el("button",{class:"btn2",onclick:function(){
+    if(!axIn.value.trim()) return;
+    DFT.items.push({axis:axIn.value.trim(), val:vIn.value.trim(), ok:true, src:"수기",
+      li:(VSEL===null?undefined:VSEL),
+      why:(VSEL===null?"":"근거 — "+lines[VSEL])});
+    vSave(); drawTag(); advise();
+  }},"이 코딩 붙이기");
+  R.append(el("div",{class:"vadd"},
+    el("p",{class:"dim sm2"},VSEL===null
+      ? "값은 그 축에 이미 쓰인 값 중에서 고릅니다. 왼쪽에서 문장을 고르고 붙이면 근거까지 함께 들어갑니다."
+      : "근거 문장 — "+(lines[VSEL]||"").slice(0,60)),
+    el("div",{class:"bar",style:"margin:4px 0 0"},axIn,vIn,vList,add)));
+
+  wrap.append(L,R); box.append(wrap);
   box.append(el("div",{class:"bar"},
-    el("button",{class:"btn2",onclick:addRow},"줄 더하기"),
-    el("button",{class:"btn2",onclick:dlDraft},"수기판정 내려받기")));
-}
-function dlDraft(){
-  const out={draft:DFT.name||"이름없음",made:new Date().toISOString().slice(0,19),
-    items:DFT.items.filter(x=>x.ok&&x.axis&&x.val).map(x=>({axis:x.axis,val:x.val,why:x.why,ok:true}))};
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,1)],{type:"application/json"}));
-  a.download="수기판정_"+out.draft+".json";a.click();
+    el("button",{class:"btn2",onclick:function(){
+      DFT.items.forEach(x=>x.ok=true); vSave(); drawTag(); advise();}},"전부 맞음"),
+    el("button",{class:"btn2",onclick:dlDraft},"수기판정 내려받기"),
+    el("span",{class:"dim"},"고친 것은 이 브라우저에 저장됩니다.")));
+  vSave();
 }
 
-/* 해당하는 것만 말한다 */
-function advise(){
-  const box=$("#dAdv");box.innerHTML="";
-  const has=new Set(DFT.items.filter(x=>x.ok&&x.axis&&x.val).map(x=>x.axis+SEPJ+x.val));
-  const bad=D.advice.out.filter(x=>has.has(x.ax+SEPJ+x.v));
-  const good=D.advice.in.filter(x=>has.has(x.ax+SEPJ+x.v));
-  const miss=D.advice.in.filter(x=>!has.has(x.ax+SEPJ+x.v)).slice(0,5);
-  const card=(title,cls,list,render,empty)=>{
-    const c=el("div",{class:"card tight"},el("h3",{class:cls},title+" "+list.length));
-    if(!list.length){c.append(el("p",{class:"dim"},empty));return c;}
-    list.forEach(x=>c.append(render(x)));return c;};
-  const line=x=>{
-    const der=(D.derived||{})[x.ax];
-    const ex=x.words&&x.words.length
-      ? el("p",{class:"dim sm"},"이렇게 씁니다 — "+
-          x.words.slice(0,2).map(w=>"「"+w.v+"」("+w.t+")").join(" · "))
-      : (x.wins&&x.wins.length
-          ? el("p",{class:"dim sm"},"이 값을 쓴 성공작 — "+x.wins.slice(0,3).join(" · ")
-              +(der?" · 본문에 안 나오는 값입니다(제작 지시)":""))
-          : null);
-    return el("div",{class:"advrow"},
-      el("p",{class:"lrow"},el("b",{},x.v),el("span",{class:"dim"}," "+x.ax),
-        el("span",{class:"n"}," "+x.w+"/"+x.n+"편 "+pc(x.rt)),
-        el("span",{class:x.lf>0?"g":"b"}," "+pp(x.lf))),
-      ex);
-  };
-  box.append(el("h3",{},"이 원고에 대해"));
-  const two=el("div",{class:"two"});
-  two.append(card("빼세요","b",bad,line,"뺄 것이 없습니다."),
-             card("좋습니다","g",good,line,"갈린 값이 아직 안 붙었습니다."));
-  box.append(two);
-  box.append(card("없는데 넣으면 좋은 것","g",miss,line,"—"));
-  if(bad.length)box.append(el("div",{class:"note wa"},
-    el("b",{},"빼고 확인하는 방법. "),
-    "A/B로 가르지 않습니다. 위 「빼세요」를 통째로 빼고 그대로 태워, 그래도 잘 나오면 빼는 게 맞습니다."));
-}
+function vRow(r, lines){
+  const it=r.it, i=r.i;
+  const d=D.axd[it.axis];
+  const bad=!it.axis?"":(!d?"없는 축":(d&&!d.free&&d.vals.indexOf(it.val)<0?"없던 값":""));
+  const row=el("div",{class:"vr"+(it.ok===false?" off":"")});
 
-// 전지표 판정 원문. 콘솔이 다시 짜지 않고 전지표 판정 프로그램이 만든 문서를 그대로 띄운다 —
-// 표를 다시 계산하면 콘솔과 문서가 어긋난다.
-function viewFull(){
-  const m=$("#main");m.innerHTML="";
-  const bar=el("div",{class:"bar"});
-  const 말=el("span",{class:"dim"},"판정 원문을 여는 중…");
-  bar.append(말);
-  m.append(el("p",{class:"eyebrow"},"전지표 판정"),el("h2",{},"판정 원문"),
-    el("p",{class:"lede"},"판정 문서 원문입니다. 콘솔이 다시 짠 것이 아니라 갱신할 때 만들어진 그 파일입니다. "+
-      "12절 — 판정 창과 컷 · 표에 나오는 말 · 영상 구조 · 페르소나 · 구조와 위치 · 후킹 · 소구 · CTA · 운영 · 시기별 흐름 · 프로모션 · 못 읽은 것."),
-    bar);
-  const fr=el("iframe",{title:"전지표 판정",
-    style:"width:100%;height:calc(100vh - 210px);min-height:520px;border:1px solid var(--line);"+
-          "border-radius:var(--r);background:var(--paper)"});
-  m.append(fr);
-  window.HYP_ENC("판정원문.enc").then(function(글){
-    const url=URL.createObjectURL(new Blob([글],{type:"text/html;charset=utf-8"}));
-    fr.src=url; 말.remove();
-    bar.append(el("a",{class:"btn",href:url,target:"_blank",rel:"noopener"},"새 창으로 열기"),
-      el("span",{class:"dim"},"문서가 커서 뜨는 데 몇 초 걸립니다"));
-  }).catch(function(e){
-    말.textContent="판정 원문을 못 열었습니다 — "+e.message;
-    말.style.color="#f28b82";
-  });
+  const vIn=el("input",{type:"text",list:"vL"+i,value:it.val||"",placeholder:"값"});
+  const vList=el("datalist",{id:"vL"+i});
+  (d&&!d.free?d.vals:[]).forEach(v=>vList.append(el("option",{value:v})));
+  vIn.addEventListener("change",function(){ it.val=vIn.value.trim(); vSave(); drawTag(); advise(); });
+
+  row.append(
+    el("span",{class:"vax dim",title:it.axis},it.axis),
+    el("span",{},vIn,vList),
+    el("span",{class:"vbt"},
+      el("button",{class:"mkb"+(it.ok!==false?" on y":""),
+        onclick:function(){ it.ok=true; vSave(); drawTag(); advise(); }},"맞음"),
+      el("button",{class:"mkb"+(it.ok===false?" on n":""),
+        onclick:function(){ it.ok=false; vSave(); drawTag(); advise(); }},"아님")),
+    el("button",{class:"lnk ic",title:VSEL===null?"왼쪽에서 문장을 먼저 고르세요":"고른 문장을 이 코딩의 근거로",
+      onclick:function(){
+        if(VSEL===null){ return; }
+        it.li=VSEL; it.why="근거 — "+lines[VSEL]; vSave(); drawTag();
+      }},"근거로"),
+    el("button",{class:"lnk ic",onclick:function(){
+      DFT.items.splice(i,1); vSave(); drawTag(); advise(); }},"빼기"));
+
+  const box=el("div",{class:"vri"});
+  box.append(row);
+  if(bad) box.append(el("p",{class:"vwhy"},el("span",{class:"mk no"},bad),
+    el("span",{class:"dim"}," 판정에 없는 것입니다. 판정과 대볼 수 없습니다.")));
+  if(it.li!==undefined && it.li!==null && lines[it.li])
+    box.append(el("p",{class:"vwhy"},el("span",{class:"vno"},String(it.li+1)),
+      el("span",{class:"dim"},"“"+lines[it.li]+"”")));
+  else if(it.why) box.append(el("p",{class:"vwhy dim"},it.why));
+  else box.append(el("p",{class:"vwhy dim"},"근거 문장이 없습니다."));
+  if(r.also.length) box.append(el("p",{class:"vwhy dim"},
+    "같은 값이 같은 문장에 또 붙어 있습니다 — "+r.also.map(a=>a.it.axis).join(" · ")));
+
+  /* 판정이 이 값을 뭐라고 하나 */
+  const j=(D.idea||[]).find(x=>x.ax===it.axis&&x.v===it.val);
+  if(j){
+    const mk=ideaMark(j);
+    box.append(el("p",{class:"vwhy"},el("span",{class:"mk "+(mk||"none")},IDEA_MK[mk]),
+      el("span",{class:"dim"}," 판정 — "+j.w+"/"+j.n+"편 "+pc(j.rt)+" "),
+      el("span",{class:j.lf>0?"g":"b"},pp(j.lf))));
+  }
+  return box;
 }
 function viewJudge(){
   const m=$("#main");m.innerHTML="";
@@ -3665,6 +3781,114 @@ function openDraft(name){
 function closeDraft(){
   const dr=$("#drawer"), bg=$("#drawerbg");
   if(dr)dr.classList.remove("on"); if(bg)bg.classList.remove("on");
+}
+
+/* 해당하는 것만 말한다 */
+
+function advise(){
+
+  const box=$("#dAdv");box.innerHTML="";
+
+  const has=new Set(DFT.items.filter(x=>x.ok&&x.axis&&x.val).map(x=>x.axis+SEPJ+x.val));
+
+  const bad=D.advice.out.filter(x=>has.has(x.ax+SEPJ+x.v));
+
+  const good=D.advice.in.filter(x=>has.has(x.ax+SEPJ+x.v));
+
+  const miss=D.advice.in.filter(x=>!has.has(x.ax+SEPJ+x.v)).slice(0,5);
+
+  const card=(title,cls,list,render,empty)=>{
+
+    const c=el("div",{class:"card tight"},el("h3",{class:cls},title+" "+list.length));
+
+    if(!list.length){c.append(el("p",{class:"dim"},empty));return c;}
+
+    list.forEach(x=>c.append(render(x)));return c;};
+
+  const line=x=>{
+
+    const der=(D.derived||{})[x.ax];
+
+    const ex=x.words&&x.words.length
+
+      ? el("p",{class:"dim sm"},"이렇게 씁니다 — "+
+
+          x.words.slice(0,2).map(w=>"「"+w.v+"」("+w.t+")").join(" · "))
+
+      : (x.wins&&x.wins.length
+
+          ? el("p",{class:"dim sm"},"이 값을 쓴 성공작 — "+x.wins.slice(0,3).join(" · ")
+
+              +(der?" · 본문에 안 나오는 값입니다(제작 지시)":""))
+
+          : null);
+
+    return el("div",{class:"advrow"},
+
+      el("p",{class:"lrow"},el("b",{},x.v),el("span",{class:"dim"}," "+x.ax),
+
+        el("span",{class:"n"}," "+x.w+"/"+x.n+"편 "+pc(x.rt)),
+
+        el("span",{class:x.lf>0?"g":"b"}," "+pp(x.lf))),
+
+      ex);
+
+  };
+
+  box.append(el("h3",{},"이 원고에 대해"));
+
+  const two=el("div",{class:"two"});
+
+  two.append(card("빼세요","b",bad,line,"뺄 것이 없습니다."),
+
+             card("좋습니다","g",good,line,"갈린 값이 아직 안 붙었습니다."));
+
+  box.append(two);
+
+  box.append(card("없는데 넣으면 좋은 것","g",miss,line,"—"));
+
+  if(bad.length)box.append(el("div",{class:"note wa"},
+
+    el("b",{},"빼고 확인하는 방법. "),
+
+    "A/B로 가르지 않습니다. 위 「빼세요」를 통째로 빼고 그대로 태워, 그래도 잘 나오면 빼는 게 맞습니다."));
+
+}
+function dlDraft(){
+
+  const out={draft:DFT.name||"이름없음",made:new Date().toISOString().slice(0,19),
+
+    items:DFT.items.filter(x=>x.ok&&x.axis&&x.val).map(x=>({axis:x.axis,val:x.val,why:x.why,ok:true}))};
+
+  const a=document.createElement("a");
+
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(out,null,1)],{type:"application/json"}));
+
+  a.download="수기판정_"+out.draft+".json";a.click();
+
+}
+function viewFull(){
+  const m=$("#main");m.innerHTML="";
+  const bar=el("div",{class:"bar"});
+  const 말=el("span",{class:"dim"},"판정 원문을 여는 중…");
+  bar.append(말);
+  m.append(el("p",{class:"eyebrow"},"전지표 판정"),el("h2",{},"판정 원문"),
+    el("p",{class:"lede"},"판정 문서 원문입니다. 콘솔이 다시 짠 것이 아니라 갱신할 때 만들어진 그 파일입니다. "+
+      "12절 — 판정 창과 컷 · 표에 나오는 말 · 영상 구조 · 페르소나 · 구조와 위치 · 후킹 · 소구 · CTA · 운영 · 시기별 흐름 · 프로모션 · 못 읽은 것."),
+    bar);
+  const fr=el("iframe",{title:"전지표 판정",
+    style:"width:100%;height:calc(100vh - 210px);min-height:520px;border:1px solid var(--line);"+
+          "border-radius:var(--r);background:var(--paper)"});
+  m.append(fr);
+  window.HYP_ENC("판정원문.enc").then(function(글){
+    const url=URL.createObjectURL(new Blob([글],{type:"text/html;charset=utf-8"}));
+    fr.src=url; 말.remove();
+    bar.append(el("a",{class:"btn",href:url,target:"_blank",rel:"noopener"},"새 창으로 열기"),
+      el("span",{class:"dim"},"문서가 커서 뜨는 데 몇 초 걸립니다"));
+  }).catch(function(e){
+    말.textContent="판정 원문을 못 열었습니다 — "+e.message;
+    말.style.color="var(--no,#c5372c)";
+  });
 }
 
 function viewDrafts(){
