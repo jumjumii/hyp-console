@@ -651,7 +651,7 @@ const DATA = (function(){
     }).then(function(뭉치){
       var 기억 = sessionStorage.getItem(기억칸);
       if (기억) return 풀기(기억, 뭉치).then(function(글){
-        window.HYP_PW = 기억; window.HYP_WATCH(); return JSON.parse(글);
+        window.HYP_PW = 기억; 지켜보기(); return JSON.parse(글);
       }).catch(function(){
         sessionStorage.removeItem(기억칸); return 물어보기(뭉치);
       });
@@ -663,7 +663,10 @@ const DATA = (function(){
        5분마다 자물쇠 파일이 갈렸는지만 묻고(HEAD — 몸통은 안 받는다),
        갈렸으면 띠를 띄운다. 누르면 비번은 이미 알고 있으니 다시 안 묻고
        받아서 화면만 갈아 낀다. 저절로 바꾸지는 않는다 — 보던 자리가 날아간다. */
-    window.HYP_WATCH = function(){
+    /* function 선언이라야 한다. return 아래에 두는데, 대입문(window.X = ...)으로
+       쓰면 그 줄에 닿지를 못해 영영 안 걸린다 — 실제로 그렇게 만들어서 지켜보기가
+       한 번도 안 돌았다. 선언은 끌어올려져 위에서 불러도 있다. */
+    function 지켜보기(){
       if (window.HYP_WATCHING) return;
       window.HYP_WATCHING = setInterval(function(){
         if (document.hidden || document.getElementById("hyp-new")) return;
@@ -746,7 +749,7 @@ const DATA = (function(){
             sessionStorage.setItem(기억칸, pw);
             window.HYP_PW = pw;
             막.remove();
-            window.HYP_WATCH();
+            지켜보기();
             done(자료);
           }).catch(function(){
             단추.disabled = false;
