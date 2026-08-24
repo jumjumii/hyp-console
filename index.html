@@ -636,24 +636,72 @@ const DATA = (function(){
     /* 다른 잠긴 파일(판정 원문 같은 것)도 같은 비번으로 연다. */
     window.HYP_ENC = function(파일){
       if (!window.HYP_PW) return Promise.reject(new Error("아직 비번이 없습니다"));
-      return fetch(파일).then(function(r){
+      return fetch(파일, {cache:"no-store"}).then(function(r){
         if(!r.ok) throw new Error("못 받았습니다 ("+r.status+")");
         return r.arrayBuffer();
       }).then(function(뭉치){ return 풀기(window.HYP_PW, 뭉치); });
     };
 
-    return fetch(자물쇠).then(function(r){
+    /* cache:"no-store" — 안 붙이면 새 자료를 올려도 브라우저가 한동안 옛것을
+       그대로 내준다. 「갱신했는데 사이트는 그대로」가 여기서 난다. */
+    return fetch(자물쇠, {cache:"no-store"}).then(function(r){
       if(!r.ok) throw new Error("잠긴 데이터를 못 받았습니다 ("+r.status+")");
+      window.HYP_STAMP = r.headers.get("etag") || r.headers.get("last-modified") || "";
       return r.arrayBuffer();
     }).then(function(뭉치){
       var 기억 = sessionStorage.getItem(기억칸);
       if (기억) return 풀기(기억, 뭉치).then(function(글){
-        window.HYP_PW = 기억; return JSON.parse(글);
+        window.HYP_PW = 기억; window.HYP_WATCH(); return JSON.parse(글);
       }).catch(function(){
         sessionStorage.removeItem(기억칸); return 물어보기(뭉치);
       });
       return 물어보기(뭉치);
     });
+
+    /* 자료는 하루 네 번 갱신되는데 화면은 처음 연 것을 그대로 들고 있었다.
+       「새로고침해도 화면만 읽고 bat를 눌러야 한다」는 게 말이 안 된다는 지적.
+       5분마다 자물쇠 파일이 갈렸는지만 묻고(HEAD — 몸통은 안 받는다),
+       갈렸으면 띠를 띄운다. 누르면 비번은 이미 알고 있으니 다시 안 묻고
+       받아서 화면만 갈아 낀다. 저절로 바꾸지는 않는다 — 보던 자리가 날아간다. */
+    window.HYP_WATCH = function(){
+      if (window.HYP_WATCHING) return;
+      window.HYP_WATCHING = setInterval(function(){
+        if (document.hidden || document.getElementById("hyp-new")) return;
+        fetch(자물쇠, {method:"HEAD", cache:"no-store"}).then(function(r){
+          if(!r.ok) return;
+          var 새것 = r.headers.get("etag") || r.headers.get("last-modified") || "";
+          if(!새것 || !window.HYP_STAMP || 새것 === window.HYP_STAMP) return;
+          띠보이기();
+        }).catch(function(){});
+      }, 5*60*1000);
+    };
+
+    function 띠보이기(){
+      var 띠 = document.createElement("div");
+      띠.id = "hyp-new";
+      띠.style.cssText = "position:fixed;left:50%;bottom:22px;transform:translateX(-50%);"
+        + "z-index:9998;display:flex;gap:12px;align-items:center;padding:11px 16px;"
+        + "border-radius:11px;background:var(--ink,#1a1d21);color:var(--paper,#fff);"
+        + "box-shadow:0 6px 24px rgba(0,0,0,.18);font:13px/1.5 'Malgun Gothic',system-ui,sans-serif";
+      띠.innerHTML = "<span>새 자료가 올라왔습니다.</span>"
+        + "<button id=\"hyp-new-go\" style=\"border:0;border-radius:7px;padding:5px 11px;"
+        + "background:var(--paper,#fff);color:var(--ink,#1a1d21);font-size:12.5px;"
+        + "font-weight:600;cursor:pointer\">지금 읽기</button>"
+        + "<button id=\"hyp-new-no\" style=\"border:0;background:transparent;"
+        + "color:rgba(255,255,255,.6);font-size:12.5px;cursor:pointer\">나중에</button>";
+      document.body.appendChild(띠);
+      띠.querySelector("#hyp-new-no").onclick = function(){ 띠.remove(); };
+      띠.querySelector("#hyp-new-go").onclick = function(){
+        var 단추 = 띠.querySelector("#hyp-new-go");
+        단추.disabled = true; 단추.textContent = "읽는 중…";
+        fetch(자물쇠, {cache:"no-store"}).then(function(r){
+          window.HYP_STAMP = r.headers.get("etag") || r.headers.get("last-modified") || "";
+          return r.arrayBuffer();
+        }).then(function(뭉치){ return 풀기(window.HYP_PW, 뭉치); })
+          .then(function(글){ 띠.remove(); boot(JSON.parse(글)); })
+          .catch(function(){ 단추.disabled = false; 단추.textContent = "다시"; });
+      };
+    }
 
     function 물어보기(뭉치){
       return new Promise(function(done){
@@ -698,6 +746,7 @@ const DATA = (function(){
             sessionStorage.setItem(기억칸, pw);
             window.HYP_PW = pw;
             막.remove();
+            window.HYP_WATCH();
             done(자료);
           }).catch(function(){
             단추.disabled = false;
