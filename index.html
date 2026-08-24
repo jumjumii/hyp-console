@@ -3487,15 +3487,31 @@ function viewDraft(){
       el("button",{class:"btn2",onclick:()=>{DFT.hyp=null;viewDraft();}},"가설 없이 쓰기")));
   }
 
+  /* 집행한 원고 열기 — 새로 쓰는 원고만 볼 수 있으면 반쪽이다.
+     자료가 갱신되면 이미 집행한 원고의 코딩도 다시 봐야 한다. */
+  const 있는것 = Object.keys(D.body||{}).filter(t=>(D.jcod||{})[t])
+    .sort((a,b)=>((DR[b]||{}).sp||0)-((DR[a]||{}).sp||0));
+  const 고르기 = el("select",{style:"min-width:230px"});
+  고르기.append(el("option",{value:""},`집행한 원고 열기 — ${있는것.length}편`));
+  있는것.forEach(t=>{const d=DR[t]||{};
+    고르기.append(el("option",{value:t},`${t}  ${d.st||""} ${d.r!==undefined?"ROAS "+d.r:""}`));});
+  고르기.value = DFT.집행 ? DFT.name : "";
+  고르기.addEventListener("change",()=>{ if(고르기.value) vOpen(고르기.value); });
+
   const nameIn=el("input",{type:"text",placeholder:"원고 이름",value:DFT.name,style:"flex:1"});
-  nameIn.addEventListener("input",()=>DFT.name=nameIn.value);
+  nameIn.addEventListener("input",()=>{DFT.name=nameIn.value;DFT.집행=false;});
   const ta=el("textarea",{id:"dText",rows:"12",style:"width:100%",placeholder:"여기에 쓰거나 붙여넣으세요. 한 줄에 한 문장이면 가장 좋습니다."});
   /* 왼쪽 판이 이 글을 그대로 읽는다. 안 담아 두면 태깅한 뒤 본문이 사라진다. */
   ta.addEventListener("input",function(){ DFT.body=ta.value; });
   /* 빌더에서 쓴 글을 안고 왔으면 채워 둔다. 안 채우면 넘어와도 빈 칸이라
      다시 붙여넣게 된다. */
   if(DFT.body) ta.value=DFT.body;
-  m.append(el("div",{class:"bar"},nameIn),ta);
+  m.append(el("div",{class:"bar"},고르기,nameIn,
+    el("button",{class:"btn2",onclick:()=>{DFT={name:"",items:[],body:""};VSEL=null;viewDraft();}},
+      "새 원고")),ta);
+  if(DFT.집행) m.append(el("p",{class:"dim sm2",style:"margin:-4px 0 8px"},
+    `집행한 원고입니다. 아래 코딩은 판정이 붙여 둔 것이고, 여기서 고친 것은 `+
+    `「수기판정 내려받기」로 떨어져 다음 갱신 때 판정에 들어갑니다.`));
 
   m.append(el("div",{class:"bar"},
     el("b",{style:"font-size:12.5px"},"태깅"),
@@ -3596,9 +3612,19 @@ function addRow(){DFT.items.push({axis:"",val:"",why:"",ok:true});drawTag();}
    그 짜임을 그대로 가져오되 겉은 이 콘솔이다. 데이터도 이 콘솔 것만 쓴다 —
    본문은 위에 쓴 글, 축과 값은 판정의 축 목록(axd), 판정은 전 지표 판정.
    고친 것은 브라우저에 저장되고 「수기판정 내려받기」로 파일이 떨어진다. */
+/* 새로 쓰는 원고만 볼 수 있으면 반쪽이다. 자료가 새로 들어와 판정이 다시
+   내려지면 이미 집행한 원고의 코딩도 다시 봐야 한다 — 그게 유기적으로 도는
+   것이다. 판정이 본문(body)과 근거 문장(evd)을 들고 있으니 189편 아무거나
+   골라서 그 자리에서 고칠 수 있다. 고친 것은 수기판정으로 떨어지고
+   V2_수기반영.py가 다음 갱신 때 먹는다. */
 let VSEL = null;      // 왼쪽에서 고른 문장 번호
 const VSHUT = new Set();   // 접어 둔 묶음. 기본은 다 펴 둔다 —
                            // 검증하러 들어온 자리라 접혀 있으면 아무것도 못 본다.
+
+/* 문장이 붙을 수 없는 축들. 「나이대 = 60대」에 근거 문장이 있을 리 없다 —
+   영상을 보고 매기는 것이지 원고 문장에서 읽는 게 아니다. 그런 줄에까지
+   「근거 없음」을 달면 진짜 빠진 것이 안 보인다. */
+const V_NOLINE = new Set(["페르소나","영상형식","구조","포지션","운영"]);
 
 const vLines = () => (DFT.body||"").split(/\n+/).map(s=>s.trim()).filter(Boolean);
 const vSave  = () => { try{ localStorage.setItem("hyp_draft", JSON.stringify(DFT)); }catch(e){} };
@@ -3614,6 +3640,37 @@ function vMerge(items){
     out.push({i:i, it:it, also:[]});
   });
   return out;
+}
+
+/* 집행한 원고를 골라 그 코딩을 그대로 불러온다 */
+function vOpen(t){
+  const 줄 = (D.body||{})[t] || [];
+  const 근거 = (D.evd||{})[t] || {};
+  const 코딩 = (D.jcod||{})[t] || {};
+  /* 코딩 값 이름과 판정 표의 값 이름이 늘 같지는 않다. 훅은 코딩이
+     「충격적이거나 놀라운 사실 · 남의 니 얘기를 든다」처럼 유형과 워딩을 붙여
+     쓰는데, 판정 표는 둘을 따로 센다. 그대로 찾으면 하나도 안 걸린다.
+     붙은 이름이면 잘라서도 찾아본다. */
+  function 근거찾기(v){
+    if (근거[v]) return 근거[v];
+    const 쪽 = v.split(" · ");
+    for (let i=쪽.length-1; i>=0; i--) if (근거[쪽[i]]) return 근거[쪽[i]];
+    return null;
+  }
+  const items=[];
+  Object.keys(코딩).forEach(function(ax){
+    (코딩[ax]||[]).forEach(function(v){
+      const ln = (근거찾기(v)||[])[0];
+      items.push({axis:ax, val:v, ok:true, src:"판정",
+        li: ln ? 줄.indexOf(ln) : undefined, why: ""});
+    });
+  });
+  /* 문장이 본문에서 안 찾아지면(줄이 조금 다르면) 번호를 비운다 */
+  items.forEach(function(it){ if(it.li===-1){ it.li=undefined;
+    it.why="근거 문장이 본문에서 안 찾아집니다"; } });
+  DFT={name:t, body:줄.join(String.fromCharCode(10)), items:items, 집행:true};
+  VSEL=null; VSHUT.clear();
+  viewDraft();
 }
 
 function drawTag(){
@@ -3738,7 +3795,9 @@ function vRow(r, lines){
     box.append(el("p",{class:"vwhy"},el("span",{class:"vno"},String(it.li+1)),
       el("span",{class:"dim"},"“"+lines[it.li]+"”")));
   else if(it.why) box.append(el("p",{class:"vwhy dim"},it.why));
-  else box.append(el("p",{class:"vwhy dim"},"근거 문장이 없습니다."));
+  else if(V_NOLINE.has(((D.axd[it.axis]||{}).grp)||"")) ;   // 문장이 붙을 수 없는 축
+  else box.append(el("p",{class:"vwhy dim"},
+    "근거 문장이 없습니다. 왼쪽에서 문장을 고르고 「근거로」를 누르세요."));
   if(r.also.length) box.append(el("p",{class:"vwhy dim"},
     "같은 값이 같은 문장에 또 붙어 있습니다 — "+r.also.map(a=>a.it.axis).join(" · ")));
 
