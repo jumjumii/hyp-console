@@ -604,6 +604,7 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
   <button data-v="drafts">소재 189편</button>
   <div class="lab">5 · 전지표 판정</div>
   <button data-v="full">판정 원문</button>
+  <button data-v="code">코딩 검증</button>
   <button data-v="judge">지표값 찾기</button>
   <div class="foot" id="navfoot"></div>
 </nav>
@@ -4002,6 +4003,34 @@ function viewFull(){
   });
 }
 
+function viewCode(){
+  const m=$("#main");m.innerHTML="";
+  const bar=el("div",{class:"bar"});
+  const 말=el("span",{class:"dim"},"코딩 검증을 여는 중…");
+  bar.append(말);
+  m.append(el("p",{class:"eyebrow"},"전지표 판정"),el("h2",{},"코딩 검증"),
+    el("p",{class:"lede"},"원고에 붙은 코딩이 맞게 붙었는지 문장에 대고 확인하는 도구입니다. "+
+      "왼쪽이 원고, 오른쪽이 그 원고에 붙은 코딩. 맞음·아님을 누르고 값을 고칩니다. "+
+      "고친 것은 이 브라우저에 남고, 「파일로 내려받기」를 누르면 수기판정.json이 떨어집니다."),
+    bar);
+  const fr=el("iframe",{title:"코딩 검증",
+    style:"width:100%;height:calc(100vh - 210px);min-height:520px;border:1px solid var(--line);"+
+          "border-radius:var(--r);background:var(--paper)"});
+  m.append(fr);
+  window.HYP_ENC("코딩검증.enc").then(function(글){
+    const d=fr.contentDocument; d.open(); d.write(글); d.close();
+    말.remove();
+    bar.append(el("button",{class:"btn",onclick:function(){
+      const w=window.open("about:blank");
+      if(!w){ bar.append(el("span",{class:"dim"},"새 창이 막혔습니다. 아래 화면에서 그대로 쓰세요.")); return; }
+      w.document.open(); w.document.write(글); w.document.close();
+    }},"새 창으로 열기"),
+      el("span",{class:"dim"},"내려받은 수기판정.json은 PC의 V2_수기반영.py가 먹습니다"));
+  }).catch(function(e){
+    말.textContent="코딩 검증을 못 열었습니다 — "+e.message;
+    말.style.color="var(--no,#c5372c)";
+  });
+}
 function viewDrafts(){
   const m=$("#main");m.innerHTML="";
   m.append(el("p",{class:"eyebrow"},"아카이브"),el("h2",{},"소재 189편"),
@@ -4114,7 +4143,7 @@ function viewPerf(){
   m.append(el("p",{class:"dim"},
     "이번 달은 아직 매출이 다 붙지 않았습니다 — 카페24 귀속이 며칠 걸립니다."));
 }
-const VIEWS={build:viewBuild,deep:viewDeep,bank:viewBank,write:viewWrite,sogu:viewSogu,layer:viewLayer,home:viewHome,full:viewFull,idea:viewIdea,draft:viewDraft,
+const VIEWS={build:viewBuild,deep:viewDeep,bank:viewBank,write:viewWrite,sogu:viewSogu,layer:viewLayer,home:viewHome,full:viewFull,code:viewCode,idea:viewIdea,draft:viewDraft,
   judge:viewJudge,drafts:viewDrafts,perf:viewPerf};
 document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()=>go(b.dataset.v)));
 function boot(data){
