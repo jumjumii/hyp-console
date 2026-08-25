@@ -3528,8 +3528,22 @@ function viewDraft(){
   고르기.append(el("option",{value:""},`집행한 원고 열기 — ${있는것.length}편`));
   있는것.forEach(t=>{const d=DR[t]||{};
     고르기.append(el("option",{value:t},`${t}  ${d.st||""} ${d.r!==undefined?"ROAS "+d.r:""}`));});
-  고르기.value = DFT.집행 ? DFT.name : "";
-  고르기.addEventListener("change",()=>{ if(고르기.value) vOpen(고르기.value); });
+  /* 아직 안 태운 원고 — 노션에서 받아 이 PC에서 코딩해 둔 것.
+     사이트가 노션을 직접 못 부르니(CORS·토큰) 갱신 때 받아 담아 둔다. */
+  const 안탄것 = Object.keys(D.new||{})
+    .sort((a,b)=>(((D.new[b].items||[]).length?1:0)-((D.new[a].items||[]).length?1:0)));
+  if(안탄것.length){
+    const g=el("optgroup",{label:`아직 안 태운 원고 — ${안탄것.length}편`});
+    안탄것.forEach(t=>{const d=D.new[t];
+      g.append(el("option",{value:"새:"+t},
+        `${t}  ${(d.items||[]).length?"코딩 "+d.items.length+"줄":"코딩 없음"}`));});
+    고르기.append(g);
+  }
+  고르기.value = DFT.노션 ? "새:"+DFT.name : (DFT.집행 ? DFT.name : "");
+  고르기.addEventListener("change",()=>{
+    const v=고르기.value; if(!v) return;
+    if(v.indexOf("새:")===0) nOpen(v.slice(2)); else vOpen(v);
+  });
 
   const nameIn=el("input",{type:"text",placeholder:"원고 이름",value:DFT.name,style:"flex:1"});
   nameIn.addEventListener("input",()=>{DFT.name=nameIn.value;DFT.집행=false;});
@@ -3545,6 +3559,9 @@ function viewDraft(){
   if(DFT.집행) m.append(el("p",{class:"dim sm2",style:"margin:-4px 0 8px"},
     `집행한 원고입니다. 아래 코딩은 판정이 붙여 둔 것이고, 여기서 고친 것은 `+
     `「수기판정 내려받기」로 떨어져 다음 갱신 때 판정에 들어갑니다.`));
+  if(DFT.노션) m.append(el("p",{class:"dim sm2",style:"margin:-4px 0 8px"},
+    `노션에서 받아 온 원고입니다${DFT.st?" · "+DFT.st:""}${DFT.want?" · 의도 「"+DFT.want+"」":""}`+
+    `${DFT.at?" · 코딩 "+DFT.at:""}. 아직 안 태워서 성과가 없습니다 — 아래는 코딩과 피드백뿐입니다.`));
 
   m.append(el("div",{class:"bar"},
     el("b",{style:"font-size:12.5px"},"태깅"),
@@ -3710,6 +3727,23 @@ function vOpen(t){
   items.forEach(function(it){ if(it.li===-1){ it.li=undefined;
     it.why="근거 문장이 본문에서 안 찾아집니다"; } });
   DFT={name:t, body:줄.join(String.fromCharCode(10)), items:items, 집행:true};
+  VSEL=null; VSHUT.clear();
+  viewDraft();
+}
+
+/* 아직 안 태운 원고를 연다 — 노션에서 받아 이 PC에서 코딩해 둔 것.
+   사이트에서 노션을 직접 부를 수는 없다(CORS·토큰). 갱신 때 받아 담아 둔다.
+   집행한 원고와 다른 점은 성과가 없다는 것뿐이고, 화면은 똑같다. */
+function nOpen(t){
+  const d = (D.new||{})[t];
+  if(!d) return;
+  DFT = {name:t, body:(d.lines||[]).join(String.fromCharCode(10)),
+         집행:false, 노션:true, want:d.want||"", st:d.st||"", at:d.at||"",
+         items:(d.items||[]).map(function(x){
+           return {axis:x.axis, val:x.val, ok:true, src:"클로드",
+                   li:(x.li===null||x.li===undefined?undefined:x.li),
+                   why:x.why||""};
+         })};
   VSEL=null; VSHUT.clear();
   viewDraft();
 }
