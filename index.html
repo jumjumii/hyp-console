@@ -3405,6 +3405,32 @@ function gramsJS(lines){
   return g;
 }
 
+/* 클로드도 규칙도 「몇 번째 줄인가」는 안 준다 — 값과 근거 문장만 준다.
+   그래서 두 글자씩 겹치는 비율로 본문에서 그 줄을 찾아 붙인다. V1_검증도구.py의
+   best_line과 같은 셈법이다. 이게 없으면 오른쪽 코딩이 왼쪽 문장에 하나도 안 붙어
+   「한 줄 한 줄 코딩이 안 된다」가 된다 — 실제로 그랬다. (2026-08-25) */
+function gram2(s){
+  const t=String(s||"").replace(/[^0-9A-Za-z가-힣]/g,"").toLowerCase();
+  const g=new Set(); for(let i=0;i<t.length-1;i++) g.add(t.slice(i,i+2)); return g;
+}
+function bestLine(lines,quote,floor){
+  const q=gram2(quote); if(q.size<4) return null;
+  let best=null,bs=0;
+  lines.forEach(function(ln,i){
+    const l=gram2(ln); if(!l.size) return;
+    let hit=0; q.forEach(function(x){ if(l.has(x)) hit++; });
+    const sc=hit/q.size; if(sc>bs){best=i;bs=sc;}
+  });
+  return bs>=(floor||0.30)?best:null;
+}
+/* 걸린 낱말이 실제로 있는 줄. 규칙 태깅은 문장이 아니라 낱말을 준다. */
+function lineOfWords(lines,words){
+  for(let i=0;i<lines.length;i++){
+    const ln=lines[i].toLowerCase();
+    for(const w of words) if(w.length>=2 && ln.includes(w.toLowerCase())) return i;
+  }
+  return null;
+}
 function tagByRule(lines){
   const R = D.rules || {};
   if (!R.rules) return {items: [], note: "규칙 파일이 없습니다. python P1_규칙태깅.py 를 돌리세요."};
@@ -3428,9 +3454,14 @@ function tagByRule(lines){
     const lst = sc[ax].sort((a, b) => b.s - a.s);
     const th = (R.thr[ax] || {}).th || 0.55;
     const take = multi.has(ax) ? lst.filter(x => x.s >= th) : (lst[0] && lst[0].s >= th * 0.7 ? [lst[0]] : []);
-    take.forEach(x => out.push({axis: ax, val: x.v, ok: true, src: "프로그램",
-      conf: Math.round((R.thr[ax] || {}).p * 100) || null,
-      why: "걸린 말 — " + x.kw.map(k => k.w.replace("«앞»", "앞:").replace("«끝»", "끝:")).join(" · ")}));
+    take.forEach(function(x){
+      const ws = x.kw.map(k => k.w.replace(/«앞»|«끝»/g, ""));
+      const li = lineOfWords(lines, ws);
+      out.push({axis: ax, val: x.v, ok: true, src: "프로그램",
+        conf: Math.round((R.thr[ax] || {}).p * 100) || null,
+        li: (li === null ? undefined : li),
+        why: "걸린 말 — " + x.kw.map(k => k.w.replace("«앞»", "앞:").replace("«끝»", "끝:")).join(" · ")});
+    });
   }
   // 신호가 없으면 그 축에서 절반을 넘는 값을 찍는다(파이썬 쪽과 같은 규칙)
   for (const ax in (R.major || {})) {
@@ -3440,9 +3471,10 @@ function tagByRule(lines){
       conf: Math.round((R.major[ax].p || 0) * 100),
       why: "신호가 없어 가장 흔한 값으로 찍음"});
   }
-  return {items: out, note: `규칙이 믿을 만한 축 ${Object.keys(R.thr).length}개만 봅니다. `
-    + `남겨둔 원고로 잰 정밀도 ${Math.round(R.p * 100)}% · 재현율 ${Math.round(R.r * 100)}% — `
-    + `놓치는 게 많으니 클로드도 함께 돌려 견주세요.`};
+  const 본축 = Object.keys(R.thr).length + Object.keys(R.major || {}).length;
+  return {items: out, note: `규칙은 축 ${본축}개만 봅니다(전체 ${Object.keys(D.axd).length}개). `
+    + `정밀도 ${Math.round(R.p * 100)}% · 재현율 ${Math.round(R.r * 100)}%. `
+    + `한 줄 한 줄 코딩하려면 「클로드로」를 누르세요 — 전 축을 보고 근거 문장까지 뽑습니다.`};
 }
 
 /* 두 결과를 견준다 */
@@ -3546,9 +3578,11 @@ async function tagBy(how){
   const body=$("#dText").value.trim();
   if(!DFT.name)DFT.name=($("input[placeholder='원고 이름']")||{}).value||"";
   if(!body){dsay("원고를 먼저 넣으세요.");return;}
+  DFT.body=body;
+  const lines=vLines();   // 왼쪽 판과 같은 줄 목록이어야 번호가 맞는다
   if(how==="hand"){DFT.items=[];addRow();dsay("수기로 넣습니다. 축과 값을 고르세요.");return;}
   if(how==="rule"){
-    const res=tagByRule(body.split(String.fromCharCode(10)).filter(x=>x.trim()));
+    const res=tagByRule(lines);
     DFT.items=mergeTags(res.items,DFT.items.filter(x=>x.src==="클로드"));
     drawTag();advise();dsay(res.note);
     return;
@@ -3558,13 +3592,19 @@ async function tagBy(how){
   dsay("클로드가 읽는 중…");
   try{
     const items=await callClaudeTag(k,DFT.name||"이름 없음",body);
-    const mine=items.map(x=>({axis:x.axis,val:x.val,why:x.why,ok:true,src:"클로드"}));
+    const mine=items.map(function(x){
+      const li=bestLine(lines,x.why);
+      return {axis:x.axis,val:x.val,why:x.why,ok:true,src:"클로드",
+              li:(li===null?undefined:li)};
+    });
     const rule=DFT.items.filter(x=>x.src==="프로그램");
     DFT.items=mergeTags(rule,mine);
     drawTag();advise();
     const both=DFT.items.filter(x=>x.both).length;
-    dsay(rule.length?`클로드 ${mine.length}개 · 프로그램 ${rule.length}개 · 둘 다 본 것 ${both}개. 「둘만」 표시된 줄을 눈여겨보세요.`
-                    :`${mine.length}개를 붙였습니다. 아닌 것은 끄세요.`);
+    const 붙은줄=DFT.items.filter(x=>x.li!==undefined&&x.li!==null).length;
+    dsay((rule.length?`클로드 ${mine.length}개 · 프로그램 ${rule.length}개 · 둘 다 본 것 ${both}개. `
+                     :`${mine.length}개를 붙였습니다. `)
+         +`그중 ${붙은줄}개는 왼쪽 문장에 붙었습니다. 아닌 것은 끄세요.`);
   }catch(e){dsay("실패: "+e.message);}
 }
 function askKeyD(){
