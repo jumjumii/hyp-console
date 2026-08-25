@@ -601,7 +601,7 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
   <button data-v="draft">원고 검증</button>
   <div class="lab">4 · 아카이브</div>
   <button data-v="bank">문장 뱅크</button>
-  <button data-v="drafts">소재 189편</button>
+  <button data-v="drafts" id="navDrafts">소재</button>
   <div class="lab">5 · 전지표 판정</div>
   <button data-v="full">판정 원문</button>
   <button data-v="code">코딩 검증</button>
@@ -3912,7 +3912,7 @@ function vRow(r, lines){
 function viewJudge(){
   const m=$("#main");m.innerHTML="";
   m.append(el("p",{class:"eyebrow"},"전지표 판정"),el("h2",{},"지표값 찾기"),
-    el("p",{class:"lede"},`전지표 판정의 지표값 319개를 축·편수로 찾아보는 곳입니다. 기저율 ${pc(D.base)}에서 얼마나 움직이는지. `+
+    el("p",{class:"lede"},`전지표 판정의 지표값 ${D.vals.length}개를 축·편수로 찾아보는 곳입니다. 기저율 ${pc(D.base)}에서 얼마나 움직이는지. `+
       `줄을 누르면 그 값을 쓴 원고가 실제로 뭐라고 썼는지 오른쪽에 펼쳐집니다.`));
   const solid=D.vals.filter(v=>v.split&&v.n>=5),thin=D.vals.filter(v=>v.split&&v.n<5);
   const near=[];
@@ -4133,9 +4133,12 @@ function viewCode(){
     말.style.color="var(--no,#c5372c)";
   });
 }
+/* 「판정 밖」이라고만 적혀 있으면 왜 빠졌는지 알 수가 없다. 까닭을 같이 적는다. */
+function 밖까닭(d){ return d.st==="판정 밖" && d.why
+  ? el("span",{class:"dim sm2"}," — "+d.why) : null; }
 function viewDrafts(){
   const m=$("#main");m.innerHTML="";
-  m.append(el("p",{class:"eyebrow"},"아카이브"),el("h2",{},"소재 189편"),
+  m.append(el("p",{class:"eyebrow"},"아카이브"),el("h2",{},`소재 ${D.drafts.length}편`),
     el("p",{class:"lede"},`집행된 ${D.drafts.length}편 전부. 조기 중단도 실패로 남깁니다.`));
   const two=el("div",{class:"two"}),L=el("div"),R=el("div");two.append(L,R);m.append(two);
   const q=el("input",{type:"search",placeholder:"소재 검색",style:"width:190px"});
@@ -4148,7 +4151,8 @@ function viewDrafts(){
     if(sSel.value)rs=rs.filter(d=>d.st===sSel.value);
     host.innerHTML="";host.append(table([
       {h:"소재",l:1,k:r=>r.t,c:r=>el("b",{},r.t)},
-      {h:"상태",k:r=>r.st,c:r=>el("span",{class:"pill "+(SP[r.st]||"p-dim")},r.st)},
+      {h:"상태",k:r=>r.st,c:r=>el("span",{},
+        el("span",{class:"pill "+(SP[r.st]||"p-dim"),title:r.why||""},r.st), 밖까닭(r))},
       {h:"판정 창",k:r=>r.w1?r.w1.roas:-1,
        c:r=>r.w1&&r.w1.call?el("span",{class:"pill "+(CP[r.w1.call]||"p-dim")},r.w1.call):"—"},
         {h:"판정 창 ROAS",k:r=>r.w??-1,c:r=>r.w==null?"—":el("span",{class:r.w>=D.cut?"g":"b"},r.w.toFixed(2))},
@@ -4213,6 +4217,19 @@ function viewPerf(){
       el("td",{class:"n"},pc(g.sp/nm.all)),el("td",{class:"n"},g.n+"종"),
       el("td",{class:"dim"},봐[g.g]||""))));
     c.append(t);
+    /* 이름은 붙었는데 판정에는 안 들어간 것도 같이 밝힌다 — 까닭까지 */
+    const 밖=(D.drafts||[]).filter(d=>d.st==="판정 밖");
+    if(밖.length){
+      const 묶={};
+      밖.forEach(d=>{const k=d.why||"까닭 모름";
+        (묶[k]=묶[k]||{n:0,sp:0}); 묶[k].n++; 묶[k].sp+=(d.sp||0);});
+      c.append(el("p",{class:"dim sm2",style:"margin-top:12px"},
+        el("b",{},"이름은 붙었지만 판정에 안 들어간 소재 "+밖.length+"편")));
+      Object.keys(묶).sort((a2,b2)=>묶[b2].sp-묶[a2].sp).forEach(k=>
+        c.append(el("p",{class:"lrow"},el("b",{},man(묶[k].sp)),
+          el("span",{class:"dim"}," "+묶[k].n+"편 · "),el("span",{},k))));
+    }
+
     const 볼것=(nm.top||[]).filter(x=>x.g==="정체 불명");
     if(볼것.length){
       c.append(el("p",{class:"dim sm2",style:"margin-top:10px"},
@@ -4289,6 +4306,8 @@ function boot(data){
   D=data; COD=D.jcod; DR=Object.fromEntries(D.drafts.map(d=>[d.t,d]));
   BANS=(D.hyps||[]).filter(h=>h.dir==="금지"&&h.ax&&h.val);
   $("#navsub").textContent=`${D.asof} · 판정 ${D.n}편 · 기저율 ${pc(D.base)}`;
+  /* 목차의 숫자는 굳혀 두면 반드시 틀린다 — 「소재 189편」인 채로 210편이었다. */
+  { const b=$("#navDrafts"); if(b) b.textContent=`소재 ${D.drafts.length}편`; }
   $("#navfoot").innerHTML=`${D.metric}<br>최종: 롤링 ${D.win.days}일 · 컷 ${D.cut}<br>`+
     `주간: 첫 ${D.wk.days}일 · ${man(D.wk.spend)}+ · 컷 ${D.wk.cut}`;
   /* 새로고침 뒤에도 보던 화면으로 돌아온다 */
