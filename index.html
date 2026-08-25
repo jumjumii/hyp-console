@@ -2158,6 +2158,15 @@ function viewHome(){
      며칠 전에서 멈춰 있어서였다. 갱신이 조용히 실패한 것도 여기서 말한다. */
   (function(){
     const 말 = [];
+    /* 메타 지출이 언제까지 들어왔나. 수집이 조용히 0건을 받아도 프로그램은
+       「성공」으로 끝난다 — 그러면 어제 자료로 오늘을 보게 된다. */
+    {
+      const 끝 = new Date(D.asof+"T00:00:00");
+      const 늦 = Math.floor((Date.now() - 끝.getTime())/86400000);
+      if(늦 >= 2) 말.push({급: 늦>=3, 글:
+        `메타 지출이 ${D.asof}까지만 들어와 있습니다 (${늦}일 전). `+
+        `수집이 걸렸거나 PC가 꺼져 있었습니다. 아래는 그날까지의 숫자입니다.`});
+    }
     if(D.csvuntil){
       const 끝 = new Date(D.csvuntil+"T00:00:00"),
              지금 = new Date(D.asof+"T00:00:00"),
