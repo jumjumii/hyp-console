@@ -798,6 +798,41 @@ function table(cols,rows,opt={}){
     rs.forEach(r=>{const tr=el("tr",opt.onrow?{class:"click",onclick:()=>opt.onrow(r)}:{});
       cols.forEach(c=>tr.append(el("td",{class:c.l?"l":""},c.c?c.c(r):String(c.k?c.k(r):""))));tb.append(tr);});};
   draw();box.append(tb);return box;}
+/* 손으로 짠 표도 제목을 눌러 정렬되게 한다. table()로 만든 표만 정렬이 됐고
+   「지금 라이브」처럼 직접 그린 표는 안 됐다. 칸의 글자에서 숫자를 뽑아 견주되,
+   숫자가 아니면 글자로 견준다. 「1,234만」·「12일」·「—」를 다 다룬다. (2026-08-26) */
+function 표정렬(tb){
+  const thead=tb.querySelector("thead"), tbody=tb.querySelector("tbody");
+  if(!thead||!tbody) return tb;
+  const ths=[].slice.call(thead.querySelectorAll("th"));
+  let 지금=null, 향=-1;
+  const 숫자=(s2)=>{
+    const t=String(s2||"").replace(/,/g,"").trim();
+    if(!t||t==="—"||t==="-") return null;
+    const m=t.match(/-?[0-9]+(?:\.[0-9]+)?/);
+    if(!m) return null;
+    let v=parseFloat(m[0]);
+    if(/억/.test(t)) v*=1e8; else if(/만/.test(t)) v*=1e4;
+    return v;
+  };
+  ths.forEach((th,i)=>{
+    th.style.cursor="pointer";
+    th.addEventListener("click",()=>{
+      if(지금===i) 향=-향; else { 지금=i; 향=-1; }
+      ths.forEach((x,j)=>{ x.textContent=x.textContent.replace(/ [↓↑]$/,"");
+                           if(j===i) x.textContent+= (향<0?" ↓":" ↑"); });
+      const rs=[].slice.call(tbody.querySelectorAll("tr"));
+      rs.sort((a,b)=>{
+        const A=(a.children[i]||{}).textContent||"", B=(b.children[i]||{}).textContent||"";
+        const x=숫자(A), y=숫자(B);
+        const d=(x!==null&&y!==null) ? (x-y) : String(A).localeCompare(String(B));
+        return d*(향<0?-1:1);
+      });
+      rs.forEach(r=>tbody.appendChild(r));
+    });
+  });
+  return tb;
+}
 function go(v){document.querySelectorAll("nav button").forEach(x=>
     x.setAttribute("aria-current",String(x.dataset.v===v)));
   try{localStorage.setItem("bt_view",v);}catch(e){}
@@ -2321,7 +2356,7 @@ function viewHome(){
             setTimeout(()=>{const i=document.querySelector("input[placeholder='원고 이름']");
               if(i)i.value=r.t;},60);}},"판정 밖 →"))));
   });
-  tb.append(tbody);m.append(el("div",{class:"scroll"},tb));
+  tb.append(tbody);m.append(el("div",{class:"scroll"},표정렬(tb)));
 
   /* 이번 주 소구·워딩 — 라이브 소재의 이번 주 숫자만으로 */
   ["소구","워딩"].forEach(g=>{
@@ -4292,7 +4327,18 @@ function 짧은날(d){
   const x=String(d||"");
   return /^\d{4}-\d{2}-\d{2}$/.test(x) ? x.slice(2).replace(/-/g,".") : "";
 }
+/* 「실패」 안에도 결이 있다. 판정 창 ROAS가 컷(1.30)에는 못 미쳐도 1.00은 넘겼으면
+   본전은 한 것이라 「아주 안 된 것」과 같이 두면 안 읽힌다. 보는 눈만 갈라 준다 —
+   ★판정 자체는 안 바꾼다. 성공/실패는 컷 하나로 가르는 그대로다. (2026-08-26) */
+function 결(d){
+  if(d.st!=="실패" || d.early) return null;
+  const r=(d.w==null?d.r:d.w);
+  return (r!=null && r>=1 && r<D.cut) ? "보통" : null;
+}
 function 밖까닭(d){
+  const g=결(d);
+  if(g) return el("span",{class:"dim sm2"}," — "+g+" (판정 창 ROAS "+
+    ((d.w==null?d.r:d.w)||0).toFixed(2)+" · 컷 "+D.cut+"은 못 넘음)");
   if(d.early) return el("span",{class:"dim sm2"}," — 조기 중단");
   return d.st==="판정 밖" && d.why ? el("span",{class:"dim sm2"}," — "+d.why) : null; }
 function viewDrafts(){
@@ -4302,16 +4348,17 @@ function viewDrafts(){
   const two=el("div",{class:"two"}),L=el("div"),R=el("div");two.append(L,R);m.append(two);
   const q=el("input",{type:"search",placeholder:"소재 검색",style:"width:190px"});
   const sSel=el("select",{},el("option",{value:""},"상태 전체"),
-    ...[...new Set(D.drafts.map(d=>d.st))].map(s=>el("option",{value:s},s)));
+    ...[...new Set(D.drafts.map(d=>결(d)||d.st))].map(s=>el("option",{value:s},s)));
   L.append(el("div",{class:"bar"},q,sSel));
   const host=el("div");L.append(host);
   const render=()=>{let rs=D.drafts.slice();
     if(q.value.trim())rs=rs.filter(d=>d.t.includes(q.value.trim()));
-    if(sSel.value)rs=rs.filter(d=>d.st===sSel.value);
+    if(sSel.value)rs=rs.filter(d=>(결(d)||d.st)===sSel.value);
     host.innerHTML="";host.append(table([
       {h:"소재",l:1,k:r=>r.t,c:r=>el("b",{},r.t)},
-      {h:"상태",k:r=>r.st,c:r=>el("span",{},
-        el("span",{class:"pill "+(SP[r.st]||"p-dim"),title:r.why||""},r.st), 밖까닭(r))},
+      {h:"상태",k:r=>(결(r)?"실패2 보통":r.st),c:r=>el("span",{},
+        el("span",{class:"pill "+(결(r)?"p-dim":(SP[r.st]||"p-dim")),title:r.why||""},
+          결(r)||r.st), 밖까닭(r))},
       {h:"판정 창",k:r=>r.w1?r.w1.roas:-1,
        c:r=>r.w1&&r.w1.call?el("span",{class:"pill "+(CP[r.w1.call]||"p-dim")},r.w1.call):"—"},
         {h:"판정 창 ROAS",k:r=>r.w??-1,c:r=>r.w==null?"—":el("span",{class:r.w>=D.cut?"g":"b"},r.w.toFixed(2))},
