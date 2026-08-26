@@ -1521,7 +1521,7 @@ function bdTag(){
 function bdStep1(m){
   m.append(el("h3",{},"① 무엇으로 찍을까"),
     el("p",{class:"lede"},"제작 방식을 고르면 광고 이름의 꼬리표가 따라 붙습니다. 누적과 최근을 같이 보세요 — 형식은 유행을 탑니다."));
-  ["제작 방식","형식 묶음","형식 세분(정독)","길이(문장 수)"].forEach(ax=>{
+  ["제작 방식","형식 묶음","형식 세분(정독)","길이(글자수)"].forEach(ax=>{
     const rs=bdAx(ax); if(!rs.length) return;
     m.append(el("h4",{class:"bdh"},ax));
     const g=el("div",{class:"bdcards"});
@@ -3598,13 +3598,26 @@ function viewDraft(){
   nameIn.addEventListener("input",()=>{DFT.name=nameIn.value;DFT.집행=false;});
   const ta=el("textarea",{id:"dText",rows:"12",style:"width:100%",placeholder:"여기에 쓰거나 붙여넣으세요. 한 줄에 한 문장이면 가장 좋습니다."});
   /* 왼쪽 판이 이 글을 그대로 읽는다. 안 담아 두면 태깅한 뒤 본문이 사라진다. */
-  ta.addEventListener("input",function(){ DFT.body=ta.value; });
+  /* 글자수는 판정 지표가 아니다 — 재 보니 성과와 관계가 없었다(성공작 평균 428자
+     vs 실패작 421자, 4등분 전부 「구분 안 됨」). 다만 쓰면서 「지금 몇 자인가」는
+     알아야 해서 참고값으로만 띄운다. 공백은 빼고 센다. (2026-08-26) */
+  const 글자칸=el("span",{class:"dim sm2",id:"dChars"},"");
+  const 글자세기=function(){
+    const n=(ta.value||"").replace(/\s/g,"").length;
+    const C=D.chstat;
+    글자칸.textContent = n
+      ? `${n.toLocaleString()}자` + (C ? ` · 지금까지 ${C.n}편 중앙 ${C.med}자 · 흔한 구간 ${C.q1}~${C.q3}자`
+                                        + (n < C.q1 ? " (짧은 편)" : n > C.q3 ? " (긴 편)" : "") : "")
+      : "";
+  };
+  ta.addEventListener("input",function(){ DFT.body=ta.value; 글자세기(); });
   /* 빌더에서 쓴 글을 안고 왔으면 채워 둔다. 안 채우면 넘어와도 빈 칸이라
      다시 붙여넣게 된다. */
   if(DFT.body) ta.value=DFT.body;
+  setTimeout(글자세기,0);
   m.append(el("div",{class:"bar"},고르기,nameIn,
     el("button",{class:"btn2",onclick:()=>{DFT={name:"",items:[],body:""};VSEL=null;viewDraft();}},
-      "새 원고")),ta);
+      "새 원고")),ta,el("div",{class:"bar",style:"margin:2px 0 8px"},글자칸));
   if(DFT.집행) m.append(el("p",{class:"dim sm2",style:"margin:-4px 0 8px"},
     `집행한 원고입니다. 아래 코딩은 판정이 붙여 둔 것이고, 여기서 고친 것은 `+
     `「수기판정 내려받기」로 떨어져 다음 갱신 때 판정에 들어갑니다.`));
@@ -4298,7 +4311,9 @@ function viewDrafts(){
        c:r=>r.w1&&r.w1.call?el("span",{class:"pill "+(CP[r.w1.call]||"p-dim")},r.w1.call):"—"},
         {h:"판정 창 ROAS",k:r=>r.w??-1,c:r=>r.w==null?"—":el("span",{class:r.w>=D.cut?"g":"b"},r.w.toFixed(2))},
       {h:"지출",k:r=>r.sp,c:r=>man(r.sp)},{h:"매출",k:r=>r.nt,c:r=>man(r.nt)},
-      {h:"집행일",k:r=>r.days,c:r=>r.days}],rs,{sort:5,onrow:d=>showDraft(d,R)}));};
+      {h:"집행일",k:r=>r.days,c:r=>r.days},
+      {h:"글자수",k:r=>r.ch||0,c:r=>r.ch?r.ch.toLocaleString():el("span",{class:"dim"},"—")}],
+      rs,{sort:5,onrow:d=>showDraft(d,R)}));};
   [q,sSel].forEach(x=>x.addEventListener("input",render));render();
   if(D.drafts.length)showDraft([...D.drafts].sort((a,b)=>b.sp-a.sp)[0],R);
 }
