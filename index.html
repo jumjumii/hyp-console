@@ -4287,6 +4287,11 @@ function viewCode(){
   });
 }
 /* 「판정 밖」이라고만 적혀 있으면 왜 빠졌는지 알 수가 없다. 까닭을 같이 적는다. */
+/* 첫 라이브 날짜. 2026-08-26 → 26.08.26. 표에서 열 폭을 잡아먹지 않게 짧게 쓴다. */
+function 짧은날(d){
+  const x=String(d||"");
+  return /^\d{4}-\d{2}-\d{2}$/.test(x) ? x.slice(2).replace(/-/g,".") : "";
+}
 function 밖까닭(d){
   if(d.early) return el("span",{class:"dim sm2"}," — 조기 중단");
   return d.st==="판정 밖" && d.why ? el("span",{class:"dim sm2"}," — "+d.why) : null; }
@@ -4311,6 +4316,8 @@ function viewDrafts(){
        c:r=>r.w1&&r.w1.call?el("span",{class:"pill "+(CP[r.w1.call]||"p-dim")},r.w1.call):"—"},
         {h:"판정 창 ROAS",k:r=>r.w??-1,c:r=>r.w==null?"—":el("span",{class:r.w>=D.cut?"g":"b"},r.w.toFixed(2))},
       {h:"지출",k:r=>r.sp,c:r=>man(r.sp)},{h:"매출",k:r=>r.nt,c:r=>man(r.nt)},
+      {h:"첫 라이브",k:r=>r.ws||"",
+       c:r=>r.ws?짧은날(r.ws):el("span",{class:"dim"},"—")},
       {h:"집행일",k:r=>r.days,c:r=>r.days},
       {h:"글자수",k:r=>r.ch||0,c:r=>r.ch?r.ch.toLocaleString():el("span",{class:"dim"},"—")}],
       rs,{sort:5,onrow:d=>showDraft(d,R)}));};
