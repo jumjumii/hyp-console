@@ -2332,7 +2332,8 @@ function viewHome(){
     const live=ws?Math.max(1,Math.round((new Date(D.asof.replace(/-/g,"/"))-new Date(ws.replace(/-/g,"/")))/864e5)+1):null;
     tbody.append(el("tr",{},
       el("td",{},el("button",{class:"lnk",style:"font-weight:700",
-        title:"눌러서 미리보기·본문·판정값 보기",onclick:()=>openDraft(r.t)},r.t)),
+        title:r.t+" — 눌러서 미리보기·본문·판정값 보기",
+        onclick:()=>openDraft(r.t)},이름(r.t))),
       el("td",{class:"n",title:ws?`${ws}부터`:""},live?`${live}일`:"—"),
       el("td",{},r.main||"—"),
       el("td",{class:"dim"},(r.subs||[]).join(" · ")||"—"),
@@ -3611,7 +3612,8 @@ function viewDraft(){
   const 고르기 = el("select",{style:"min-width:230px"});
   고르기.append(el("option",{value:""},`집행한 원고 열기 — ${있는것.length}편`));
   있는것.forEach(t=>{const d=DR[t]||{};
-    고르기.append(el("option",{value:t},`${t}  ${d.st||""} ${d.r!==undefined?"ROAS "+d.r:""}`));});
+    고르기.append(el("option",{value:t},
+      `${이름(t)}  ${d.st||""} ${d.r!==undefined?"ROAS "+d.r:""}`));});
   /* 아직 안 태운 원고 — 노션에서 받아 이 PC에서 코딩해 둔 것.
      사이트가 노션을 직접 못 부르니(CORS·토큰) 갱신 때 받아 담아 둔다. */
   const 안탄것 = Object.keys(D.new||{})
@@ -4330,6 +4332,10 @@ function 짧은날(d){
 /* 「실패」 안에도 결이 있다. 판정 창 ROAS가 컷(1.30)에는 못 미쳐도 1.00은 넘겼으면
    본전은 한 것이라 「아주 안 된 것」과 같이 두면 안 읽힌다. 보는 눈만 갈라 준다 —
    ★판정 자체는 안 바꾼다. 성공/실패는 컷 하나로 가르는 그대로다. (2026-08-26) */
+/* 화면에 보여줄 소재 이름. 안쪽 열쇠는 짧은 이름이고 보여줄 이름은 노션 제목이다.
+   열쇠를 바꾸면 패널·코딩·판정이 다 끊어지므로 보여주는 것만 바꾼다.
+   ★주석에 실제 소재 이름을 쓰지 말 것 — 공개 판에 그대로 나간다. 배포 검사가 잡는다. */
+function 이름(t){ return (D.nm && D.nm[t]) || t; }
 function 결(d){
   if(d.st!=="실패" || d.early) return null;
   const r=(d.w==null?d.r:d.w);
@@ -4352,10 +4358,11 @@ function viewDrafts(){
   L.append(el("div",{class:"bar"},q,sSel));
   const host=el("div");L.append(host);
   const render=()=>{let rs=D.drafts.slice();
-    if(q.value.trim())rs=rs.filter(d=>d.t.includes(q.value.trim()));
+    if(q.value.trim()){const _q=q.value.trim();
+      rs=rs.filter(d=>d.t.includes(_q)||(d.nm||"").includes(_q));}
     if(sSel.value)rs=rs.filter(d=>(결(d)||d.st)===sSel.value);
     host.innerHTML="";host.append(table([
-      {h:"소재",l:1,k:r=>r.t,c:r=>el("b",{},r.t)},
+      {h:"소재",l:1,k:r=>r.nm||r.t,c:r=>el("b",{title:r.t},r.nm||r.t)},
       {h:"상태",k:r=>(결(r)?"실패2 보통":r.st),c:r=>el("span",{},
         el("span",{class:"pill "+(결(r)?"p-dim":(SP[r.st]||"p-dim")),title:r.why||""},
           결(r)||r.st), 밖까닭(r))},
