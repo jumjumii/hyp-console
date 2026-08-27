@@ -4168,13 +4168,13 @@ function viewPick(){
       if(!목록.some(r=>r.v===window.PKG)) window.PKG=목록[0].v;
 
       const seg2=el("div",{class:"cseg"});
-      [["메인","두 줄 넘게 파고드는 소구"],["서브","한 줄만 곁들이는 소구"]].forEach(function(kv){
+      [["메인","그 소구를 두 줄 이상 쓴 원고"],["서브","그 소구를 한 줄만 쓴 원고"]].forEach(function(kv){
         seg2.append(el("button",{class:"csb"+(쪽키===kv[0]?" on":""),
           title:kv[1],onclick:()=>{window.PKS=kv[0];viewPick();}},kv[0]+" 소구"));});
       m.append(el("div",{class:"bar"},seg2));
       m.append(el("p",{class:"lede"},쪽키==="메인"
-        ?"두 줄 넘게 판 원고에서만 잰 성적입니다. 이 원고의 기둥으로 세울 소구를 고르는 자리입니다."
-        :"한 줄만 스친 원고에서만 잰 성적입니다. 기둥 말고 곁들일 소구를 고르는 자리입니다."));
+        ?"그 소구를 두 줄 이상 쓴 원고에서만 잰 성적입니다. 이 원고의 기둥으로 세울 소구를 고르는 자리입니다."
+        :"그 소구를 한 줄만 쓴 원고에서만 잰 성적입니다. 기둥 말고 곁들일 소구를 고르는 자리입니다."));
 
       const 줄들=목록.map(r=>Object.assign({},r,r[쪽키],{ax:쪽키+"으로 썼을 때"}));
       const c1=el("div",{class:"card tight"},
