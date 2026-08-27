@@ -4391,10 +4391,24 @@ function viewPick(){
       el("button",{class:"lnk ic",onclick:()=>폄({kind:"det",make:pkDet})},"원문"));
     return row;};
 
+  /* 세우는 차례는 추천 순이다 — 「쓰세요」가 맨 위, 「굳이」가 맨 아래.
+     붙박이 목록이 아니라 pkRec()이 그때그때 매긴 값으로 세운다.
+     데이터가 바뀌면 순서도 저절로 바뀐다. (2026-08-27) */
+  const PK_RECRANK={"쓰세요":0,"해보세요":1,"지켜보세요":2,"시험해 볼 것":3,
+                    "참고만":4,"굳이":5,"빼세요":6};
+  const pkKey=(r)=>{
+    const 권=pkRec(r)[0];
+    const 우 = r.nL ? (r.wL/r.nL - T.baseL)
+             : (r.nE ? (r.wE/r.nE - T.baseE) : -9);
+    return [PK_RECRANK[권]===undefined?9:PK_RECRANK[권], -우, -((r.nL||0)+(r.nE||0))];
+  };
+  const pkSort=(rs)=>rs.slice().sort((a,b)=>{
+    const A=pkKey(a), B=pkKey(b);
+    return A[0]-B[0] || A[1]-B[1] || A[2]-B[2];});
   const pkTable=(rs,값,칸,고름)=>{
     const tb=el("div",{class:"irows"});
     tb.append(pkHead(값,칸));
-    rs.forEach(r=>tb.append(pkRow(r,고름&&고름(r))));
+    pkSort(rs).forEach(r=>tb.append(pkRow(r,고름&&고름(r))));
     return tb;};
 
   const seg=el("div",{class:"cseg"});
@@ -4414,10 +4428,9 @@ function viewPick(){
     const 모두=(소구칸&&소구칸.모두)||[];
     if(모두.length){
       const 쪽키=window.PKS==="서브"?"서브":"메인";
-      const 순=r=>{const z=r[쪽키];
-        return [PK_RANK[z.어디]===undefined?9:PK_RANK[z.어디],
-                -(z.어디==="요즘 된다"?(z.d||0):z.nL?(z.wL/z.nL):(z.wE/(z.nE||1)))];};
-      const 목록=모두.slice().sort((a,b)=>{const A=순(a),B=순(b);return A[0]-B[0]||A[1]-B[1];});
+      const 순=r=>pkKey(Object.assign({},r,r[쪽키]));
+      const 목록=모두.slice().sort((a,b)=>{const A=순(a),B=순(b);
+        return A[0]-B[0]||A[1]-B[1]||A[2]-B[2];});
       if(!목록.some(r=>r.v===window.PKG)) window.PKG=목록[0].v;
 
       const seg2=el("div",{class:"cseg"});
@@ -4438,14 +4451,16 @@ function viewPick(){
       m.append(c1);
 
       const 고른=목록.filter(r=>r.v===window.PKG)[0];
-      const c2=el("div",{class:"card tight"},el("h3",{},고른.v+" — 무엇으로 받칠까"));
+      const c2=el("div",{class:"card tight"},
+        el("h3",{},`${고른.v} — ${쪽키}으로 쓸 때 무엇으로 받칠까`));
       // 「근거가 다 기저 아래」와 「근거를 아예 안 달았다」는 다른 얘기다.
       // 뒤엣것은 코딩 구멍이라, 판정이 아니라 사람이 채워야 한다.
-      const cv=고른.덮음;
+      const 쪽것=고른[쪽키]||{};
+      const cv=쪽것.덮음||고른.덮음;
       if(cv&&cv.n){
         const 성긴=cv.빈성수>0||cv.근n*2<cv.n;
         const p0=el("div",{class:"note"+(성긴?" wa":"")},
-          `최근 ${고른.v}을(를) 쓴 ${cv.n}편 가운데 근거 줄이 달린 것은 ${cv.근n}편입니다. `);
+          `최근 ${고른.v}을(를) ${쪽키}으로 쓴 ${cv.n}편 가운데 근거 줄이 달린 것은 ${cv.근n}편입니다. `);
         if(cv.빈성수){
           p0.append(`근거 없이 성공한 원고가 ${cv.빈성수}편 있습니다 — `);
           (cv.빈성||[]).forEach((w,i)=>p0.append(i?el("span",{}," · "):null,
@@ -4455,23 +4470,23 @@ function viewPick(){
         }
         c2.append(p0);
       }
-      if((고른.근거||[]).length) c2.append(pkTable(고른.근거,"근거",""));
-      else c2.append(el("p",{class:"dim"},"이 소구를 받친 근거가 아직 2편을 못 넘어 못 고릅니다."));
+      const 근rs=(쪽것.근거||고른.근거||[]);
+      if(근rs.length) c2.append(pkTable(근rs,"근거","어느 칸"));
+      else c2.append(el("p",{class:"dim"},
+        `${고른.v}을(를) ${쪽키}으로 쓴 원고에서는 근거가 2편을 못 넘어 못 고릅니다.`));
       m.append(c2);
 
-      const 그것=r=>(" "+(r.ax||"")+" ").indexOf(" 본문 · "+고른.v+" · ")>=0;
-      const 워=S.filter(x=>x.칸==="그 소구를 어떻게 말할까")[0];
-      if(워){
-        const rs=워.이제.filter(그것).concat(워.다시.filter(그것))
-                  .map(r=>Object.assign({},r,{ax:(r.ax||"").split(" · ").pop()}));
-        const c3=el("div",{class:"card tight"},el("h3",{},고른.v+" — 어떻게 말할까"));
-        if(rs.length) c3.append(pkTable(rs,"워딩","어느 칸"));
-        else c3.append(el("p",{class:"dim"},"이 소구의 워딩은 아직 양쪽 기간에 3편을 못 채웠습니다."));
-        m.append(c3);
-      }
+      const 워rs=(쪽것.워딩||[]);
+      const c3=el("div",{class:"card tight"},
+        el("h3",{},`${고른.v} — ${쪽키}으로 쓸 때 어떻게 말할까`));
+      if(워rs.length) c3.append(pkTable(워rs,"워딩","어느 칸"));
+      else c3.append(el("p",{class:"dim"},
+        `${고른.v}을(를) ${쪽키}으로 쓴 원고에서는 워딩이 2편을 못 넘어 못 고릅니다.`));
+      m.append(c3);
       m.append(el("div",{class:"note"},
-        "다른 소구가 궁금하면 위 표에서 소구를 누르세요. "+
-        "「무엇으로 받칠까」와 「어떻게 말할까」는 고른 소구의 것만 보여 줍니다."));
+        "다른 소구가 궁금하면 위 표에서 소구를 누르세요. 「무엇으로 받칠까」와 "+
+        "「어떻게 말할까」는 고른 소구를, 그것도 지금 고른 쪽(메인/서브)으로 쓴 원고 "+
+        "안에서만 셉니다 — 두 쪽은 원고가 겹치지 않아 같은 답이 나오면 안 됩니다."));
       return;
     }
   }
@@ -4549,6 +4564,9 @@ function showVal(v,host){
    그 소재에 걸린 금지가 한 자리에 있다. 화면을 갈아타면 보던 자리를 잃는다. */
 function openDraft(name){
   const d=DR[name]; if(!d) return;
+  /* 같은 소재를 다시 누르면 닫는다 — 열고 나서 닫을 데를 찾게 만들지 않는다. */
+  { const 열린=$("#drawer");
+    if(열린 && 열린.classList.contains("on") && 열린.dataset.name===name){ closeDraft(); return; } }
   let dr=$("#drawer");
   if(!dr){
     dr=el("div",{id:"drawer",class:"drawer"});
@@ -4564,6 +4582,7 @@ function openDraft(name){
   const body=el("div",{class:"drbody"});
   showDraft(d, body);
   dr.append(body);
+  dr.dataset.name=name;
   dr.classList.add("on"); $("#drawerbg").classList.add("on");
 }
 function closeDraft(){
