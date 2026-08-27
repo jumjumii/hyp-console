@@ -583,6 +583,12 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
 .vwhy{margin:2px 0 0;font-size:11.5px;line-height:1.55;display:flex;gap:6px;align-items:baseline}
 .vadd{margin:12px 0 0;padding:10px;border:1px dashed var(--line);border-radius:var(--rs)}
 @media (max-width:1100px){ .vwrap{grid-template-columns:minmax(0,1fr)} }
+.prow{grid-template-columns:74px minmax(0,1.5fr) minmax(0,1fr) 72px 152px 56px 44px}
+@media (max-width:1100px){.prow{grid-template-columns:74px minmax(0,1.4fr) minmax(0,.9fr) 0 144px 52px 42px}}
+@media (max-width:820px){.prow{grid-template-columns:70px minmax(0,1.3fr) 0 0 138px 48px 40px}}
+.prow.pk{cursor:pointer}
+.pdet{padding:2px 6px 8px 80px;border-left:2px solid var(--line);margin:0 0 6px}
+.pdet p{margin:0 0 3px;font-size:12.5px;line-height:1.55}
 .srcbox{margin:2px 0 8px 14px;padding:6px 10px;border-left:2px solid var(--ln);}
 .srcline{margin:2px 0;font-size:12.5px;line-height:1.55}
 .srcline .q{color:var(--tx)}
@@ -4035,7 +4041,7 @@ function viewTrend(){
    한 편도 안 쓴 것. 평생 성적은 안 본다 — 계정 기저가 반토막인 판에서
    반년 전 성적으로 오늘 쓸 것을 고르면 안 된다. (2026-08-27) */
 /* 원고 제안도 가설 제안과 같은 자리 탭을 쓴다 — 한 화면에 일곱 칸을 다 쌓으면
-   지금 어느 자리를 고르는 중인지가 사라진다. (2026-08-27) */
+   지금 어느 자리를 고르는 중인지가 사라진다. 표 모양도 가설 제안과 같은 것을 쓴다. */
 window.PK = "후킹"; window.PKS = "메인"; window.PKG = "";
 const PK_TABS = {
   "후킹": ["후킹 — 어떻게 열까"],
@@ -4048,6 +4054,13 @@ const PK_NOTE = {
   "본문":"무엇으로 설득하는가. 소구를 고르고, 그 소구를 무엇으로 받칠지 고릅니다.",
   "CTA":"무엇으로 닫는가.",
   "영상 요소":"글이 아니라 어떻게 찍고 어떻게 짜는가입니다."};
+/* 「기저 아래」와 「힘이 빠짐」은 다른 얘기다 — 뒤엣것은 아직 기저 위인데
+   우위가 꺾인 것이라, 못 쓸 것이 아니라 지켜볼 것이다. */
+const PK_MK = {"요즘 된다":"yes", "다시 해볼 것":"maybe", "힘이 빠짐":"maybe",
+               "이 소구에 쓰던 것":"", "요즘 안 씀":"none", "표본 모자람":"none",
+               "기저 아래":"none", "기준 아래":"none"};
+const PK_RANK = {"요즘 된다":0, "다시 해볼 것":1, "힘이 빠짐":2,
+                 "표본 모자람":3, "요즘 안 씀":4, "기저 아래":5};
 
 function viewPick(){
   const m=$("#main");m.innerHTML="";
@@ -4055,71 +4068,70 @@ function viewPick(){
   m.append(el("p",{class:"eyebrow"},"트렌드와 가설"),el("h2",{},"원고 제안"));
   if(!S.length){ m.append(el("p",{class:"lede"},"아직 제안을 못 냅니다.")); return; }
   m.append(el("p",{class:"lede"},
-    `쓰는 차례대로 — 영상 형식 → 구조 → 후킹 → 소구 → 근거 → CTA. `+
-    `이전 ${T.early[0]}~${T.early[T.early.length-1]} ${T.nE}편(${pc(T.baseE)}) → `+
-    `최근 ${T.late[0]}~${T.late[T.late.length-1]} ${T.nL}편(${pc(T.baseL)})으로 갈라 잰 것입니다.`));
+    "쓰는 차례대로 — 영상 형식 → 구조 → 후킹 → 소구 → 근거 → CTA. "+
+    "이전 "+T.early[0]+"~"+T.early[T.early.length-1]+" "+T.nE+"편("+pc(T.baseE)+") → "+
+    "최근 "+T.late[0]+"~"+T.late[T.late.length-1]+" "+T.nL+"편("+pc(T.baseL)+")으로 갈라 잰 것입니다."));
   m.append(el("div",{class:"note wa"},el("b",{},"평생 성적은 안 봅니다. "),
-    `계정 성공률이 ${pc(T.baseE)}에서 ${pc(T.baseL)}로 내려앉았습니다. `+
-    `반년 전에 통하던 것으로 오늘 쓸 것을 고르면 안 됩니다. `+
-    `「요즘 된다」는 최근에도 기저 위이면서 안 꺾인 것, `+
-    `「다시 해볼 것」은 예전에 기저보다 10%p 넘게 잘됐는데 최근 ${T.win}달 동안 한 편도 안 쓴 것입니다.`));
+    "계정 성공률이 "+pc(T.baseE)+"에서 "+pc(T.baseL)+"로 내려앉았습니다. "+
+    "「요즘 된다」는 최근에도 기저 위이면서 안 꺾인 것, "+
+    "「다시 해볼 것」은 예전에 기저보다 10%p 넘게 잘됐는데 최근 "+T.win+"달 동안 한 편도 안 쓴 것, "+
+    "「힘이 빠짐」은 아직 기저 위인데 우위가 5%p 넘게 꺾인 것입니다."));
 
-  // 추천 하나를 눌러 펼치면 그 값을 실제로 쓴 문장과 성공작이 나온다.
-  // 추천만 던지고 원문을 안 보여 주면 그대로 옮겨 적을 수가 없다. (2026-08-27)
-  const 원문칸=(r)=>{
-    const 문=(r.원문||[]), 작=(r.작||[]);
-    if(!문.length&&!작.length) return null;
-    const box=el("div",{class:"srcbox",style:"display:none"});
-    문.forEach(o=>box.append(el("p",{class:"srcline"},
-      el("span",{class:"q"},"「"+o.t+"」 "),
+  /* 성공률 막대 — 세로선이 그 기간의 기저 */
+  const pkBar=(r)=>{const 씀=r.nL>0, rt=씀?(r.wL/r.nL):(r.nE?r.wE/r.nE:0),
+    b=씀?T.baseL:T.baseE;
+    return el("span",{class:"ib",title:(씀?"최근 ":"이전 ")+pc(rt)+" · 기저 "+pc(b)},
+      el("i",{style:"width:"+Math.max(2,Math.min(100,rt*100))+"%;background:"+
+        (rt>=b?"var(--ok)":"var(--no)")+(씀?"":";opacity:.45")}),
+      el("u",{style:"left:"+(b*100)+"%"}));};
+  const pkNum=(r)=>el("span",{class:"in2"},
+    el("span",{class:"dim"},r.wE+"/"+r.nE+" → "),
+    r.nL?el("b",{},r.wL+"/"+r.nL):el("span",{class:"dim"},"안 씀"));
+  const pkDel=(r)=>(r.d===null||r.d===undefined||(!r.wE&&!r.wL))
+    ?el("span",{class:"in2 dim"},"—")
+    :el("span",{class:"in2 "+(r.d>0?"g":"b")},pp(r.d));
+
+  /* 펼치면 그 값을 실제로 쓴 문장과, 그 값을 쓴 성공작 */
+  const pkDet=(r)=>{
+    const d=el("div",{class:"pdet"});
+    (r.원문||[]).forEach(o=>d.append(el("p",{},
+      el("span",{},"「"+o.t+"」 "),
       el("button",{class:"lnk "+(o.성?"g":"dim"),onclick:()=>openDraft(o.소재)},o.소재))));
-    if(작.length) box.append(el("p",{class:"srcline dim"},"쓴 성공작 ",
-      ...작.flatMap((w,i)=>[i?el("span",{class:"dim"}," · "):null,
+    if((r.작||[]).length) d.append(el("p",{class:"dim"},"쓴 성공작 ",
+      ...(r.작).flatMap((w,i)=>[i?el("span",{}," · "):null,
         el("button",{class:"lnk g",onclick:()=>openDraft(w.t)},w.nm)])));
-    const b=el("button",{class:"lnk",onclick:()=>{
-      const 열=box.style.display==="none";
-      box.style.display=열?"":"none"; b.textContent=열?"원문 접기":"원문 보기";}},"원문 보기");
-    return el("div",{},b,box);
-  };
-  const 성적=(z)=>` 이전 ${z.wE}/${z.nE} → 최근 ${z.nL?z.wL+"/"+z.nL:"안 씀"}`;
-  const 델타=(z)=>(z.d===null||z.d===undefined||(!z.wE&&!z.wL))?null
-                  :el("span",{class:z.d>0?"g":"b"}," "+pp(z.d));
-  const 줄=(r,꼬리)=>{
-    const 원=원문칸(r);
-    return el("div",{class:"advrow"},
-      el("p",{class:"lrow"},
-        el("span",{class:"pill "+(r.어디==="요즘 된다"?"p-ok":(r.어디?"p-dim":"p-dim"))},r.어디||"—"),
-        el("b",{}," "+r.v),
-        r.ax?el("span",{class:"dim"}," "+r.ax):null,
-        el("span",{class:"n"},성적(r)),
-        델타(r), 원?el("span",{}," "):null, 원?원.firstChild:null),
-      원?원.lastChild:null, 꼬리||null);
-  };
+    if(!d.childNodes.length) d.append(el("p",{class:"dim"},"이 값에 딸린 문장이 없습니다."));
+    return d;};
 
-  // 소구는 「메인으로 세울 것」과 「한 줄 곁들일 것」이 다르다.
-  // 두 줄 넘게 판 원고와 한 줄만 스친 원고를 갈라 재고, 소구마다 받칠 근거를 붙인다.
-  const 소구줄=(r)=>{
-    const 근 = el("div",{class:"evbox"});
-    if((r.근거||[]).length){
-      근.append(el("p",{class:"lrow dim"},`${r.v} — 이걸로 받칩니다`));
-      r.근거.forEach(g=>{
-        const 원=원문칸(g);
-        근.append(el("div",{class:"advrow sub"},
-          el("p",{class:"lrow"},
-            el("span",{class:"pill "+(g.어디==="요즘 된다"?"p-ok":"p-dim")},g.어디),
-            el("b",{}," "+g.v),
-            el("span",{class:"n"},성적(g)),
-            델타(g), 원?el("span",{}," "):null, 원?원.firstChild:null),
-          원?원.lastChild:null));
-      });
-    } else 근.append(el("p",{class:"dim"},"이 소구를 받친 근거가 아직 2편을 못 넘어 못 고릅니다."));
-    const 쪽=(이름,z,말)=>el("p",{class:"lrow"},
-      el("b",{},이름), el("span",{class:"n"},성적(z)), 델타(z),
-      el("span",{class:"dim"}," "+말));
-    return 줄(r, el("div",{class:"evbox"},
-      쪽("메인으로", r.메인, "두 줄 넘게 판 원고"),
-      쪽("서브로", r.서브, "한 줄만 스친 원고"), 근));
-  };
+  const pkHead=(값,칸)=>el("div",{class:"irow prow ihead"},
+    el("span",{},"판정"),el("span",{},값||"값"),
+    el("span",{},칸===undefined?"무엇을 정하는 칸인가":칸),
+    el("span",{title:"막대는 성공률. 세로선이 그 기간의 기저"},"성공률"),
+    el("span",{},"이전 → 최근"),el("span",{title:"기저 대비 우위가 얼마나 움직였나"},"움직임"),
+    el("span",{},"원문"));
+
+  const pkRow=(r,고름)=>{
+    const 어디=r.어디||"기준 아래";
+    const row=el("div",{class:"irow prow"+(고름?" pk":"")+(고름&&고름.on?" on":"")});
+    const 값칸 = 고름
+      ? el("button",{class:"iv lnk",title:r.v,onclick:고름.go},r.v)
+      : el("span",{class:"iv",title:r.v},r.v);
+    row.append(
+      el("span",{class:"mk "+(PK_MK[어디]||"none"),title:어디},어디),
+      값칸,
+      el("span",{class:"ia dim",title:r.ax||""},r.ax||""),
+      pkBar(r), pkNum(r), pkDel(r),
+      el("button",{class:"lnk ic",onclick:function(){
+        const o=row.nextSibling;
+        if(o&&o.classList&&o.classList.contains("pdet")){o.remove();return;}
+        row.after(pkDet(r));}},"원문"));
+    return row;};
+
+  const pkTable=(rs,값,칸,고름)=>{
+    const tb=el("div",{class:"irows"});
+    tb.append(pkHead(값,칸));
+    rs.forEach(r=>tb.append(pkRow(r,고름&&고름(r))));
+    return tb;};
 
   const seg=el("div",{class:"cseg"});
   Object.keys(PK_TABS).forEach(k=>seg.append(el("button",{class:"csb"+(window.PK===k?" on":""),
@@ -4128,96 +4140,62 @@ function viewPick(){
   m.append(el("p",{class:"lede"},PK_NOTE[window.PK]));
 
   // 본문은 「메인으로 세울 소구」와 「한 줄 곁들일 소구」가 아예 다른 물건이다.
-  // 갈래를 고르고, 소구를 고르면, 그 소구를 무엇으로 받칠지가 같은 눈금으로 나온다.
   if(window.PK==="본문"){
     const 소구칸=S.filter(x=>x.소구별)[0];
     const 모두=(소구칸&&소구칸.모두)||[];
     if(모두.length){
       const 쪽키=window.PKS==="서브"?"서브":"메인";
       const 순=r=>{const z=r[쪽키];
-        return [z.어디==="요즘 된다"?0:z.어디==="다시 해볼 것"?1:2,
+        return [PK_RANK[z.어디]===undefined?9:PK_RANK[z.어디],
                 -(z.어디==="요즘 된다"?(z.d||0):z.nL?(z.wL/z.nL):(z.wE/(z.nE||1)))];};
       const 목록=모두.slice().sort((a,b)=>{const A=순(a),B=순(b);return A[0]-B[0]||A[1]-B[1];});
       if(!목록.some(r=>r.v===window.PKG)) window.PKG=목록[0].v;
 
       const seg2=el("div",{class:"cseg"});
-      [["메인","두 줄 넘게 파고드는 소구"],["서브","한 줄만 곁들이는 소구"]].forEach(([k,말])=>
-        seg2.append(el("button",{class:"csb"+((window.PKS==="서브"?"서브":"메인")===k?" on":""),
-          title:말,onclick:()=>{window.PKS=k;viewPick();}},k+" 소구")));
+      [["메인","두 줄 넘게 파고드는 소구"],["서브","한 줄만 곁들이는 소구"]].forEach(function(kv){
+        seg2.append(el("button",{class:"csb"+(쪽키===kv[0]?" on":""),
+          title:kv[1],onclick:()=>{window.PKS=kv[0];viewPick();}},kv[0]+" 소구"));});
       m.append(el("div",{class:"bar"},seg2));
       m.append(el("p",{class:"lede"},쪽키==="메인"
         ?"두 줄 넘게 판 원고에서만 잰 성적입니다. 이 원고의 기둥으로 세울 소구를 고르는 자리입니다."
         :"한 줄만 스친 원고에서만 잰 성적입니다. 기둥 말고 곁들일 소구를 고르는 자리입니다."));
 
-      const c1=el("div",{class:"card tight"},el("h3",{},`소구 — 무엇을 ${쪽키==="메인"?"기둥으로 세울까":"곁들일까"}`));
-      const chips=el("p",{class:"lrow",style:"flex-wrap:wrap;gap:6px"});
-      목록.forEach(r=>{const z=r[쪽키];
-        chips.append(el("button",{class:"bdc"+(window.PKG===r.v?" on":""),
-          onclick:()=>{window.PKG=r.v;viewPick();}},
-          el("b",{},r.v),
-          el("span",{class:z.어디==="요즘 된다"?"g":z.어디==="다시 해볼 것"?"dim":"dim"},
-            " "+(z.어디||"기준 아래")),
-          el("span",{class:"n"}," "+z.wE+"/"+z.nE+"→"+(z.nL?z.wL+"/"+z.nL:"안 씀"))));});
-      c1.append(chips);
-      const 고른=목록.filter(r=>r.v===window.PKG)[0];
-      c1.append(줄(Object.assign({},고른,고른[쪽키],
-        {어디:고른[쪽키].어디||"기준 아래", ax:"소구 · "+쪽키+"으로 썼을 때"})));
+      const 줄들=목록.map(r=>Object.assign({},r,r[쪽키],{ax:쪽키+"으로 썼을 때"}));
+      const c1=el("div",{class:"card tight"},
+        el("h3",{},"소구 — 무엇을 "+(쪽키==="메인"?"기둥으로 세울까":"곁들일까")),
+        el("p",{class:"note"},"눌러 고르면 아래가 그 소구의 근거·워딩으로 바뀝니다."));
+      c1.append(pkTable(줄들,"소구","어느 쪽으로 썼나",
+        r=>({on:r.v===window.PKG, go:()=>{window.PKG=r.v;viewPick();}})));
       m.append(c1);
 
-      const c2=el("div",{class:"card tight"},el("h3",{},`${고른.v} — 무엇으로 받칠까`));
-      const 갈=(이름,키,클)=>{const rs=(고른.근거||[]).filter(g=>g.어디===키);
-        if(!rs.length) return;
-        c2.append(el("p",{class:"lrow",style:"margin-top:8px"},el("b",{class:클},이름+" "+rs.length)));
-        rs.forEach(g=>c2.append(줄(g)));};
-      갈("요즘 되는 것","요즘 된다","g");
-      갈("다시 해볼 것","다시 해볼 것","");
-      갈("이 소구에 쓰던 것","이 소구에 쓰던 것","");
-      if(!(고른.근거||[]).length)
-        c2.append(el("p",{class:"dim"},"이 소구를 받친 근거가 아직 2편을 못 넘어 못 고릅니다."));
+      const 고른=목록.filter(r=>r.v===window.PKG)[0];
+      const c2=el("div",{class:"card tight"},el("h3",{},고른.v+" — 무엇으로 받칠까"));
+      if((고른.근거||[]).length) c2.append(pkTable(고른.근거,"근거",""));
+      else c2.append(el("p",{class:"dim"},"이 소구를 받친 근거가 아직 2편을 못 넘어 못 고릅니다."));
       m.append(c2);
 
       const 그것=r=>(" "+(r.ax||"")+" ").indexOf(" 본문 · "+고른.v+" · ")>=0;
       const 워=S.filter(x=>x.칸==="그 소구를 어떻게 말할까")[0];
       if(워){
-        const 이=워.이제.filter(그것), 다=워.다시.filter(그것);
-        const c3=el("div",{class:"card tight"},el("h3",{},`${고른.v} — 어떻게 말할까`));
-        const 짧=r=>Object.assign({},r,{ax:(r.ax||"").split(" · ").pop()});
-        if(이.length){c3.append(el("p",{class:"lrow"},el("b",{class:"g"},"요즘 되는 것 "+이.length)));
-          이.forEach(r=>c3.append(줄(짧(r))));}
-        if(다.length){c3.append(el("p",{class:"lrow",style:"margin-top:8px"},
-          el("b",{},"다시 해볼 것 "+다.length)));
-          다.forEach(r=>c3.append(줄(짧(r))));}
-        if(!이.length&&!다.length)
-          c3.append(el("p",{class:"dim"},"이 소구의 워딩은 아직 양쪽 기간에 3편을 못 채웠습니다."));
+        const rs=워.이제.filter(그것).concat(워.다시.filter(그것))
+                  .map(r=>Object.assign({},r,{ax:(r.ax||"").split(" · ").pop()}));
+        const c3=el("div",{class:"card tight"},el("h3",{},고른.v+" — 어떻게 말할까"));
+        if(rs.length) c3.append(pkTable(rs,"워딩","어느 칸"));
+        else c3.append(el("p",{class:"dim"},"이 소구의 워딩은 아직 양쪽 기간에 3편을 못 채웠습니다."));
         m.append(c3);
       }
       m.append(el("div",{class:"note"},
-        "다른 소구가 궁금하면 위 칩을 누르세요. 「근거」와 「어떻게 말할까」는 "+
-        "고른 소구의 것만 보여 줍니다."));
+        "다른 소구가 궁금하면 위 표에서 소구를 누르세요. "+
+        "「무엇으로 받칠까」와 「어떻게 말할까」는 고른 소구의 것만 보여 줍니다."));
       return;
     }
   }
 
-  S.filter(칸=>(PK_TABS[window.PK]||[]).indexOf(칸.칸)>=0
-              && !(window.PK==="본문" && 칸.소구별)).forEach(칸=>{
+  S.filter(칸=>(PK_TABS[window.PK]||[]).indexOf(칸.칸)>=0).forEach(칸=>{
     const c=el("div",{class:"card tight"},el("h3",{},칸.칸));
-    const 그리기 = 칸.소구별 ? 소구줄 : (r=>줄(r));
-    if(!칸.이제.length&&!칸.다시.length){
-      c.append(el("p",{class:"dim"},"양쪽 기간에 3편 이상 있는 값이 없어 아직 방향을 못 말합니다."));
-      m.append(c); return;
-    }
-    if(칸.소구별) c.append(el("p",{class:"note"},
-      "메인은 두 줄 넘게 판 원고에서, 서브는 한 줄만 스친 원고에서 잰 성적입니다. "+
-      "같은 소구라도 메인일 때와 서브일 때 성적이 다릅니다."));
-    if(칸.이제.length){
-      c.append(el("p",{class:"lrow"},el("b",{class:"g"},"요즘 되는 것 "+칸.이제.length)));
-      칸.이제.forEach(r=>c.append(그리기(r)));
-    }
-    if(칸.다시.length){
-      c.append(el("p",{class:"lrow",style:"margin-top:10px"},
-        el("b",{},"다시 해볼 것 "+칸.다시.length)));
-      칸.다시.forEach(r=>c.append(그리기(r)));
-    }
+    const rs=(칸.이제||[]).concat(칸.다시||[]);
+    if(!rs.length) c.append(el("p",{class:"dim"},"양쪽 기간에 3편 이상 있는 값이 없어 아직 방향을 못 말합니다."));
+    else c.append(pkTable(rs,"값",""));
     m.append(c);
   });
   m.append(el("div",{class:"note"},
