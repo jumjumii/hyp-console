@@ -4036,7 +4036,7 @@ function viewTrend(){
    반년 전 성적으로 오늘 쓸 것을 고르면 안 된다. (2026-08-27) */
 /* 원고 제안도 가설 제안과 같은 자리 탭을 쓴다 — 한 화면에 일곱 칸을 다 쌓으면
    지금 어느 자리를 고르는 중인지가 사라진다. (2026-08-27) */
-window.PK = "후킹";
+window.PK = "후킹"; window.PKS = "메인"; window.PKG = "";
 const PK_TABS = {
   "후킹": ["후킹 — 어떻게 열까"],
   "본문": ["소구 — 무엇을 말할까", "그 소구를 어떻게 말할까", "근거 — 무엇으로 받칠까"],
@@ -4127,7 +4127,79 @@ function viewPick(){
   m.append(el("div",{class:"bar"},seg));
   m.append(el("p",{class:"lede"},PK_NOTE[window.PK]));
 
-  S.filter(칸=>(PK_TABS[window.PK]||[]).indexOf(칸.칸)>=0).forEach(칸=>{
+  // 본문은 「메인으로 세울 소구」와 「한 줄 곁들일 소구」가 아예 다른 물건이다.
+  // 갈래를 고르고, 소구를 고르면, 그 소구를 무엇으로 받칠지가 같은 눈금으로 나온다.
+  if(window.PK==="본문"){
+    const 소구칸=S.filter(x=>x.소구별)[0];
+    const 모두=(소구칸&&소구칸.모두)||[];
+    if(모두.length){
+      const 쪽키=window.PKS==="서브"?"서브":"메인";
+      const 순=r=>{const z=r[쪽키];
+        return [z.어디==="요즘 된다"?0:z.어디==="다시 해볼 것"?1:2,
+                -(z.어디==="요즘 된다"?(z.d||0):z.nL?(z.wL/z.nL):(z.wE/(z.nE||1)))];};
+      const 목록=모두.slice().sort((a,b)=>{const A=순(a),B=순(b);return A[0]-B[0]||A[1]-B[1];});
+      if(!목록.some(r=>r.v===window.PKG)) window.PKG=목록[0].v;
+
+      const seg2=el("div",{class:"cseg"});
+      [["메인","두 줄 넘게 파고드는 소구"],["서브","한 줄만 곁들이는 소구"]].forEach(([k,말])=>
+        seg2.append(el("button",{class:"csb"+((window.PKS==="서브"?"서브":"메인")===k?" on":""),
+          title:말,onclick:()=>{window.PKS=k;viewPick();}},k+" 소구")));
+      m.append(el("div",{class:"bar"},seg2));
+      m.append(el("p",{class:"lede"},쪽키==="메인"
+        ?"두 줄 넘게 판 원고에서만 잰 성적입니다. 이 원고의 기둥으로 세울 소구를 고르는 자리입니다."
+        :"한 줄만 스친 원고에서만 잰 성적입니다. 기둥 말고 곁들일 소구를 고르는 자리입니다."));
+
+      const c1=el("div",{class:"card tight"},el("h3",{},`소구 — 무엇을 ${쪽키==="메인"?"기둥으로 세울까":"곁들일까"}`));
+      const chips=el("p",{class:"lrow",style:"flex-wrap:wrap;gap:6px"});
+      목록.forEach(r=>{const z=r[쪽키];
+        chips.append(el("button",{class:"bdc"+(window.PKG===r.v?" on":""),
+          onclick:()=>{window.PKG=r.v;viewPick();}},
+          el("b",{},r.v),
+          el("span",{class:z.어디==="요즘 된다"?"g":z.어디==="다시 해볼 것"?"dim":"dim"},
+            " "+(z.어디||"기준 아래")),
+          el("span",{class:"n"}," "+z.wE+"/"+z.nE+"→"+(z.nL?z.wL+"/"+z.nL:"안 씀"))));});
+      c1.append(chips);
+      const 고른=목록.filter(r=>r.v===window.PKG)[0];
+      c1.append(줄(Object.assign({},고른,고른[쪽키],
+        {어디:고른[쪽키].어디||"기준 아래", ax:"소구 · "+쪽키+"으로 썼을 때"})));
+      m.append(c1);
+
+      const c2=el("div",{class:"card tight"},el("h3",{},`${고른.v} — 무엇으로 받칠까`));
+      const 갈=(이름,키,클)=>{const rs=(고른.근거||[]).filter(g=>g.어디===키);
+        if(!rs.length) return;
+        c2.append(el("p",{class:"lrow",style:"margin-top:8px"},el("b",{class:클},이름+" "+rs.length)));
+        rs.forEach(g=>c2.append(줄(g)));};
+      갈("요즘 되는 것","요즘 된다","g");
+      갈("다시 해볼 것","다시 해볼 것","");
+      갈("이 소구에 쓰던 것","이 소구에 쓰던 것","");
+      if(!(고른.근거||[]).length)
+        c2.append(el("p",{class:"dim"},"이 소구를 받친 근거가 아직 2편을 못 넘어 못 고릅니다."));
+      m.append(c2);
+
+      const 그것=r=>(" "+(r.ax||"")+" ").indexOf(" 본문 · "+고른.v+" · ")>=0;
+      const 워=S.filter(x=>x.칸==="그 소구를 어떻게 말할까")[0];
+      if(워){
+        const 이=워.이제.filter(그것), 다=워.다시.filter(그것);
+        const c3=el("div",{class:"card tight"},el("h3",{},`${고른.v} — 어떻게 말할까`));
+        const 짧=r=>Object.assign({},r,{ax:(r.ax||"").split(" · ").pop()});
+        if(이.length){c3.append(el("p",{class:"lrow"},el("b",{class:"g"},"요즘 되는 것 "+이.length)));
+          이.forEach(r=>c3.append(줄(짧(r))));}
+        if(다.length){c3.append(el("p",{class:"lrow",style:"margin-top:8px"},
+          el("b",{},"다시 해볼 것 "+다.length)));
+          다.forEach(r=>c3.append(줄(짧(r))));}
+        if(!이.length&&!다.length)
+          c3.append(el("p",{class:"dim"},"이 소구의 워딩은 아직 양쪽 기간에 3편을 못 채웠습니다."));
+        m.append(c3);
+      }
+      m.append(el("div",{class:"note"},
+        "다른 소구가 궁금하면 위 칩을 누르세요. 「근거」와 「어떻게 말할까」는 "+
+        "고른 소구의 것만 보여 줍니다."));
+      return;
+    }
+  }
+
+  S.filter(칸=>(PK_TABS[window.PK]||[]).indexOf(칸.칸)>=0
+              && !(window.PK==="본문" && 칸.소구별)).forEach(칸=>{
     const c=el("div",{class:"card tight"},el("h3",{},칸.칸));
     const 그리기 = 칸.소구별 ? 소구줄 : (r=>줄(r));
     if(!칸.이제.length&&!칸.다시.length){
