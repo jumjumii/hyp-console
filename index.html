@@ -4170,13 +4170,13 @@ function viewPick(){
   /* 값을 누르면 — 그 값을 실제로 쓴 문장이 먼저, 그다음 그 안에서 무엇이 되고 있나.
      문장만 덩그러니 두면 「이거 잘된 원고 문장 맞나」를 알 수 없다.
      문장마다 그 소재의 성적을 붙이고, 복사·본문 전부·담기를 같이 둔다. (2026-08-27) */
-  const 소재줄=(t,열기)=>{
+  const 소재줄=(t)=>{
     const d=DR[t];
     if(!d) return el("span",{class:"dim"},t);
     const 결=d.st==="성공"?"g":d.st==="실패"?"b":"dim";
     return el("span",{class:"srcmeta"},
-      el("button",{class:"lnk "+결,title:"눌러서 이 원고 본문 전체 보기",
-        onclick:열기||(()=>openDraft(t))},d.nm||t),
+      el("button",{class:"lnk "+결,title:"눌러서 오른쪽에 이 소재 창 열기",
+        onclick:()=>openDraft(t)},d.nm||t),
       el("span",{class:"mk "+(d.st==="성공"?"yes":d.st==="실패"?"no":"none")},d.st),
       el("span",{class:"dim"},` ROAS `),
       el("b",{class:(d.r>=D.cut?"g":"b")},(d.r||0).toFixed(2)),
@@ -4235,9 +4235,9 @@ function viewPick(){
     (r.원문||[]).forEach(o=>{
       const 줄=el("div",{class:"srccard one"});
       const 키=o.d||o.소재;
-      줄.append(el("p",{class:"srcq",title:o.t+" — 눌러서 본문 전체 보기",
+      줄.append(el("p",{class:"srcq",title:o.t+" — 눌러서 이 자리에서 본문 펴기",
         onclick:()=>본문펴기(키,줄,o.t)},"「"+o.t+"」"),
-        소재줄(키,()=>본문펴기(키,줄,o.t)),
+        소재줄(키),
         el("span",{class:"srcbtns"},
           el("button",{class:"lnk ic",onclick:function(){bkCopy(o.t,this);}},"복사"),
           el("button",{class:"lnk ic",onclick:()=>본문펴기(키,줄,o.t)},"본문 전부")));
@@ -4248,7 +4248,7 @@ function viewPick(){
         (r.원문||[]).length?"이 값을 쓴 성공작":"이 값은 문장으로 못 남깁니다 — 쓴 성공작을 폅니다"));
       (r.작).forEach(w=>{
         const 줄=el("div",{class:"srccard one"});
-        줄.append(소재줄(w.t,()=>본문펴기(w.t,줄,"")),
+        줄.append(소재줄(w.t),
           el("span",{class:"srcbtns"},
             el("button",{class:"lnk ic",onclick:()=>본문펴기(w.t,줄,"")},"본문 전부")));
         d.append(줄);
