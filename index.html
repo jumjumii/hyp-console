@@ -4034,6 +4034,21 @@ function viewTrend(){
    기준은 둘뿐이다. ①요즘도 기저 위이고 안 꺾인 것 ②예전에 잘됐는데 최근 창에
    한 편도 안 쓴 것. 평생 성적은 안 본다 — 계정 기저가 반토막인 판에서
    반년 전 성적으로 오늘 쓸 것을 고르면 안 된다. (2026-08-27) */
+/* 원고 제안도 가설 제안과 같은 자리 탭을 쓴다 — 한 화면에 일곱 칸을 다 쌓으면
+   지금 어느 자리를 고르는 중인지가 사라진다. (2026-08-27) */
+window.PK = "후킹";
+const PK_TABS = {
+  "후킹": ["후킹 — 어떻게 열까"],
+  "본문": ["소구 — 무엇을 말할까", "그 소구를 어떻게 말할까", "근거 — 무엇으로 받칠까"],
+  "CTA": ["CTA — 어떻게 닫을까"],
+  "영상 요소": ["영상 형식", "구조"],
+};
+const PK_NOTE = {
+  "후킹":"무엇으로 여는가. 3초를 여기서 잃습니다.",
+  "본문":"무엇으로 설득하는가. 소구를 고르고, 그 소구를 무엇으로 받칠지 고릅니다.",
+  "CTA":"무엇으로 닫는가.",
+  "영상 요소":"글이 아니라 어떻게 찍고 어떻게 짜는가입니다."};
+
 function viewPick(){
   const m=$("#main");m.innerHTML="";
   const T=D.trend, S=(T&&T.suggest)||[];
@@ -4106,7 +4121,13 @@ function viewPick(){
       쪽("서브로", r.서브, "한 줄만 스친 원고"), 근));
   };
 
-  S.forEach(칸=>{
+  const seg=el("div",{class:"cseg"});
+  Object.keys(PK_TABS).forEach(k=>seg.append(el("button",{class:"csb"+(window.PK===k?" on":""),
+    onclick:()=>{window.PK=k;viewPick();}},k)));
+  m.append(el("div",{class:"bar"},seg));
+  m.append(el("p",{class:"lede"},PK_NOTE[window.PK]));
+
+  S.filter(칸=>(PK_TABS[window.PK]||[]).indexOf(칸.칸)>=0).forEach(칸=>{
     const c=el("div",{class:"card tight"},el("h3",{},칸.칸));
     const 그리기 = 칸.소구별 ? 소구줄 : (r=>줄(r));
     if(!칸.이제.length&&!칸.다시.length){
