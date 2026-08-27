@@ -583,9 +583,9 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
 .vwhy{margin:2px 0 0;font-size:11.5px;line-height:1.55;display:flex;gap:6px;align-items:baseline}
 .vadd{margin:12px 0 0;padding:10px;border:1px dashed var(--line);border-radius:var(--rs)}
 @media (max-width:1100px){ .vwrap{grid-template-columns:minmax(0,1fr)} }
-.prow{grid-template-columns:74px minmax(0,1.5fr) minmax(0,1fr) 72px 152px 56px 44px}
-@media (max-width:1100px){.prow{grid-template-columns:74px minmax(0,1.4fr) minmax(0,.9fr) 0 144px 52px 42px}}
-@media (max-width:820px){.prow{grid-template-columns:70px minmax(0,1.3fr) 0 0 138px 48px 40px}}
+.prow{grid-template-columns:84px 74px minmax(0,1.4fr) minmax(0,.9fr) 66px 148px 54px 42px}
+@media (max-width:1100px){.prow{grid-template-columns:84px 74px minmax(0,1.3fr) minmax(0,.8fr) 0 142px 52px 40px}}
+@media (max-width:820px){.prow{grid-template-columns:80px 0 minmax(0,1.3fr) 0 0 136px 46px 38px}}
 .prow.pk{cursor:pointer}
 .pdet{padding:2px 6px 8px 80px;border-left:2px solid var(--line);margin:0 0 6px}
 .pdet p{margin:0 0 3px;font-size:12.5px;line-height:1.55}
@@ -4103,7 +4103,21 @@ function viewPick(){
     if(!d.childNodes.length) d.append(el("p",{class:"dim"},"이 값에 딸린 문장이 없습니다."));
     return d;};
 
+  /* 판정이 여럿이라 「그래서 쓰라는 거냐」가 한눈에 안 온다.
+     표본이 모자란데 예전에도 기저 밑이었으면 굳이 권할 일이 아니다. (2026-08-27) */
+  const pkRec=(r)=>{
+    const 어디=r.어디||"", rE=r.nE?r.wE/r.nE:null, bE=T.baseE;
+    const 예전됨 = (rE!==null && bE!==null && rE>=bE);
+    if(어디==="요즘 된다") return ["쓰세요","yes"];
+    if(어디==="다시 해볼 것") return ["해보세요","maybe"];
+    if(어디==="힘이 빠짐") return ["지켜보세요","maybe"];
+    if(어디==="기저 아래") return ["빼세요","no"];
+    if(어디==="표본 모자람"||어디==="요즘 안 씀")
+      return 예전됨?["시험해 볼 것","maybe"]:["굳이","none"];
+    return ["참고만","none"];
+  };
   const pkHead=(값,칸)=>el("div",{class:"irow prow ihead"},
+    el("span",{title:"그래서 이걸 쓰라는 건가"},"추천"),
     el("span",{},"판정"),el("span",{},값||"값"),
     el("span",{},칸===undefined?"무엇을 정하는 칸인가":칸),
     el("span",{title:"막대는 성공률. 세로선이 그 기간의 기저"},"성공률"),
@@ -4116,7 +4130,9 @@ function viewPick(){
     const 값칸 = 고름
       ? el("button",{class:"iv lnk",title:r.v,onclick:고름.go},r.v)
       : el("span",{class:"iv",title:r.v},r.v);
+    const 권=pkRec(r);
     row.append(
+      el("span",{class:"mk "+권[1],title:"판정 「"+어디+"」 · 이전 "+r.wE+"/"+r.nE},권[0]),
       el("span",{class:"mk "+(PK_MK[어디]||"none"),title:어디},어디),
       값칸,
       el("span",{class:"ia dim",title:r.ax||""},r.ax||""),
