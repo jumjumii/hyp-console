@@ -583,6 +583,11 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
 .vwhy{margin:2px 0 0;font-size:11.5px;line-height:1.55;display:flex;gap:6px;align-items:baseline}
 .vadd{margin:12px 0 0;padding:10px;border:1px dashed var(--line);border-radius:var(--rs)}
 @media (max-width:1100px){ .vwrap{grid-template-columns:minmax(0,1fr)} }
+.srcbox{margin:2px 0 8px 14px;padding:6px 10px;border-left:2px solid var(--ln);}
+.srcline{margin:2px 0;font-size:12.5px;line-height:1.55}
+.srcline .q{color:var(--tx)}
+.evbox{margin:4px 0 10px 14px}
+.advrow.sub{margin-left:6px}
 </style>
 
 <div class="wrap">
@@ -4044,30 +4049,81 @@ function viewPick(){
     `「요즘 된다」는 최근에도 기저 위이면서 안 꺾인 것, `+
     `「다시 해볼 것」은 예전에 기저보다 10%p 넘게 잘됐는데 최근 ${T.win}달 동안 한 편도 안 쓴 것입니다.`));
 
-  const 줄=(r)=>{
-    const 최근 = r.nL ? `${r.wL}/${r.nL}` : "안 씀";
-    return el("p",{class:"advrow"},
-      el("p",{class:"lrow"},
-        el("span",{class:"pill "+(r.어디==="요즘 된다"?"p-ok":"p-dim")},r.어디),
-        el("b",{}," "+r.v),
-        el("span",{class:"dim"}," "+r.ax),
-        el("span",{class:"n"},` 이전 ${r.wE}/${r.nE} → 최근 ${최근}`),
-        (r.d===null||r.d===undefined)?null:el("span",{class:r.d>0?"g":"b"}," "+pp(r.d))));
+  // 추천 하나를 눌러 펼치면 그 값을 실제로 쓴 문장과 성공작이 나온다.
+  // 추천만 던지고 원문을 안 보여 주면 그대로 옮겨 적을 수가 없다. (2026-08-27)
+  const 원문칸=(r)=>{
+    const 문=(r.원문||[]), 작=(r.작||[]);
+    if(!문.length&&!작.length) return null;
+    const box=el("div",{class:"srcbox",style:"display:none"});
+    문.forEach(o=>box.append(el("p",{class:"srcline"},
+      el("span",{class:"q"},"「"+o.t+"」 "),
+      el("button",{class:"lnk "+(o.성?"g":"dim"),onclick:()=>openDraft(o.소재)},o.소재))));
+    if(작.length) box.append(el("p",{class:"srcline dim"},"쓴 성공작 ",
+      ...작.flatMap((w,i)=>[i?el("span",{class:"dim"}," · "):null,
+        el("button",{class:"lnk g",onclick:()=>openDraft(w.t)},w.nm)])));
+    const b=el("button",{class:"lnk",onclick:()=>{
+      const 열=box.style.display==="none";
+      box.style.display=열?"":"none"; b.textContent=열?"원문 접기":"원문 보기";}},"원문 보기");
+    return el("div",{},b,box);
   };
+  const 성적=(z)=>` 이전 ${z.wE}/${z.nE} → 최근 ${z.nL?z.wL+"/"+z.nL:"안 씀"}`;
+  const 델타=(z)=>(z.d===null||z.d===undefined||(!z.wE&&!z.wL))?null
+                  :el("span",{class:z.d>0?"g":"b"}," "+pp(z.d));
+  const 줄=(r,꼬리)=>{
+    const 원=원문칸(r);
+    return el("div",{class:"advrow"},
+      el("p",{class:"lrow"},
+        el("span",{class:"pill "+(r.어디==="요즘 된다"?"p-ok":(r.어디?"p-dim":"p-dim"))},r.어디||"—"),
+        el("b",{}," "+r.v),
+        r.ax?el("span",{class:"dim"}," "+r.ax):null,
+        el("span",{class:"n"},성적(r)),
+        델타(r), 원?el("span",{}," "):null, 원?원.firstChild:null),
+      원?원.lastChild:null, 꼬리||null);
+  };
+
+  // 소구는 「메인으로 세울 것」과 「한 줄 곁들일 것」이 다르다.
+  // 두 줄 넘게 판 원고와 한 줄만 스친 원고를 갈라 재고, 소구마다 받칠 근거를 붙인다.
+  const 소구줄=(r)=>{
+    const 근 = el("div",{class:"evbox"});
+    if((r.근거||[]).length){
+      근.append(el("p",{class:"lrow dim"},`${r.v} — 이걸로 받칩니다`));
+      r.근거.forEach(g=>{
+        const 원=원문칸(g);
+        근.append(el("div",{class:"advrow sub"},
+          el("p",{class:"lrow"},
+            el("span",{class:"pill "+(g.어디==="요즘 된다"?"p-ok":"p-dim")},g.어디),
+            el("b",{}," "+g.v),
+            el("span",{class:"n"},성적(g)),
+            델타(g), 원?el("span",{}," "):null, 원?원.firstChild:null),
+          원?원.lastChild:null));
+      });
+    } else 근.append(el("p",{class:"dim"},"이 소구를 받친 근거가 아직 2편을 못 넘어 못 고릅니다."));
+    const 쪽=(이름,z,말)=>el("p",{class:"lrow"},
+      el("b",{},이름), el("span",{class:"n"},성적(z)), 델타(z),
+      el("span",{class:"dim"}," "+말));
+    return 줄(r, el("div",{class:"evbox"},
+      쪽("메인으로", r.메인, "두 줄 넘게 판 원고"),
+      쪽("서브로", r.서브, "한 줄만 스친 원고"), 근));
+  };
+
   S.forEach(칸=>{
     const c=el("div",{class:"card tight"},el("h3",{},칸.칸));
+    const 그리기 = 칸.소구별 ? 소구줄 : (r=>줄(r));
     if(!칸.이제.length&&!칸.다시.length){
       c.append(el("p",{class:"dim"},"양쪽 기간에 3편 이상 있는 값이 없어 아직 방향을 못 말합니다."));
       m.append(c); return;
     }
+    if(칸.소구별) c.append(el("p",{class:"note"},
+      "메인은 두 줄 넘게 판 원고에서, 서브는 한 줄만 스친 원고에서 잰 성적입니다. "+
+      "같은 소구라도 메인일 때와 서브일 때 성적이 다릅니다."));
     if(칸.이제.length){
       c.append(el("p",{class:"lrow"},el("b",{class:"g"},"요즘 되는 것 "+칸.이제.length)));
-      칸.이제.forEach(r=>c.append(줄(r)));
+      칸.이제.forEach(r=>c.append(그리기(r)));
     }
     if(칸.다시.length){
       c.append(el("p",{class:"lrow",style:"margin-top:10px"},
         el("b",{},"다시 해볼 것 "+칸.다시.length)));
-      칸.다시.forEach(r=>c.append(줄(r)));
+      칸.다시.forEach(r=>c.append(그리기(r)));
     }
     m.append(c);
   });
