@@ -4170,6 +4170,22 @@ function viewPick(){
 
       const 고른=목록.filter(r=>r.v===window.PKG)[0];
       const c2=el("div",{class:"card tight"},el("h3",{},고른.v+" — 무엇으로 받칠까"));
+      // 「근거가 다 기저 아래」와 「근거를 아예 안 달았다」는 다른 얘기다.
+      // 뒤엣것은 코딩 구멍이라, 판정이 아니라 사람이 채워야 한다.
+      const cv=고른.덮음;
+      if(cv&&cv.n){
+        const 성긴=cv.빈성수>0||cv.근n*2<cv.n;
+        const p0=el("div",{class:"note"+(성긴?" wa":"")},
+          `최근 ${고른.v}을(를) 쓴 ${cv.n}편 가운데 근거 줄이 달린 것은 ${cv.근n}편입니다. `);
+        if(cv.빈성수){
+          p0.append(`근거 없이 성공한 원고가 ${cv.빈성수}편 있습니다 — `);
+          (cv.빈성||[]).forEach((w,i)=>p0.append(i?el("span",{}," · "):null,
+            el("button",{class:"lnk g",onclick:()=>openDraft(w.t)},w.nm)));
+          p0.append(el("span",{class:"dim"},
+            " 이 원고들이 무엇으로 받쳤는지는 아직 안 세고 있습니다. 열어서 확인하세요."));
+        }
+        c2.append(p0);
+      }
       if((고른.근거||[]).length) c2.append(pkTable(고른.근거,"근거",""));
       else c2.append(el("p",{class:"dim"},"이 소구를 받친 근거가 아직 2편을 못 넘어 못 고릅니다."));
       m.append(c2);
