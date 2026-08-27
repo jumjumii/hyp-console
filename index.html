@@ -592,6 +592,17 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
 .pdet{padding:2px 6px 8px 80px;border-left:2px solid var(--line);margin:0 0 6px}
 .pdet p{margin:0 0 3px;font-size:12.5px;line-height:1.55}
 .pdet.wide{padding-left:20px}
+.srccard{margin:0 0 8px;padding:8px 11px;border:1px solid var(--line);border-radius:var(--rs);
+  background:var(--paper)}
+.srcq{margin:0 0 5px !important;font-size:14px;line-height:1.7;color:var(--ink)}
+.srcbar{margin:0 !important;display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+  justify-content:space-between}
+.srcmeta{display:inline-flex;flex-wrap:wrap;align-items:center;gap:5px;font-size:12px}
+.srcbtns{display:inline-flex;gap:6px;flex:none}
+.srcbody{margin:-4px 0 10px;padding:8px 12px;border-left:2px solid var(--acc);
+  background:var(--tint);border-radius:0 var(--rs) var(--rs) 0}
+.srcbody .bl{margin:0 0 2px !important;display:flex;gap:8px;font-size:12.5px;line-height:1.65}
+.srcbody .bn{color:var(--ink4);flex:none;width:20px;text-align:right;font-size:11px}
 .pdet .dpsum{margin:4px 0 8px}
 .pdet .irows{margin:6px 0 10px}
 .srcbox{margin:2px 0 8px 14px;padding:6px 10px;border-left:2px solid var(--ln);}
@@ -4146,16 +4157,75 @@ function viewPick(){
     return box;
   };
 
-  /* 값을 누르면 — 그 값을 실제로 쓴 문장이 먼저, 그다음 그 안에서 무엇이 되고 있나 */
+  /* 값을 누르면 — 그 값을 실제로 쓴 문장이 먼저, 그다음 그 안에서 무엇이 되고 있나.
+     문장만 덩그러니 두면 「이거 잘된 원고 문장 맞나」를 알 수 없다.
+     문장마다 그 소재의 성적을 붙이고, 복사·본문 전부·담기를 같이 둔다. (2026-08-27) */
+  const 소재줄=(t)=>{
+    const d=DR[t];
+    if(!d) return el("span",{class:"dim"},t);
+    const 결=d.st==="성공"?"g":d.st==="실패"?"b":"dim";
+    return el("span",{class:"srcmeta"},
+      el("button",{class:"lnk "+결,onclick:()=>openDraft(t)},d.nm||t),
+      el("span",{class:"mk "+(d.st==="성공"?"yes":d.st==="실패"?"no":"none")},d.st),
+      el("span",{class:"dim"},` ROAS `),
+      el("b",{class:(d.r>=D.cut?"g":"b")},(d.r||0).toFixed(2)),
+      el("span",{class:"dim"},` · 지출 ${man(d.sp)} · 매출 ${man(d.nt)}`
+        +(d.ws?` · 첫 라이브 ${d.ws.slice(2).replace(/-/g,".")}`:"")));
+  };
+  const 본문펴기=(t,붙을곳)=>{
+    const d=DR[t]; if(!d) return;
+    const 있 = 붙을곳.nextSibling;
+    if(있 && 있.classList && 있.classList.contains("srcbody")){ 있.remove(); return; }
+    const box=el("div",{class:"srcbody"});
+    const ls=(d.body||[]);
+    if(!ls.length) box.append(el("p",{class:"dim"},
+      "이 소재는 원고 본문이 없습니다 — 노션 원고와 아직 안 이어진 소재입니다."));
+    else ls.forEach((ln,i)=>box.append(el("p",{class:"bl"},
+      el("span",{class:"bn"},i+1), el("span",{},ln))));
+    box.append(el("div",{class:"bar",style:"margin:6px 0 0"},
+      el("button",{class:"lnk ic",onclick:function(){bkCopy(ls.join("\n"),this);}},"본문 복사"),
+      el("button",{class:"lnk ic",onclick:()=>openDraft(t)},"소재 화면에서 보기 →")));
+    붙을곳.after(box);
+  };
   const pkDet=(r)=>{
-    const d=el("div",{class:"pdet"});
-    (r.원문||[]).forEach(o=>d.append(el("p",{},
-      el("span",{},"「"+o.t+"」 "),
-      el("button",{class:"lnk "+(o.성?"g":"dim"),onclick:()=>openDraft(o.소재)},o.소재))));
-    if((r.작||[]).length) d.append(el("p",{class:"dim"},"쓴 성공작 ",
-      ...(r.작).flatMap((w,i)=>[i?el("span",{}," · "):null,
-        el("button",{class:"lnk g",onclick:()=>openDraft(w.t)},w.nm)])));
-    if(!d.childNodes.length) d.append(el("p",{class:"dim"},"이 값에 딸린 문장이 없습니다."));
+    const d=el("div",{class:"pdet wide"});
+    (r.원문||[]).forEach(o=>{
+      const 줄=el("div",{class:"srccard"});
+      줄.append(el("p",{class:"srcq"},"「"+o.t+"」"));
+      줄.append(el("p",{class:"srcbar"}, 소재줄(o.d||o.소재),
+        el("span",{class:"srcbtns"},
+          el("button",{class:"lnk ic",onclick:function(){bkCopy(o.t,this);}},"복사"),
+          el("button",{class:"lnk ic",onclick:()=>본문펴기(o.d||o.소재,줄)},"본문 전부"))));
+      d.append(줄);
+    });
+    if((r.작||[]).length){
+      d.append(el("p",{class:"dim sm2",style:"margin:6px 0 4px"},
+        (r.원문||[]).length?"이 값을 쓴 성공작":"이 값은 문장으로 못 남깁니다 — 쓴 성공작을 폅니다"));
+      (r.작).forEach(w=>{
+        const 줄=el("div",{class:"srccard"});
+        줄.append(el("p",{class:"srcbar"}, 소재줄(w.t),
+          el("span",{class:"srcbtns"},
+            el("button",{class:"lnk ic",onclick:()=>본문펴기(w.t,줄)},"본문 전부"))));
+        d.append(줄);
+      });
+    }
+    if(!(r.원문||[]).length && !(r.작||[]).length)
+      d.append(el("p",{class:"dim"},"이 값에 딸린 문장이 없습니다."));
+    /* 담기 — 가설 제안과 같은 바구니를 쓴다 */
+    {
+      const 축=r.axr||r.ax||"";
+      const 담김=()=>PICK.some(x=>x.ax===축&&x.v===r.v);
+      const bb=el("button",{class:"btn2"},담김()?"담음":"담기");
+      bb.addEventListener("click",()=>{
+        if(담김()) PICK=PICK.filter(x=>!(x.ax===축&&x.v===r.v));
+        else PICK.push({ax:축,v:r.v,lf:(r.d||0),ban:false,
+                        rt:(r.nL?r.wL/r.nL:0),n:(r.nL||r.nE||0)});
+        bb.textContent=담김()?"담음":"담기";});
+      d.append(el("div",{class:"bar",style:"margin:8px 0 0"}, bb,
+        r.axr?el("button",{class:"btn2",onclick:()=>lyGo(r.axr,r.v)},"이 값만 크게 보기 →"):null,
+        el("button",{class:"btn2",onclick:()=>{
+          DFT={name:"",items:[],hyp:{ax:축,v:r.v,ban:false}};go("draft");}},"넣고 써보기 →")));
+    }
     const brs=(r.axr?h3Branches(r.axr,r.v):null)||[];
     if(brs.length){
       d.append(el("p",{class:"bdsg",style:"margin-top:10px"},
@@ -4287,6 +4357,11 @@ function viewPick(){
     onclick:()=>{window.PK=k;viewPick();}},k)));
   m.append(el("div",{class:"bar"},seg));
   m.append(el("p",{class:"lede"},PK_NOTE[window.PK]));
+  m.append(el("p",{class:"dim sm2"},
+    "표 읽는 법 — 「이전 → 최근」은 성공 편수/그 값을 쓴 편수입니다. "+
+    "「움직임」은 기저 대비 우위가 얼마나 변했나입니다 = (최근 성공률−최근 기저)−(이전 성공률−이전 기저). "+
+    "계정 기저가 "+pc(T.baseE)+"에서 "+pc(T.baseL)+"로 내려앉아, 성공률을 그냥 빼면 전부 하락으로 보입니다. "+
+    "편수가 적으면 크게 튀니 추천 열을 먼저 보세요."));
 
   // 본문은 「메인으로 세울 소구」와 「한 줄 곁들일 소구」가 아예 다른 물건이다.
   if(window.PK==="본문"){
