@@ -596,6 +596,7 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
   <button data-v="idea">가설 제안</button>
   <button data-v="deep">소구</button>
   <button data-v="trend">트렌드</button>
+  <button data-v="pick">원고 제안</button>
   <div class="lab">3 · 원고 빌더</div>
   <button data-v="build">빌더</button>
   <button data-v="write">요소별로 파기</button>
@@ -4024,6 +4025,57 @@ function viewTrend(){
     T.retry,""));
 }
 
+/* ── 원고 제안 — 쓰는 차례대로 ────────────────────────────────────
+   기준은 둘뿐이다. ①요즘도 기저 위이고 안 꺾인 것 ②예전에 잘됐는데 최근 창에
+   한 편도 안 쓴 것. 평생 성적은 안 본다 — 계정 기저가 반토막인 판에서
+   반년 전 성적으로 오늘 쓸 것을 고르면 안 된다. (2026-08-27) */
+function viewPick(){
+  const m=$("#main");m.innerHTML="";
+  const T=D.trend, S=(T&&T.suggest)||[];
+  m.append(el("p",{class:"eyebrow"},"트렌드와 가설"),el("h2",{},"원고 제안"));
+  if(!S.length){ m.append(el("p",{class:"lede"},"아직 제안을 못 냅니다.")); return; }
+  m.append(el("p",{class:"lede"},
+    `쓰는 차례대로 — 영상 형식 → 구조 → 후킹 → 소구 → 근거 → CTA. `+
+    `이전 ${T.early[0]}~${T.early[T.early.length-1]} ${T.nE}편(${pc(T.baseE)}) → `+
+    `최근 ${T.late[0]}~${T.late[T.late.length-1]} ${T.nL}편(${pc(T.baseL)})으로 갈라 잰 것입니다.`));
+  m.append(el("div",{class:"note wa"},el("b",{},"평생 성적은 안 봅니다. "),
+    `계정 성공률이 ${pc(T.baseE)}에서 ${pc(T.baseL)}로 내려앉았습니다. `+
+    `반년 전에 통하던 것으로 오늘 쓸 것을 고르면 안 됩니다. `+
+    `「요즘 된다」는 최근에도 기저 위이면서 안 꺾인 것, `+
+    `「다시 해볼 것」은 예전에 기저보다 10%p 넘게 잘됐는데 최근 ${T.win}달 동안 한 편도 안 쓴 것입니다.`));
+
+  const 줄=(r)=>{
+    const 최근 = r.nL ? `${r.wL}/${r.nL}` : "안 씀";
+    return el("p",{class:"advrow"},
+      el("p",{class:"lrow"},
+        el("span",{class:"pill "+(r.어디==="요즘 된다"?"p-ok":"p-dim")},r.어디),
+        el("b",{}," "+r.v),
+        el("span",{class:"dim"}," "+r.ax),
+        el("span",{class:"n"},` 이전 ${r.wE}/${r.nE} → 최근 ${최근}`),
+        (r.d===null||r.d===undefined)?null:el("span",{class:r.d>0?"g":"b"}," "+pp(r.d))));
+  };
+  S.forEach(칸=>{
+    const c=el("div",{class:"card tight"},el("h3",{},칸.칸));
+    if(!칸.이제.length&&!칸.다시.length){
+      c.append(el("p",{class:"dim"},"양쪽 기간에 3편 이상 있는 값이 없어 아직 방향을 못 말합니다."));
+      m.append(c); return;
+    }
+    if(칸.이제.length){
+      c.append(el("p",{class:"lrow"},el("b",{class:"g"},"요즘 되는 것 "+칸.이제.length)));
+      칸.이제.forEach(r=>c.append(줄(r)));
+    }
+    if(칸.다시.length){
+      c.append(el("p",{class:"lrow",style:"margin-top:10px"},
+        el("b",{},"다시 해볼 것 "+칸.다시.length)));
+      칸.다시.forEach(r=>c.append(줄(r)));
+    }
+    m.append(c);
+  });
+  m.append(el("div",{class:"note"},
+    "여기 없는 칸은 최근 표본이 모자라 방향을 못 말하는 자리입니다. "+
+    "「빼세요」에 걸린 것은 「원고 검증」에서 원고를 넣으면 따로 짚어 줍니다."));
+}
+
 function viewJudge(){
   const m=$("#main");m.innerHTML="";
   m.append(el("p",{class:"eyebrow"},"전지표 판정"),el("h2",{},"지표값 찾기"),
@@ -4516,7 +4568,7 @@ function viewPerf(){
   m.append(el("p",{class:"dim"},
     "이번 달은 아직 매출이 다 붙지 않았습니다 — 카페24 귀속이 며칠 걸립니다."));
 }
-const VIEWS={build:viewBuild,trend:viewTrend,deep:viewDeep,bank:viewBank,write:viewWrite,sogu:viewSogu,layer:viewLayer,home:viewHome,full:viewFull,code:viewCode,idea:viewIdea,draft:viewDraft,
+const VIEWS={build:viewBuild,trend:viewTrend,pick:viewPick,deep:viewDeep,bank:viewBank,write:viewWrite,sogu:viewSogu,layer:viewLayer,home:viewHome,full:viewFull,code:viewCode,idea:viewIdea,draft:viewDraft,
   judge:viewJudge,drafts:viewDrafts,perf:viewPerf};
 document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()=>go(b.dataset.v)));
 function boot(data){
