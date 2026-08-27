@@ -4109,17 +4109,17 @@ function viewPick(){
       el("p",{class:"dpv "+클},값), el("p",{class:"dim sm2"},밑));
     const 로아=(x)=>!x?"—":x.roas.toFixed(2);
     const 로클=(x)=>!x?"dim":x.sp<DP_FLOOR?"dim":(x.roas>=D.cut?"g":"b");
+    const 밑=(x)=>!x ? "돈이 안 갔습니다"
+      : `지출 ${man(x.sp)} · 매출 ${man(x.nt)} · 소재 ${x.d}편`
+        + (x.sp<DP_FLOOR ? " · 지출이 적어 숫자가 튑니다" : "");
     box.append(el("div",{class:"dpsum"},
       칸("누적 성공률", pc(rt), lf>=0?"g":"b", `${w}/${n}편 · 기저 ${pc(D.base)}보다 ${pp(lf)}`),
-      칸("이번 주", 로아(r1), 로클(r1),
-        r1?`${man(r1.sp)} · ${r1.d}편`+(r1.sp<DP_FLOOR?" · 돈이 적어 숫자가 튑니다":"")
-          :"돈이 안 갔습니다"),
-      칸("최근 4주", 로아(r4), 로클(r4),
-        r4?`${man(r4.sp)} · ${r4.d}편`+(r4.sp<DP_FLOOR?" · 돈이 적어 숫자가 튑니다":""):"—"),
-      칸("최근 12주", 로아(r12), 로클(r12),
-        r12?`${man(r12.sp)} · ${r12.d}편`+(r12.sp<DP_FLOOR?" · 돈이 적어 숫자가 튑니다":""):"—")));
+      칸("이번 주 ROAS", 로아(r1), 로클(r1), 밑(r1)),
+      칸("최근 4주 ROAS", 로아(r4), 로클(r4), 밑(r4)),
+      칸("최근 12주 ROAS", 로아(r12), 로클(r12), 밑(r12))));
     box.append(el("p",{class:"dim sm2"},
-      "성공률은 판정이 닫힌 원고, ROAS는 그 기간에 돈이 간 원고입니다. 편수가 다를 수 있습니다. "+
+      `ROAS는 ${D.metric}입니다. 성공률은 판정이 닫힌 원고, `+
+      "ROAS는 그 기간에 돈이 간 원고라 편수가 다릅니다. "+
       `흐린 숫자는 지출이 ${man(DP_FLOOR)}이 안 돼 크게 튈 수 있다는 뜻입니다 — 지워 두지 않고 그대로 냅니다.`));
     const 표=el("div",{class:"irows"});
     표.append(el("div",{class:"irow prow ihead"},
@@ -4175,7 +4175,8 @@ function viewPick(){
             el("span",{class:"iv",title:x.v},x.disp||x.v),el("span",{}),
             el("span",{class:"in2"},el("b",{},pc(x.rt)),el("span",{class:"dim"},` ${x.w}/${x.n}편`)),
             el("span",{class:"in2 "+(x.lf>=0?"g":"b")},pp(x.lf)),
-            el("span",{class:"in2",title:rr?`지출 ${man(rr.sp)}`+(rr.sp<DP_FLOOR?" — 적어서 숫자가 튑니다":""):""},
+            el("span",{class:"in2",title:rr?`지출 ${man(rr.sp)} · 매출 ${man(rr.nt)} · 소재 ${rr.d}편`
+                +(rr.sp<DP_FLOOR?" — 지출이 적어 숫자가 튑니다":""):""},
               !rr?el("span",{class:"dim"},"—")
               :rr.sp<DP_FLOOR?el("span",{class:"dim"},rr.roas.toFixed(2))
               :el("b",{class:rr.roas>=D.cut?"g":"b"},rr.roas.toFixed(2))),
