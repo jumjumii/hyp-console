@@ -592,11 +592,21 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
 .pdet{padding:2px 6px 8px 80px;border-left:2px solid var(--line);margin:0 0 6px}
 .pdet p{margin:0 0 3px;font-size:12.5px;line-height:1.55}
 .pdet.wide{padding-left:20px}
-.srccard{margin:0 0 8px;padding:8px 11px;border:1px solid var(--line);border-radius:var(--rs);
+.srccard{margin:0 0 6px;padding:7px 11px;border:1px solid var(--line);border-radius:var(--rs);
   background:var(--paper)}
-.srcq{margin:0 0 5px !important;font-size:14px;line-height:1.7;color:var(--ink)}
+.srccard.one{display:flex;align-items:center;gap:10px;flex-wrap:nowrap}
+.srccard.one .srcq{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;cursor:pointer}
+.srccard.one .srcmeta,.srccard.one .srcbtns{flex:none}
+@media (max-width:900px){.srccard.one{flex-wrap:wrap}
+  .srccard.one .srcq{flex:1 1 100%;white-space:normal}}
+.srcq{margin:0 !important;font-size:14px;line-height:1.65;color:var(--ink)}
 .srcbar{margin:0 !important;display:flex;flex-wrap:wrap;align-items:center;gap:8px;
   justify-content:space-between}
+.srcbody .bl.hl{background:var(--ok2);border-radius:3px;font-weight:600}
+.codlist{margin:6px 0 0;padding:6px 10px;border-left:2px solid var(--line)}
+.codlist .cl{margin:0 0 2px !important;display:flex;gap:8px;font-size:12px;line-height:1.6}
+.codlist .ca{color:var(--ink4);flex:none;min-width:150px}
 .srcmeta{display:inline-flex;flex-wrap:wrap;align-items:center;gap:5px;font-size:12px}
 .srcbtns{display:inline-flex;gap:6px;flex:none}
 .srcbody{margin:-4px 0 10px;padding:8px 12px;border-left:2px solid var(--acc);
@@ -4160,19 +4170,45 @@ function viewPick(){
   /* 값을 누르면 — 그 값을 실제로 쓴 문장이 먼저, 그다음 그 안에서 무엇이 되고 있나.
      문장만 덩그러니 두면 「이거 잘된 원고 문장 맞나」를 알 수 없다.
      문장마다 그 소재의 성적을 붙이고, 복사·본문 전부·담기를 같이 둔다. (2026-08-27) */
-  const 소재줄=(t)=>{
+  const 소재줄=(t,열기)=>{
     const d=DR[t];
     if(!d) return el("span",{class:"dim"},t);
     const 결=d.st==="성공"?"g":d.st==="실패"?"b":"dim";
     return el("span",{class:"srcmeta"},
-      el("button",{class:"lnk "+결,onclick:()=>openDraft(t)},d.nm||t),
+      el("button",{class:"lnk "+결,title:"눌러서 이 원고 본문 전체 보기",
+        onclick:열기||(()=>openDraft(t))},d.nm||t),
       el("span",{class:"mk "+(d.st==="성공"?"yes":d.st==="실패"?"no":"none")},d.st),
       el("span",{class:"dim"},` ROAS `),
       el("b",{class:(d.r>=D.cut?"g":"b")},(d.r||0).toFixed(2)),
       el("span",{class:"dim"},` · 지출 ${man(d.sp)} · 매출 ${man(d.nt)}`
         +(d.ws?` · 첫 라이브 ${d.ws.slice(2).replace(/-/g,".")}`:"")));
   };
-  const 본문펴기=(t,붙을곳)=>{
+  /* 본문에서 그 문장을 찾는다 — 코딩이 잘라 담은 문장이라 원문과 토씨가 다를 수 있다.
+     통째로 안 맞으면 앞 12글자로 찾고, 그것도 없으면 안 칠한다. 억지로 칠하면
+     엉뚱한 줄이 칠해져 「저 줄에서 나온 말」로 잘못 읽힌다. (2026-08-27) */
+  const 찾을줄=(ls,문장)=>{
+    if(!문장) return -1;
+    const 벗=(x)=>String(x).replace(/[\s"'“”‘’.,!?~·]/g,"");
+    const q=벗(문장); if(q.length<4) return -1;
+    let i=ls.findIndex(ln=>벗(ln).indexOf(q)>=0);
+    if(i<0) i=ls.findIndex(ln=>q.indexOf(벗(ln))>=0 && 벗(ln).length>=8);
+    if(i<0) i=ls.findIndex(ln=>벗(ln).indexOf(q.slice(0,12))>=0);
+    return i;
+  };
+  const 코딩접기=(t)=>{
+    const C=COD[t]||{};
+    const ks=Object.keys(C).sort();
+    if(!ks.length) return el("p",{class:"dim sm2"},"이 소재에 붙은 코딩이 없습니다.");
+    const box=el("div",{class:"codlist",style:"display:none"});
+    ks.forEach(a=>box.append(el("p",{class:"cl"},
+      el("span",{class:"ca"},a), el("span",{},(C[a]||[]).join(" · ")))));
+    const b=el("button",{class:"lnk ic",onclick:()=>{
+      const 열=box.style.display==="none";
+      box.style.display=열?"":"none"; b.textContent=열?`코딩 접기`:`코딩 ${ks.length}줄 보기`;
+    }},`코딩 ${ks.length}줄 보기`);
+    return el("div",{},b,box);
+  };
+  const 본문펴기=(t,붙을곳,문장)=>{
     const d=DR[t]; if(!d) return;
     const 있 = 붙을곳.nextSibling;
     if(있 && 있.classList && 있.classList.contains("srcbody")){ 있.remove(); return; }
@@ -4180,32 +4216,41 @@ function viewPick(){
     const ls=(d.body||[]);
     if(!ls.length) box.append(el("p",{class:"dim"},
       "이 소재는 원고 본문이 없습니다 — 노션 원고와 아직 안 이어진 소재입니다."));
-    else ls.forEach((ln,i)=>box.append(el("p",{class:"bl"},
-      el("span",{class:"bn"},i+1), el("span",{},ln))));
+    else {
+      const hit=찾을줄(ls,문장);
+      ls.forEach((ln,i)=>box.append(el("p",{class:"bl"+(i===hit?" hl":"")},
+        el("span",{class:"bn"},i+1), el("span",{},ln))));
+      if(문장 && hit<0) box.append(el("p",{class:"dim sm2"},
+        "이 문장이 본문 어느 줄인지 못 찾았습니다 — 코딩이 줄여 담은 말일 수 있습니다."));
+    }
     box.append(el("div",{class:"bar",style:"margin:6px 0 0"},
       el("button",{class:"lnk ic",onclick:function(){bkCopy(ls.join("\n"),this);}},"본문 복사"),
+      코딩접기(t),
+      el("button",{class:"lnk ic",onclick:()=>go("code")},"코딩 검증에서 고치기 →"),
       el("button",{class:"lnk ic",onclick:()=>openDraft(t)},"소재 화면에서 보기 →")));
     붙을곳.after(box);
   };
   const pkDet=(r)=>{
     const d=el("div",{class:"pdet wide"});
     (r.원문||[]).forEach(o=>{
-      const 줄=el("div",{class:"srccard"});
-      줄.append(el("p",{class:"srcq"},"「"+o.t+"」"));
-      줄.append(el("p",{class:"srcbar"}, 소재줄(o.d||o.소재),
+      const 줄=el("div",{class:"srccard one"});
+      const 키=o.d||o.소재;
+      줄.append(el("p",{class:"srcq",title:o.t+" — 눌러서 본문 전체 보기",
+        onclick:()=>본문펴기(키,줄,o.t)},"「"+o.t+"」"),
+        소재줄(키,()=>본문펴기(키,줄,o.t)),
         el("span",{class:"srcbtns"},
           el("button",{class:"lnk ic",onclick:function(){bkCopy(o.t,this);}},"복사"),
-          el("button",{class:"lnk ic",onclick:()=>본문펴기(o.d||o.소재,줄)},"본문 전부"))));
+          el("button",{class:"lnk ic",onclick:()=>본문펴기(키,줄,o.t)},"본문 전부")));
       d.append(줄);
     });
     if((r.작||[]).length){
       d.append(el("p",{class:"dim sm2",style:"margin:6px 0 4px"},
         (r.원문||[]).length?"이 값을 쓴 성공작":"이 값은 문장으로 못 남깁니다 — 쓴 성공작을 폅니다"));
       (r.작).forEach(w=>{
-        const 줄=el("div",{class:"srccard"});
-        줄.append(el("p",{class:"srcbar"}, 소재줄(w.t),
+        const 줄=el("div",{class:"srccard one"});
+        줄.append(소재줄(w.t,()=>본문펴기(w.t,줄,"")),
           el("span",{class:"srcbtns"},
-            el("button",{class:"lnk ic",onclick:()=>본문펴기(w.t,줄)},"본문 전부"))));
+            el("button",{class:"lnk ic",onclick:()=>본문펴기(w.t,줄,"")},"본문 전부")));
         d.append(줄);
       });
     }
