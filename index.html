@@ -91,6 +91,7 @@ h3{font-size:14px;margin:0 0 11px;letter-spacing:-.2px;font-weight:650}
 /* 표가 길다(소재 189행). 상세가 따라다녀야 아래쪽을 눌러도 옆에서 볼 수 있다 */
 @media(min-width:1401px){.two>*:last-child{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto}}
 @media(max-width:1400px){.two{grid-template-columns:minmax(0,1fr)}}
+.two.one{grid-template-columns:minmax(0,1fr)}
 .scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--paper);box-shadow:var(--sh)}
 table{border-collapse:collapse;width:100%;font-size:12.5px}
 th,td{padding:8px 11px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line);
@@ -4953,16 +4954,22 @@ function viewDrafts(){
        c:r=>r.ws?짧은날(r.ws):el("span",{class:"dim"},"—")},
       {h:"집행일",k:r=>r.days,c:r=>r.days},
       {h:"글자수",k:r=>r.ch||0,c:r=>r.ch?r.ch.toLocaleString():el("span",{class:"dim"},"—")}],
-      rs,{sort:5,onrow:d=>showDraft(d,R)}));};
+      rs,{sort:5,onrow:d=>열기(d)}));};
+  /* 오른쪽 본문은 끌 수 있다 — 끄면 표가 화면을 다 쓴다. 열 좌우로 못 보고
+     가로로 밀어 보던 자리다. 줄을 다시 누르면 도로 열린다. (2026-08-31) */
+  const 닫기=()=>{R.innerHTML="";R.style.display="none";two.classList.add("one");};
+  const 열기=(d)=>{R.style.display="";two.classList.remove("one");showDraft(d,R,닫기);};
   [q,sSel].forEach(x=>x.addEventListener("input",render));render();
-  if(D.drafts.length)showDraft([...D.drafts].sort((a,b)=>b.sp-a.sp)[0],R);
+  if(D.drafts.length)열기([...D.drafts].sort((a,b)=>b.sp-a.sp)[0]);
 }
-function showDraft(d,host){
+function showDraft(d,host,닫기){
   host.innerHTML="";const cod=COD[d.t]||{};
   const bans=BANS.filter(h=>(cod[h.ax]||[]).includes(h.val));
   host.append(el("div",{class:"card"},
     el("div",{class:"bar",style:"margin:0 0 9px"},el("h3",{style:"margin:0"},d.t),
-      el("span",{class:"pill "+(SP[d.st]||"p-dim")},d.st)),
+      el("span",{class:"pill "+(SP[d.st]||"p-dim")},d.st),
+      닫기?el("button",{class:"lnk ic",style:"margin-left:auto",
+        title:"닫으면 표가 화면을 다 씁니다",onclick:닫기},"닫기 ✕"):null),
     el("p",{class:"mut"},`${d.w!=null?`창 ROAS ${d.w.toFixed(2)} · `:""}누적 ${d.r.toFixed(2)} · `+
       `지출 ${man(d.sp)} · 매출 ${man(d.nt)} · ${d.days}일`),
     (d.ads&&d.ads.length)?el("p",{class:"dim"},"광고 미리보기 — ",
