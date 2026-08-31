@@ -590,6 +590,13 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
 @media (max-width:1100px){.prow{grid-template-columns:84px 74px minmax(0,1.3fr) minmax(0,.8fr) 0 142px 52px 40px}}
 @media (max-width:820px){.prow{grid-template-columns:80px 0 minmax(0,1.3fr) 0 0 136px 46px 38px}}
 .prow.pk{cursor:pointer}
+.prow span.iv{display:flex;align-items:baseline;min-width:0}
+.prow span.iv>button{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;
+  text-align:left}
+.prow span.iv>.vtag{flex:none}
+.vtag{display:inline-block;margin-left:6px;padding:0 5px;border-radius:3px;font-size:10.5px;
+  font-weight:650;background:var(--acc2);color:var(--acc);vertical-align:1px}
+.vtag.half{background:var(--tint);color:var(--ink4)}
 .pdet{padding:2px 6px 8px 80px;border-left:2px solid var(--line);margin:0 0 6px}
 .pdet p{margin:0 0 3px;font-size:12.5px;line-height:1.55}
 .pdet.wide{padding-left:20px}
@@ -4447,10 +4454,18 @@ const pkHead=(값,칸,전체)=>el("div",{class:"irow prow ihead"},
 const pkRow=(r,고름)=>{
   const 어디=r.어디||"기준 아래";
   const row=el("div",{class:"irow prow"+(고름?" pk":"")+(고름&&고름.on?" on":"")});
+  /* 근거 워딩에는 그것이 무엇인지(기전·권위·수치…) 이름표를 붙인다.
+     따로 고르는 것이 아니라 그 워딩이 이미 담고 있는 것이다. */
+  const 이름표 = r.종
+    ? el("span",{class:"vtag"+(r.확>=0.7?"":" half"),
+        title:r.확>=0.7?`이 워딩은 대개 「${r.종}」입니다`
+                       :`「${r.종}」이 많지만 다른 종류도 섞여 있습니다`},r.종)
+    : null;
   const 값칸0 = 고름
-    ? (()=>el("button",{class:"iv lnk",title:r.v,onclick:고름.go},r.v))
-    : (폄=>el("button",{class:"iv lnk",title:r.v+" — 눌러서 쓴 문장과 그 안의 갈래 보기",
-                        onclick:()=>폄({kind:"det",make:pkDet})},r.v));
+    ? (()=>el("span",{},el("button",{class:"iv lnk",title:r.v,onclick:고름.go},r.v),이름표))
+    : (폄=>el("span",{class:"iv"},
+        el("button",{class:"lnk",title:r.v+" — 눌러서 쓴 문장과 그 안의 갈래 보기",
+          onclick:()=>폄({kind:"det",make:pkDet})},r.v),이름표));
   const 권=pkRec(r);
   const 폄=(만들기)=>{
     const o=row.nextSibling;
