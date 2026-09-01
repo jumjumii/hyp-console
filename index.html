@@ -4469,9 +4469,28 @@ const 본문펴기=(t,붙을곳,문장)=>{
     el("button",{class:"lnk ic",onclick:()=>openDraft(t)},"소재 화면에서 보기 →")));
   붙을곳.after(box);
 };
+function pk온문장(r){
+  if(!r.키) return (r.원문||[]);
+  const [part,g,tab,v]=r.키;
+  const out=[], 본=new Set();
+  (D.ptab||[]).forEach(x=>{
+    if(x.part!==part||x.tab!==tab||x.v!==v) return;
+    if((x.g||"")!==(g||"")) return;
+    Object.entries(x.ev||{}).forEach(function(e){
+      const t2=e[0]; (e[1]||[]).forEach(function(ln){
+        const k=t2+"｜"+ln; if(본.has(k))return; 본.add(k);
+        const d2=DR[t2];
+        out.push({t:ln, 소재:(d2&&d2.nm)||t2, d:t2, 성:!!(d2&&d2.st==="성공")});
+      });
+    });
+  });
+  out.sort((a2,b2)=>(b2.성?1:0)-(a2.성?1:0));
+  return out.length?out:(r.원문||[]);
+}
 const pkDet=(r)=>{
   const d=el("div",{class:"pdet wide"});
-  (r.원문||[]).forEach(o=>{
+  const 온=pk온문장(r);
+  (온||[]).forEach(o=>{
     const 줄=el("div",{class:"srccard one"});
     const 키=o.d||o.소재;
     줄.append(el("p",{class:"srcq",title:o.t+" — 눌러서 이 자리에서 본문 펴기",
@@ -4482,9 +4501,11 @@ const pkDet=(r)=>{
         el("button",{class:"lnk ic",onclick:()=>본문펴기(키,줄,o.t)},"본문 전부")));
     d.append(줄);
   });
+  if(온&&온.length) d.append(el("p",{class:"dim sm2",style:"margin:2px 0 6px"},
+    `이 값이 붙은 문장 ${온.length}개를 다 폈습니다 — 성공작이 앞입니다.`));
   if((r.작||[]).length){
     d.append(el("p",{class:"dim sm2",style:"margin:6px 0 4px"},
-      (r.원문||[]).length?"이 값을 쓴 성공작":"이 값은 문장으로 못 남깁니다 — 쓴 성공작을 폅니다"));
+      (온||[]).length?"이 값을 쓴 성공작":"이 값은 문장으로 못 남깁니다 — 쓴 성공작을 폅니다"));
     (r.작).forEach(w=>{
       const 줄=el("div",{class:"srccard one"});
       줄.append(소재줄(w.t),
@@ -4493,7 +4514,7 @@ const pkDet=(r)=>{
       d.append(줄);
     });
   }
-  if(!(r.원문||[]).length && !(r.작||[]).length)
+  if(!(온||[]).length && !(r.작||[]).length)
     d.append(el("p",{class:"dim"},"이 값에 딸린 문장이 없습니다."));
   /* 담기 — 가설 제안과 같은 바구니를 쓴다 */
   {
