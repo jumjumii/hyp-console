@@ -654,15 +654,11 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
   <button data-v="home" aria-current="true">지금</button>
   <button data-v="perf">계정 흐름</button>
   <div class="lab">2 · 트렌드와 가설</div>
-  <button data-v="deep">소구</button>
-  <button data-v="trend">트렌드</button>
   <button data-v="pick">원고 제안</button>
   <div class="lab">3 · 원고 빌더</div>
   <button data-v="build">빌더</button>
-  <button data-v="write">요소별로 파기</button>
   <button data-v="draft">원고 검증</button>
   <div class="lab">4 · 아카이브</div>
-  <button data-v="bank">문장 뱅크</button>
   <button data-v="drafts" id="navDrafts">소재</button>
   <div class="lab">5 · 전지표 판정</div>
   <button data-v="full">판정 원문</button>
@@ -3012,6 +3008,7 @@ function viewIdea(){
     onclick:()=>{window.IK=k;viewIdea();}},k)));
   m.append(el("div",{class:"bar"},seg));
   m.append(pkWinBar(viewPick));
+  m.append(pk찾기바(viewIdea));
   m.append(el("p",{class:"lede"},PK_NOTE[window.IK]));
 
   if(window.IK==="본문"){
@@ -3071,6 +3068,7 @@ function viewIdea(){
         const rs=(k&&k.줄)||[];
         if(!rs.length) return;
         const c=pk칸카드(이름, rs);
+        if(!c) return;
         c.insertBefore(el("p",{class:"note"},
           "소구를 가리지 않고 원고 전체를 놓고 센 것입니다 — "+
           `위의 「${고른.v}」와는 다른 층입니다.`), c.children[1]);
@@ -3087,7 +3085,7 @@ function viewIdea(){
     A.filter(칸=>(PK_TABS[window.IK]||[]).indexOf(칸.칸)>=0 && !칸.소구별).forEach(칸=>{
       const rs=(칸.줄||[]);
       if(!rs.length) return;
-      안.append(pk칸카드(칸.칸, rs));
+      {const _c=pk칸카드(칸.칸, rs); if(_c) 안.append(_c);}
     });
   });
   m.append(el("div",{class:"note"},
@@ -4143,40 +4141,6 @@ function vRow(r, lines){
    판정은 전기간 성적이라 반년 전에 통하던 것을 오늘도 통한다고 말한다.
    계정 기저가 반토막 난 판에서는 그게 위험하다. 라이브한 달로 소재를 갈라
    「예전」과 「지금」을 따로 재고, 기간 기저 대비가 얼마나 움직였는지로 가른다. */
-function viewTrend(){
-  const m=$("#main");m.innerHTML="";
-  const T=D.trend;
-  m.append(el("p",{class:"eyebrow"},"트렌드와 가설"),el("h2",{},"예전엔 되던 게 아직도 되나"));
-  if(!T){ m.append(el("p",{class:"lede"},"아직 트렌드를 못 냅니다.")); return; }
-  m.append(el("p",{class:"lede"},
-    `라이브한 달로 소재를 갈라 잽니다. 이전 ${T.early[0]}~${T.early[T.early.length-1]} `+
-    `${T.nE}편(성공률 ${pc(T.baseE)}) → 최근 ${T.late[0]}~${T.late[T.late.length-1]} `+
-    `${T.nL}편(성공률 ${pc(T.baseL)}). 양쪽에 ${T.min}편 이상 있는 값만 봅니다.`));
-  m.append(el("div",{class:"note wa"},el("b",{},"성공률만 보면 안 됩니다. "),
-    `계정 전체가 ${pc(T.baseE)}에서 ${pc(T.baseL)}로 내려앉았습니다. 그래서 성공률이 떨어진 값도 `+
-    `계정보다 덜 떨어졌으면 「떠오름」입니다 — 아래 숫자는 <b>그 기간 기저와 견준 차이</b>입니다.`));
-
-  const 칸=(제목, 풀이, 목, 색)=>{
-    const c=el("div",{class:"card tight"},el("h3",{class:색},제목+" "+목.length),
-      el("p",{class:"dim sm2"},풀이));
-    if(!목.length){ c.append(el("p",{class:"dim"},"없습니다.")); return c; }
-    const t=el("table",{class:"tb"});
-    t.append(el("tr",{},el("th",{},"묶음"),el("th",{},"축"),el("th",{},"값"),
-      el("th",{class:"n"},"이전"),el("th",{class:"n"},"최근"),el("th",{class:"n"},"기저 대비 변화")));
-    목.forEach(r=>t.append(el("tr",{},
-      el("td",{class:"dim"},r.grp),el("td",{},r.ax),el("td",{},el("b",{},r.v)),
-      el("td",{class:"n"},`${r.wE}/${r.nE}`),
-      el("td",{class:"n"},r.nL?`${r.wL}/${r.nL}`:"안 씀"),
-      el("td",{class:"n "+(r.d>0?"g":r.d<0?"b":"")},r.d===null||r.d===undefined?"—":pp(r.d)))));
-    c.append(t); return c;
-  };
-  m.append(칸("떠오름","기저 대비가 10%p 넘게 올랐고 지금도 기저 위입니다. 지금 밀어볼 자리입니다.",T.up,"g"));
-  m.append(칸("지고 있음","기저 대비가 10%p 넘게 내렸습니다. 예전 성적만 보고 계속 쓰면 안 되는 자리입니다.",T.down,"b"));
-  m.append(칸("꾸준","두 기간 다 기저 위이고 크게 안 흔들렸습니다. 믿고 쓸 자리입니다.",T.keep,"g"));
-  m.append(칸("다시 해볼 것",
-    `이전에 기저보다 10%p 넘게 잘 됐는데 최근 ${T.win}달 동안 한 편도 안 썼습니다. 왜 안 쓰는지 볼 자리입니다.`,
-    T.retry,""));
-}
 
 /* ── 원고 제안 — 쓰는 차례대로 ────────────────────────────────────
    기준은 둘뿐이다. ①요즘도 기저 위이고 안 꺾인 것 ②예전에 잘됐는데 최근 창에
@@ -4272,7 +4236,31 @@ function 카드하나(제목, 줄들, 열쇠){
     }}, 다 ? "접기" : (줄들.length-볼것.length)+"줄 더 보기"));
   return c;
 }
+/* 문장 뱅크가 하던 일 — 값이든 문장이든 한 칸에서 찾는다.
+   원문이 이제 다 펴지니, 찾는 것만 있으면 뱅크를 따로 둘 이유가 없다. (2026-09-01) */
+window.PKQ = "";
+function pk찾기바(다시그리기){
+  const q=el("input",{type:"search",placeholder:"값·축·문장으로 찾기",
+    value:window.PKQ,style:"min-width:220px"});
+  let 짬=null;
+  q.addEventListener("input",()=>{clearTimeout(짬);
+    짬=setTimeout(()=>{window.PKQ=q.value;다시그리기();},220);});
+  const 지움=el("button",{class:"lnk ic",onclick:()=>{window.PKQ="";다시그리기();}},"지우기");
+  return el("div",{class:"bar"},q, window.PKQ?지움:null,
+    window.PKQ?el("span",{class:"dim sm2"},"찾은 것만 보입니다"):null);
+}
+function pk걸러(줄들){
+  const q=(window.PKQ||"").trim();
+  if(!q) return 줄들;
+  return 줄들.filter(r=>{
+    if((r.v||"").indexOf(q)>=0 || (r.ax||"").indexOf(q)>=0) return true;
+    const 온=pk온문장(r);
+    return (온||[]).some(o=>(o.t||"").indexOf(q)>=0 || (o.소재||"").indexOf(q)>=0);
+  });
+}
 function pk칸카드(이름, 줄들, 제목){
+  줄들 = pk걸러(줄들);
+  if(!줄들.length) return null;
   const 축들=[...new Set(줄들.map(r=>r.ax).filter(Boolean))];
   if(축들.length<=1) return 카드하나(제목||이름, 줄들, 이름);
   /* 축이 여럿이면 축마다 카드를 세운다. 제목이 곧 무엇을 재는 칸인지다. */
@@ -4756,6 +4744,7 @@ function viewPick(){
     onclick:()=>{window.PK=k;viewPick();}},k)));
   m.append(el("div",{class:"bar"},seg));
   m.append(pkWinBar(viewPick));
+  m.append(pk찾기바(viewPick));
   const RC=(PKT().pool&&PKT().pool.줄)?pkRecount(window.PKW):null;
   if(RC) m.append(el("p",{class:"dim sm2"},
     `최근 = 첫 라이브가 ${RC.부터} ~ ${RC.까지} 인 ${RC.nL}편(${pc(RC.baseL)}) · `+
@@ -4851,6 +4840,7 @@ function viewPick(){
         const rs=RC?pkSort(RC.줄.filter(r=>r.칸===이름)):[];
         if(!rs.length) return;
         const c=pk칸카드(이름, rs);
+        if(!c) return;
         c.insertBefore(el("p",{class:"note"},
           "소구를 가리지 않고 원고 전체를 놓고 센 것입니다 — "+
           `위의 「${고른.v}」와는 다른 층입니다.`), c.children[1]);
@@ -4870,13 +4860,13 @@ function viewPick(){
       칸이름.forEach(이름=>{
         const rs=pkSort(RC.줄.filter(r=>r.칸===이름));
         if(!rs.length) return;            // 빈 카드는 목차만 늘린다
-        안.append(pk칸카드(이름, rs));
+        {const _c=pk칸카드(이름, rs); if(_c) 안.append(_c);}
       });
     } else {
       S.filter(칸=>칸이름.indexOf(칸.칸)>=0).forEach(칸=>{
         const rs=(칸.이제||[]).concat(칸.다시||[]);
         if(!rs.length) return;
-        안.append(pk칸카드(칸.칸, rs));
+        {const _c=pk칸카드(칸.칸, rs); if(_c) 안.append(_c);}
       });
     }
   });
@@ -5437,7 +5427,7 @@ function viewPerf(){
   m.append(el("p",{class:"dim"},
     "이번 달은 아직 매출이 다 붙지 않았습니다 — 카페24 귀속이 며칠 걸립니다."));
 }
-const VIEWS={build:viewBuild,trend:viewTrend,pick:viewPick,deep:viewDeep,bank:viewBank,write:viewWrite,sogu:viewSogu,layer:viewLayer,home:viewHome,full:viewFull,code:viewCode,idea:viewPick,draft:viewDraft,
+const VIEWS={build:viewBuild,pick:viewPick,deep:viewDeep,write:viewWrite,sogu:viewSogu,layer:viewLayer,home:viewHome,full:viewFull,code:viewCode,idea:viewPick,draft:viewDraft,
   judge:viewJudge,drafts:viewDrafts,perf:viewPerf,place:viewPlace};
 document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()=>go(b.dataset.v)));
 function boot(data){
