@@ -3037,37 +3037,28 @@ function viewIdea(){
 
       const 고른=목록.filter(r=>r.v===window.IKG)[0], 쪽것=고른[쪽키]||{};
       const cv=쪽것.덮음;
-      const c2=el("div",{class:"card tight"},
-        el("h3",{},`${고른.v} — ${쪽키}으로 쓸 때 무엇으로 받칠까`));
+      const c2=el("div",{});
       if(cv&&cv.n) c2.append(el("div",{class:"note"+((cv.빈성수>0||cv.근n*2<cv.n)?" wa":"")},
         `최근 ${고른.v}을(를) ${쪽키}으로 쓴 ${cv.n}편 가운데 근거 줄이 달린 것은 ${cv.근n}편입니다.`));
-      const 근rs=(쪽것.근거||[]);
-      if(근rs.length) c2.append(pkTable(근rs,"근거","어느 칸"));
-      else c2.append(el("p",{class:"dim"},
-        `${고른.v}을(를) ${쪽키}으로 쓴 원고에서는 근거가 3편을 못 넘어 못 고릅니다.`));
       안.append(c2);
-
-      const 워rs=(쪽것.워딩||[]);
-      const c3=el("div",{class:"card tight"},
-        el("h3",{},`${고른.v} — ${쪽키}으로 쓸 때 어떻게 말할까`));
-      if(워rs.length) c3.append(pkTable(워rs,"워딩","어느 칸"));
-      else c3.append(el("p",{class:"dim"},
-        `${고른.v}을(를) ${쪽키}으로 쓴 원고에서는 워딩이 3편을 못 넘어 못 고릅니다.`));
-      안.append(c3);
+      /* 판정 원문과 같은 짜임 — 소구 아래는 문제 · 방식 · 근거 셋뿐이다.
+         종류(기전·수치·권위)는 근거 워딩에 이름표로 붙어 있으니 따로 세우지 않는다. */
+      [["문제","%s — 무엇이 문제라고 했나","이 소구로 무엇을 문제 삼았나"],
+       ["근거","%s — 무엇으로 받쳤나","실제로 쓴 근거 워딩. 대괄호는 그 워딩이 무슨 종류인지"],
+       ["방식","%s — 어떻게 말했나","같은 것을 어떤 결로 말했나"]].forEach(function(kv){
+        const rs=(쪽것[kv[0]]||[]);
+        const c=el("div",{class:"card tight"},
+          el("h3",{},kv[1].replace("%s",고른.v)),
+          el("p",{class:"note"},kv[2]));
+        if(rs.length) c.append(pkTable(rs,"워딩",""));
+        else c.append(el("p",{class:"dim"},
+          `${고른.v}을(를) ${쪽키}으로 쓴 원고에서는 여기에 쓸 만한 것이 2편을 못 넘습니다.`));
+        안.append(c);
+      });
 
       안.append(el("div",{class:"note"},
         "다른 소구가 궁금하면 위 표에서 소구를 누르세요. 「무엇으로 받칠까」와 "+
         "「어떻게 말할까」는 고른 소구를, 그것도 지금 고른 쪽으로 쓴 원고 안에서만 셉니다."));
-      /* 고른 소구에 딸린 칸 — 그 소구 것만 걸러 세운다 */
-      const 온줄=[]; A.forEach(z=>(z.줄||[]).forEach(r=>온줄.push(
-        Object.assign({칸:z.칸},r))));
-      (PK_TABS["본문"]||[]).forEach(이름=>{
-        const 걸=pk소구칸(온줄,이름,고른.v);
-        if(!걸||!걸.length) return;
-        안.append(el("div",{class:"card tight"},
-          el("h3",{},pk소구제목(이름,고른.v)),
-          pkTable(pkSort(걸).slice(0,14),"값","")));
-      });
       PK_전체칸.forEach(이름=>{
         const k=A.filter(z=>z.칸===이름)[0];
         const rs=(k&&k.줄)||[];
@@ -4190,8 +4181,7 @@ window.PK = "후킹"; window.PKS = "메인"; window.PKG = "";
 const PK_TABS = {
   "후킹": ["후킹 유형 — 무엇으로 열까", "후킹 — 어떻게 열까", "후킹 — 그 밖의 갈래"],
   "본문": ["소구 — 무엇을 말할까", "그 소구를 어떻게 말할까", "근거 — 무엇으로 받칠까",
-           "소구 × 근거 — 어느 소구를 무엇으로", "근거 — 통째로 보면",
-           "기전 — 왜 그렇게 되는지", "소구 — 그 안의 갈래", "소구 — 얼개"],
+           "근거 — 원고 전체로 보면", "소구 — 얼개"],
   "CTA": ["CTA — 어떻게 닫을까", "CTA — 갈래", "CTA — 그 밖의 갈래"],
   "영상 요소": ["영상 형식", "화자 — 누가 말할까", "구조", "그 밖"],
 };
@@ -4240,7 +4230,7 @@ const PK_소구칸 = {
   "소구 — 그 안의 갈래": (r, g) => (r.ax || "").indexOf(g) === 0,
 };
 /* 소구를 안 가리는 칸 — 원고 전체를 놓고 보는 것이라 소구 아래 두면 안 된다 */
-const PK_전체칸 = ["근거 — 통째로 보면", "소구 — 얼개"];
+const PK_전체칸 = ["근거 — 원고 전체로 보면", "소구 — 얼개"];
 
 function pk소구칸(줄들, 이름, 소구){
   const f = PK_소구칸[이름];
@@ -4258,7 +4248,7 @@ function pk내려가기(){
   /* 그린 다음 프레임에 자리가 잡힌다 — 바로 부르면 엉뚱한 데로 간다 */
   requestAnimationFrame(()=>{
     const h=[].slice.call(document.querySelectorAll("#main .card > h3"))
-      .filter(x=>/무엇으로 받칠까$/.test(x.textContent||""))[0];
+      .filter(x=>/무엇으로 받쳤나$/.test(x.textContent||""))[0];
     if(h) h.scrollIntoView({behavior:"smooth",block:"start"});
   });
 }
@@ -4752,8 +4742,7 @@ function viewPick(){
       안.append(c1);
 
       const 고른=목록.filter(r=>r.v===window.PKG)[0];
-      const c2=el("div",{class:"card tight"},
-        el("h3",{},`${고른.v} — ${쪽키}으로 쓸 때 무엇으로 받칠까`));
+      const c2=el("div",{});
       // 「근거가 다 기저 아래」와 「근거를 아예 안 달았다」는 다른 얘기다.
       // 뒤엣것은 코딩 구멍이라, 판정이 아니라 사람이 채워야 한다.
       const 쪽것=고른[쪽키]||{};
@@ -4771,31 +4760,25 @@ function viewPick(){
         }
         c2.append(p0);
       }
-      const 근rs=(쪽것.근거||고른.근거||[]);
-      if(근rs.length) c2.append(pkTable(근rs,"근거","어느 칸"));
-      else c2.append(el("p",{class:"dim"},
-        `${고른.v}을(를) ${쪽키}으로 쓴 원고에서는 근거가 2편을 못 넘어 못 고릅니다.`));
       안.append(c2);
-
-      const 워rs=(쪽것.워딩||[]);
-      const c3=el("div",{class:"card tight"},
-        el("h3",{},`${고른.v} — ${쪽키}으로 쓸 때 어떻게 말할까`));
-      if(워rs.length) c3.append(pkTable(워rs,"워딩","어느 칸"));
-      else c3.append(el("p",{class:"dim"},
-        `${고른.v}을(를) ${쪽키}으로 쓴 원고에서는 워딩이 2편을 못 넘어 못 고릅니다.`));
-      안.append(c3);
+      /* 판정 원문과 같은 짜임 — 소구 아래는 문제 · 방식 · 근거 셋뿐이다.
+         종류(기전·수치·권위)는 근거 워딩에 이름표로 붙어 있으니 따로 세우지 않는다. */
+      [["문제","%s — 무엇이 문제라고 했나","이 소구로 무엇을 문제 삼았나"],
+       ["근거","%s — 무엇으로 받쳤나","실제로 쓴 근거 워딩. 대괄호는 그 워딩이 무슨 종류인지"],
+       ["방식","%s — 어떻게 말했나","같은 것을 어떤 결로 말했나"]].forEach(function(kv){
+        const rs=(쪽것[kv[0]]||[]);
+        const c=el("div",{class:"card tight"},
+          el("h3",{},kv[1].replace("%s",고른.v)),
+          el("p",{class:"note"},kv[2]));
+        if(rs.length) c.append(pkTable(rs,"워딩",""));
+        else c.append(el("p",{class:"dim"},
+          `${고른.v}을(를) ${쪽키}으로 쓴 원고에서는 여기에 쓸 만한 것이 2편을 못 넘습니다.`));
+        안.append(c);
+      });
       안.append(el("div",{class:"note"},
         "다른 소구가 궁금하면 위 표에서 소구를 누르세요. 「무엇으로 받칠까」와 "+
         "「어떻게 말할까」는 고른 소구를, 그것도 지금 고른 쪽(메인/서브)으로 쓴 원고 "+
         "안에서만 셉니다 — 두 쪽은 원고가 겹치지 않아 같은 답이 나오면 안 됩니다."));
-      /* 고른 소구에 딸린 칸 — 그 소구 것만 걸러 세운다 */
-      (PK_TABS["본문"]||[]).forEach(이름=>{
-        const 걸=RC?pk소구칸(RC.줄,이름,고른.v):null;
-        if(!걸||!걸.length) return;
-        안.append(el("div",{class:"card tight"},
-          el("h3",{},pk소구제목(이름,고른.v)),
-          pkTable(pkSort(걸).slice(0,14),"값","")));
-      });
       /* 소구를 안 가리는 칸 — 원고 전체 기준이라 따로 세우고 그렇게 적는다 */
       PK_전체칸.forEach(이름=>{
         const rs=RC?pkSort(RC.줄.filter(r=>r.칸===이름)).slice(0,14):[];
