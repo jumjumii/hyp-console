@@ -3058,14 +3058,25 @@ function viewIdea(){
       안.append(el("div",{class:"note"},
         "다른 소구가 궁금하면 위 표에서 소구를 누르세요. 「무엇으로 받칠까」와 "+
         "「어떻게 말할까」는 고른 소구를, 그것도 지금 고른 쪽으로 쓴 원고 안에서만 셉니다."));
-      /* 본문 탭의 나머지 칸도 같이 세운다 — 전체 기간으로 센 것 */
-      (PK_TABS["본문"]||[]).filter(x=>
-        ["소구 — 무엇을 말할까","그 소구를 어떻게 말할까","근거 — 무엇으로 받칠까"]
-          .indexOf(x)<0).forEach(이름=>{
+      /* 고른 소구에 딸린 칸 — 그 소구 것만 걸러 세운다 */
+      const 온줄=[]; A.forEach(z=>(z.줄||[]).forEach(r=>온줄.push(
+        Object.assign({칸:z.칸},r))));
+      (PK_TABS["본문"]||[]).forEach(이름=>{
+        const 걸=pk소구칸(온줄,이름,고른.v);
+        if(!걸||!걸.length) return;
+        안.append(el("div",{class:"card tight"},
+          el("h3",{},pk소구제목(이름,고른.v)),
+          pkTable(pkSort(걸).slice(0,14),"값","")));
+      });
+      PK_전체칸.forEach(이름=>{
         const k=A.filter(z=>z.칸===이름)[0];
         const rs=(k&&k.줄)||[];
         if(!rs.length) return;
-        안.append(el("div",{class:"card tight"},el("h3",{},이름),pkTable(rs,"값","")));
+        안.append(el("div",{class:"card tight"},
+          el("h3",{},이름),
+          el("p",{class:"note"},"소구를 가리지 않고 원고 전체를 놓고 센 것입니다 — "+
+            `위의 「${고른.v}」와는 다른 층입니다.`),
+          pkTable(rs,"값","")));
       });
       const toc=pkToc(안);
       if(toc) m.append(el("div",{class:"pkgrid"},el("div",{},toc),안));
@@ -4182,7 +4193,7 @@ const PK_TABS = {
            "소구 × 근거 — 어느 소구를 무엇으로", "근거 — 통째로 보면",
            "기전 — 왜 그렇게 되는지", "소구 — 그 안의 갈래", "소구 — 얼개"],
   "CTA": ["CTA — 어떻게 닫을까", "CTA — 갈래", "CTA — 그 밖의 갈래"],
-  "영상 요소": ["영상 형식", "화자 — 누가 말할까", "구조", "운영", "그 밖"],
+  "영상 요소": ["영상 형식", "화자 — 누가 말할까", "구조", "그 밖"],
 };
 const PK_NOTE = {
   "후킹":"무엇으로 여는가. 3초를 여기서 잃습니다.",
@@ -4218,6 +4229,31 @@ function pkToc(host){
   return nav;
 }
 /* 목차를 왼쪽에 세우고 카드를 오른쪽에 둔다. 화면이 좁으면 목차가 위로 접힌다. */
+/* ══ 소구로 걸러내기 ═════════════════════════════════════════════════
+   ★상위에서 걸러진 것은 하위에서도 걸러져야 한다.
+     배터리를 고르면 그 아래는 배터리를 쓴 원고의 문장만 봐야 하는데,
+     걸러 주지 않아 통화품질 얘기가 같이 나왔다. 소구를 고른 뜻이 없어진다.
+     소구에 딸린 칸과, 소구를 안 가리는 칸을 갈라 둔다. (2026-09-01) */
+const PK_소구칸 = {
+  "소구 × 근거 — 어느 소구를 무엇으로": (r, g) => (r.v || "").indexOf(g + " × ") === 0,
+  "기전 — 왜 그렇게 되는지": (r, g) => (r.ax || "").indexOf(g) === 0,
+  "소구 — 그 안의 갈래": (r, g) => (r.ax || "").indexOf(g) === 0,
+};
+/* 소구를 안 가리는 칸 — 원고 전체를 놓고 보는 것이라 소구 아래 두면 안 된다 */
+const PK_전체칸 = ["근거 — 통째로 보면", "소구 — 얼개"];
+
+function pk소구칸(줄들, 이름, 소구){
+  const f = PK_소구칸[이름];
+  if(!f) return null;                       // 소구에 안 딸린 칸
+  return 줄들.filter(r => r.칸 === 이름 && f(r, 소구));
+}
+function pk소구제목(이름, 소구){
+  if(이름 === "소구 × 근거 — 어느 소구를 무엇으로") return 소구 + " — 어떤 종류의 근거로 받쳤나";
+  if(이름 === "기전 — 왜 그렇게 되는지") return 소구 + " — 왜 그렇게 되는지";
+  if(이름 === "소구 — 그 안의 갈래") return 소구 + " — 그 안의 갈래";
+  return 소구 + " — " + 이름;
+}
+
 function pk내려가기(){
   /* 그린 다음 프레임에 자리가 잡힌다 — 바로 부르면 엉뚱한 데로 간다 */
   requestAnimationFrame(()=>{
@@ -4752,13 +4788,23 @@ function viewPick(){
         "다른 소구가 궁금하면 위 표에서 소구를 누르세요. 「무엇으로 받칠까」와 "+
         "「어떻게 말할까」는 고른 소구를, 그것도 지금 고른 쪽(메인/서브)으로 쓴 원고 "+
         "안에서만 셉니다 — 두 쪽은 원고가 겹치지 않아 같은 답이 나오면 안 됩니다."));
-      /* 본문 탭의 나머지 칸(소구 × 근거·기전·얼개…)도 같이 세운다 */
-      (PK_TABS["본문"]||[]).filter(x=>
-        ["소구 — 무엇을 말할까","그 소구를 어떻게 말할까","근거 — 무엇으로 받칠까"]
-          .indexOf(x)<0).forEach(이름=>{
+      /* 고른 소구에 딸린 칸 — 그 소구 것만 걸러 세운다 */
+      (PK_TABS["본문"]||[]).forEach(이름=>{
+        const 걸=RC?pk소구칸(RC.줄,이름,고른.v):null;
+        if(!걸||!걸.length) return;
+        안.append(el("div",{class:"card tight"},
+          el("h3",{},pk소구제목(이름,고른.v)),
+          pkTable(pkSort(걸).slice(0,14),"값","")));
+      });
+      /* 소구를 안 가리는 칸 — 원고 전체 기준이라 따로 세우고 그렇게 적는다 */
+      PK_전체칸.forEach(이름=>{
         const rs=RC?pkSort(RC.줄.filter(r=>r.칸===이름)).slice(0,14):[];
         if(!rs.length) return;
-        안.append(el("div",{class:"card tight"},el("h3",{},이름),pkTable(rs,"값","")));
+        안.append(el("div",{class:"card tight"},
+          el("h3",{},이름),
+          el("p",{class:"note"},"소구를 가리지 않고 원고 전체를 놓고 센 것입니다 — "+
+            `위의 「${고른.v}」와는 다른 층입니다.`),
+          pkTable(rs,"값","")));
       });
       const toc=pkToc(안);
       if(toc) m.append(el("div",{class:"pkgrid"},el("div",{},toc),안));
