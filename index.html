@@ -664,7 +664,6 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
   <button data-v="full">판정 원문</button>
   <button data-v="code">코딩 검증</button>
   <button data-v="place">자리 검증</button>
-  <button data-v="judge">지표값 찾기</button>
   <div class="foot" id="navfoot"></div>
 </nav>
 <main id="main"></main>
@@ -1420,104 +1419,6 @@ const SG_WHAT = {
   메인:"「첫 소구」로 연 원고만. 대부분 귀건강·통화품질에 몰려 있어 값이 적습니다",
   서브:"쓰기는 했는데 첫 소구는 아니었던 원고"};
 
-function viewSogu(){
-  const m=$("#main");m.innerHTML="";
-  /* 목차에 없는 화면이다 — 「소구」에서만 들어온다. 들어왔는데 나갈 데가 없으면
-     목차를 다시 눌러 처음부터 가야 한다. */
-  m.append(el("div",{class:"bar",style:"margin:0 0 2px"},
-    el("button",{class:"lnk",onclick:()=>go("deep")},"← 소구로 돌아가기")));
-  m.append(el("p",{class:"eyebrow"},"트렌드와 가설"),el("h2",{},"소구 성과"),
-    el("p",{class:"lede"},
-      "위는 전지표 판정의 소구 표입니다. 아래는 같은 소구를 시간으로 편 것 — 월별 · 주별 16주 · 일별 14일. "+
-      "메인은 그 소구로 연 원고, 서브는 끼워 넣기만 한 원고입니다."));
-
-  const seg=el("div",{class:"cseg"});
-  ["전체","메인","서브"].forEach(k=>seg.append(el("button",{class:"csb"+(SG.side===k?" on":""),
-    onclick:()=>{SG.side=k;viewSogu();}},k)));
-  m.append(el("div",{class:"bar",style:"justify-content:space-between"},
-    el("span",{class:"dim"},SG_WHAT[SG.side]),
-    seg));
-
-  /* ① 판정 표 */
-  const ax=SG_AX[SG.side];
-  const cn=(D.sgn||{})[SG.side]||{};
-  /* 판정 행과 코딩 값을 합친다. 판정에 없는 값을 빼 두면 「메인 소구에 디자인이
-     없다」고 읽힌다 — 없는 게 아니라 판정에 걸릴 편수가 안 된 것이다. */
-  const jr={}; D.vals.filter(x=>x.ax===ax).forEach(x=>jr[x.v]=x);
-  const names=[...new Set([...Object.keys(jr), ...Object.keys(cn)])];
-  const rs=names.map(v=>jr[v] || {ax, v, n:0, w:0, rt:0, lf:0, sp:0, cod:cn[v]||0})
-    .map(x=>({...x, cod:cn[x.v]||0}))
-    .sort((a,b)=>(b.n-a.n)||(b.cod-a.cod));
-  const tb=el("div",{class:"lytab"});
-  tb.append(el("div",{class:"sgr lyhd"},
-    el("span",{},"판정"),el("span",{},"소구"),el("span",{},"성공률"),
-    el("span",{},"성공/편수"),el("span",{title:`기저 ${pc(D.base)} 대비`},"기저 대비"),
-    el("span",{},"지출"),
-    el("span",{},"")));
-  rs.forEach(x=>{
-    const mk = x.n ? wrMark(x) : {t:"판정 밖", c:"none"};
-    if(!x.n){
-      tb.append(el("div",{class:"sgr"},
-        el("span",{class:"mk none",title:"판정된 원고가 없습니다"},"판정 밖"),
-        el("span",{class:"lyv",title:x.v},x.v),
-        el("span",{class:"dim"},"—"),el("span",{class:"dim"},"—"),el("span",{class:"dim"},"—"),
-        el("span",{class:"lyn dim"},`${x.cod}편 씀`),
-        el("span",{})));
-      return;
-    }
-    tb.append(el("div",{class:"sgr"},
-      el("span",{class:"mk "+mk.c},mk.t),
-      el("span",{class:"lyv",title:x.v},x.v),
-      el("span",{class:"lyb"},
-        el("i",{style:`width:${Math.max(2,Math.min(100,x.rt*100))}%;background:${x.rt>=D.base?"var(--ok)":"var(--no)"}`}),
-        el("u",{style:`left:${D.base*100}%`,title:`기저 ${pc(D.base)}`})),
-      el("span",{class:"lyn"},el("b",{},pc(x.rt)),el("span",{class:"dim"},` ${x.w}/${x.n}편`)),
-      el("span",{class:"lyd "+(x.lf>=0?"g":"b")},pp(x.lf)),
-      el("span",{class:"lyn dim"},man(x.sp)),
-      el("button",{class:"lnk ic",onclick:()=>lyGo(ax,x.v)},"가설")));
-  });
-  m.append(el("div",{class:"bar",style:"justify-content:space-between;align-items:baseline"},
-    el("h3",{style:"margin:0"},`① 판정 — ${ax}`),
-    el("span",{class:"dim"},`${rs.length}개 · 판정된 것 ${rs.filter(x=>x.n).length}개`)),tb);
-
-  /* ② 시간 */
-  const ser=(((D.sgts||{})[SG.grain])||{})[SG.side]||[];
-  const gseg=el("div",{class:"cseg"});
-  [["월","월별"],["주","주별 16주"],["일","일별 14일"]].forEach(([k,t])=>
-    gseg.append(el("button",{class:"csb"+(SG.grain===k?" on":""),
-      onclick:()=>{SG.grain=k;viewSogu();}},t)));
-  m.append(el("div",{class:"bar",style:"justify-content:space-between;margin-top:16px"},
-    el("h3",{style:"margin:0"},"② 시간으로 어떻게 갔나"),gseg));
-  if(!ser.length){m.append(el("p",{class:"dim"},"그릴 것이 없습니다."));return;}
-  const sk=SG.grain+SG.side;
-  let sel=SG.sel[sk];
-  if(!sel) sel=SG.sel[sk]=ser.slice(0,4).map(x=>x.v);
-  sel=SG.sel[sk]=sel.filter(v=>ser.some(x=>x.v===v));
-  if(!sel.length) ser.slice(0,3).forEach(x=>sel.push(x.v));
-  const chips=el("div",{class:"cmet"});
-  ser.forEach((x,i)=>{
-    const on=sel.includes(x.v);
-    chips.append(el("button",{class:"cmb"+(on?" on":""),
-      style:`--mc:${sgColor(i)}`,
-      title:`원고 ${x.n}편 · 지출 ${man(x.sp)} · 누적 ROAS ${x.roas.toFixed(2)}`,
-      onclick:()=>{
-        const a=SG.sel[sk];
-        const j=a.indexOf(x.v); if(j>=0)a.splice(j,1); else a.push(x.v);
-        viewSogu();}},
-      x.v, el("span",{class:"dim"},` ${x.n}`)));
-  });
-  m.append(el("p",{class:"dim",style:"margin:6px 0 4px"},
-    `소구를 눌러 겹쳐 보세요. 지출이 너무 적은 칸은 뺐습니다 — 숫자가 튑니다`+
-    `(월 30만원 · 주 10만원 · 일 3만원 미만).`),chips);
-
-  const mets=[["roas","직접 ROAS"],["sp","지출"],["nt","매출"],["cpa","직접 CPA"],["od","주문"]];
-  const mseg=el("div",{class:"cseg"});
-  mets.forEach(([k,t])=>mseg.append(el("button",{class:"csb"+(SG.met===k?" on":""),
-    onclick:()=>{SG.met=k;viewSogu();}},t)));
-  m.append(el("div",{class:"bar",style:"justify-content:flex-end"},mseg));
-  m.append(multiChart(ser.filter(x=>sel.includes(x.v))
-    .map(x=>({name:x.v, color:sgColor(ser.findIndex(y=>y.v===x.v)), pts:x.pts})), SG.met));
-}
 const SG_COLORS=["#4f7fff","#22c55e","#f59e0b","#ef4444","#a78bfa","#14b8a6","#ec4899","#84cc16",
                  "#0ea5e9","#f97316","#8b5cf6","#06b6d4"];
 const sgColor = i => SG_COLORS[i % SG_COLORS.length];
@@ -2044,173 +1945,6 @@ function dpRecent(ts, n){
 }
 const dpNum = o => o ? `ROAS ${o.roas.toFixed(2)} · ${man(o.sp)} · ${o.d}편` : "돈이 안 갔습니다";
 
-function viewDeep(){
-  const m=$("#main");m.innerHTML="";
-  const sgs=D.vals.filter(x=>x.ax==="소구"&&x.n>=8).sort((a,b)=>b.n-a.n);
-  if(!DP.v && sgs.length) DP.v=sgs[0].v;
-  m.append(el("p",{class:"eyebrow"},"트렌드와 가설"),el("h2",{},"소구"),
-    el("p",{class:"lede"},
-      "소구 하나에 세 가지를 묻습니다 — ① 지금 쓸 것인가 ② 메인으로 열까 서브로 넣을까 "+
-      "③ 그 안에서 무엇으로 밀까. 답이 나오면 아래에서 바로 원고를 쓰러 갑니다."));
-
-  const bar=el("div",{class:"lypick"});
-  sgs.forEach(x=>{
-    const r=dpRecent(x.ts||dpTs("소구",x.v),4);
-    bar.append(el("button",{class:"qb"+(DP.v===x.v?" on":""),
-      onclick:()=>{DP.v=x.v;DP.open=null;viewDeep();}},
-      el("b",{},x.v),
-      el("span",{class:x.rt>=D.base?"g":"b"},` ${pc(x.rt)}`),
-      el("span",{class:"dim"},r?` · ${r.roas.toFixed(2)}`:" · —")));
-  });
-  m.append(bar);
-
-  const S=DP.v; if(!S){m.append(el("p",{class:"dim"},"셀 만한 소구가 없습니다."));return;}
-  const A=D.vals.find(x=>x.ax==="소구"&&x.v===S);
-  const ts=dpTs("소구",S);
-
-  /* 머리 — 누적과 지금 */
-  const r4=dpRecent(ts,4), r1=dpRecent(ts,1), r12=dpRecent(ts,12);
-  m.append(el("div",{class:"dpsum"},
-    el("div",{},el("p",{class:"dpk"},"누적 성공률"),
-      el("p",{class:"dpv "+(A.lf>=0?"g":"b")},pc(A.rt)),
-      el("p",{class:"dim sm2"},`${A.w}/${A.n}편 · 기저 ${pc(D.base)}보다 ${pp(A.lf)}`)),
-    el("div",{},el("p",{class:"dpk"},"이번 주"),
-      el("p",{class:"dpv "+(r1&&r1.sp>=DP_FLOOR?(r1.roas>=D.cut?"g":"b"):"dim")},
-        !r1?"—":r1.sp<DP_FLOOR?"적음":r1.roas.toFixed(2)),
-      el("p",{class:"dim sm2"},r1?`${man(r1.sp)} · ${r1.d}편`+(r1.sp<DP_FLOOR?` · ${man(DP_FLOOR)}이 안 돼 숫자가 튑니다`:""):"돈이 안 갔습니다")),
-    el("div",{},el("p",{class:"dpk"},"최근 4주"),
-      el("p",{class:"dpv "+(r4&&r4.roas>=D.cut?"g":"b")},r4?r4.roas.toFixed(2):"—"),
-      el("p",{class:"dim sm2"},r4?`${man(r4.sp)} · ${r4.d}편`:"—")),
-    el("div",{},el("p",{class:"dpk"},"최근 12주"),
-      el("p",{class:"dpv "+(r12&&r12.roas>=D.cut?"g":"b")},r12?r12.roas.toFixed(2):"—"),
-      el("p",{class:"dim sm2"},r12?`${man(r12.sp)} · ${r12.d}편`:"—"))));
-  m.append(el("p",{class:"lysay"},dpSay(A, r4, r12)));
-  /* 가설 셋의 결론 한 줄 — 「어디서 갈리나」가 하던 말을 여기로 가져온다 */
-  const H=hyp3("소구",S);
-  if(H) m.append(el("p",{class:"h3up"},
-    el("b",{},"어디까지 정해서 써야 하나 — "),H.upto,
-    el("button",{class:"lnk ic",style:"margin-left:8px",
-      onclick:()=>lyGo("소구",S)},"가설 셋 보기 →")));
-
-  /* ② 메인으로 열까 서브로 넣을까 */
-  const F=D.vals.find(x=>x.ax==="첫 소구"&&x.v===S);
-  if(F && F.n>=4){
-    const d=F.rt-A.rt;
-    m.append(el("div",{class:"note"+(d>=0.10?" ok":"")},
-      el("b",{},"메인으로 열까 서브로 넣을까. "),
-      `넣기만 하면 ${pc(A.rt)}(${A.w}/${A.n}편) · 첫 소구로 열면 ${pc(F.rt)}(${F.w}/${F.n}편) — `,
-      el("b",{class:d>=0?"g":"b"},pp(d)),
-      el("span",{},d>=0.10?" 메인으로 여세요."
-        :d<=-0.10?" 서브로 끼워 넣으세요 — 열면 오히려 떨어집니다."
-        :" 어느 쪽이든 비슷합니다.")));
-  } else {
-    m.append(el("div",{class:"note"},
-      el("b",{},"메인으로 연 원고가 "),`${F?F.n:0}편뿐이라 메인·서브를 견줄 수 없습니다. `,
-      "지금은 서브로만 쓰이고 있다는 뜻이기도 합니다."));
-  }
-
-  /* 그림 */
-  const gseg=el("div",{class:"cseg"});
-  [["주","주별 16주"],["일","일별 14일"]].forEach(([k,t])=>
-    gseg.append(el("button",{class:"csb"+(DP.grain===k?" on":""),
-      onclick:()=>{DP.grain=k;viewDeep();}},t)));
-  const mseg=el("div",{class:"cseg"});
-  [["roas","직접 ROAS"],["sp","지출"],["cpa","직접 CPA"],["od","주문"]].forEach(([k,t])=>
-    mseg.append(el("button",{class:"csb"+(DP.met===k?" on":""),
-      onclick:()=>{DP.met=k;viewDeep();}},t)));
-  m.append(el("div",{class:"bar",style:"justify-content:space-between;margin-top:14px"},gseg,mseg));
-  m.append(multiChart([{name:S, color:"#4f7fff", pts:dpSeries(ts,DP.grain)}], DP.met));
-
-  /* 갈래마다 — 누적과 지금을 나란히 */
-  m.append(el("h3",{},"그 안에서 무엇이 되고 있나"),
-    el("p",{class:"dim sm2",style:"margin:-4px 0 6px"},
-      "성공률은 판정이 닫힌 원고, ROAS는 최근 4주에 돈이 간 원고입니다. 편수가 다를 수 있습니다."));
-  const brs=h3Branches("소구",S)||[];
-  if(!brs.length) m.append(el("p",{class:"dim"},"이 소구 아래로 갈라 볼 것이 판정에 없습니다."));
-  else {
-    /* 갈래에 최근 돈이 얼마나 갔나 — 대부분 비어 있으면 그 사실부터 말한다.
-       갈래는 판정이 닫힌(=오래된) 원고에만 붙어 있고, 지금 도는 소재는 아직
-       판정 밖이라 「최근 4주」 칸이 비는 것이 정상이다. 빈 칸을 조용히 두면
-       「요즘 안 된다」로 잘못 읽힌다. */
-    const all=brs.flatMap(b=>b.vs);
-    const live=all.filter(r=>dpRecent(r.ts,4));
-    m.append(el("div",{class:"note"+(live.length?"":" wa")},
-      el("b",{},`갈래 ${all.length}개 중 최근 4주에 돈이 간 것은 ${live.length}개. `),
-      live.length
-        ? `나머지는 그 값을 쓴 원고가 요즘 안 돌아서 「—」입니다 — 안 되는 것이 아니라 안 쓴 것입니다.`
-        : `이 소구는 요즘 돈이 안 갑니다. 아래 성공률은 지난 기록입니다.`));
-  }
-  brs.forEach(b=>{
-    m.append(el("p",{class:"bdsg"},el("b",{},b.name),
-      el("span",{class:"dim"},` — ${b.vs.length}개`)));
-    const tb=el("div",{class:"lytab"});
-    tb.append(el("div",{class:"dpr lyhd"},
-      el("span",{},"판정"),el("span",{},"어떻게 썼나"),
-      el("span",{title:"판정이 닫힌 원고의 성공률"},"누적 성공률"),
-      el("span",{},"기저 대비"),
-      el("span",{title:"최근 4주에 그 값을 쓴 원고의 직접 ROAS"},"최근 4주"),
-      el("span",{},"지출"),el("span",{},"")));
-    b.vs.slice().sort((x,y)=>y.rt-x.rt).forEach(r=>{
-      const mk=wrMark({...r, ban:false});
-      const rr=dpRecent(r.ts,4);
-      const on=DP.open===r.ax+"｜"+r.v;
-      tb.append(el("div",{class:"dpr"+(on?" on":"")},
-        el("span",{class:"mk "+mk.c},mk.t),
-        el("span",{class:"lyv",title:r.v},r.disp||r.v),
-        el("span",{class:"lyn"},el("b",{},pc(r.rt)),el("span",{class:"dim"},` ${r.w}/${r.n}편`)),
-        el("span",{class:"lyd "+(r.lf>=0?"g":"b")},pp(r.lf)),
-        el("span",{class:"lyn",title:rr?`최근 4주 지출 ${man(rr.sp)}`:""},
-          !rr ? el("span",{class:"dim"},"—")
-          : rr.sp < DP_FLOOR ? el("span",{class:"dim"},"적음")
-          : el("b",{class:rr.roas>=D.cut?"g":"b"},rr.roas.toFixed(2)),
-          el("span",{class:"dim"},rr?` ${rr.d}편`:"")),
-        el("span",{class:"lyn dim"},rr?man(rr.sp):"—"),
-        el("button",{class:"lnk ic",onclick:()=>{
-          DP.open=on?null:r.ax+"｜"+r.v; viewDeep();}}, on?"접기":"펴기")));
-      if(on){
-        const in2=el("div",{class:"h3in"});
-        const pts=dpSeries(r.ts,DP.grain);
-        if(pts.length) in2.append(multiChart([{name:r.v, color:"#22c55e", pts}], DP.met));
-        else in2.append(el("p",{class:"dim sm2"},"최근에 이 값으로 돈이 간 소재가 없습니다."));
-        Object.entries(r.ev||{}).slice(0,3).forEach(([t,lines])=>{
-          const ok=DR[t]&&DR[t].st==="성공";
-          in2.append(el("p",{class:"wrs"},
-            el("button",{class:"lnk "+(ok?"g":"b"),onclick:()=>openDraft(t)},t),
-            el("span",{class:"wrq"},` “${lines[0]}”`)));
-        });
-        tb.append(in2);
-      }
-    });
-    m.append(tb);
-  });
-
-  /* ③ 그래서 할 일 */
-  const use=brs.flatMap(b=>b.vs).filter(r=>r.split&&r.n>=5&&r.lf>=0.15)
-    .sort((a,b)=>b.lf-a.lf).slice(0,3);
-  const cut=brs.flatMap(b=>b.vs).filter(r=>(r.n>=5&&r.w===0)).slice(0,3);
-  const box=el("div",{class:"todo"});
-  box.append(el("p",{class:"todoh"},el("b",{},`${S} — 그래서 쓴다면`)));
-  if(use.length) box.append(el("p",{class:"todor"},
-    el("span",{class:"mk yes"},"넣을 것"), " ",
-    ...use.map((r,i)=>el("span",{},(i?" · ":""),
-      el("b",{},r.disp||r.v), el("span",{class:"dim"},` ${pc(r.rt)}`)))));
-  if(cut.length) box.append(el("p",{class:"todor"},
-    el("span",{class:"mk no"},"뺄 것"), " ",
-    ...cut.map((r,i)=>el("span",{},(i?" · ":""),
-      el("b",{},r.disp||r.v), el("span",{class:"dim"},` ${r.n}편 다 실패`)))));
-  box.append(el("div",{class:"bar",style:"margin:8px 0 0"},
-    el("button",{class:"btn",onclick:()=>{
-      BD.main=S; BD.mech=use.map(r=>({ax:r.ax,v:r.v,rt:r.rt,n:r.n,lf:r.lf,sg:S,ev:r.ev}));
-      BD.step=2; go("build");}},`${S}로 원고 쓰기 →`),
-    el("button",{class:"btn2",onclick:()=>{
-      if(!PICK.some(p=>p.ax==="소구"&&p.v===S))
-        PICK.push({ax:"소구",v:S,rt:A.rt,n:A.n,lf:A.lf,ban:A.lf<0});
-      use.forEach(r=>{ if(!PICK.some(p=>p.ax===r.ax&&p.v===r.v))
-        PICK.push({ax:r.ax,v:r.v,rt:r.rt,n:r.n,lf:r.lf,ban:false}); });
-      go("idea");}},`가설로 담기 (${1+use.length}개)`),
-    el("button",{class:"btn2",onclick:()=>{SG.side="전체";SG.sel={};go("sogu");}},"시간으로 더 보기 →")));
-  m.append(box);
-}
 
 /* 그 값을 쓴 원고 — 판정 rows에서 */
 function dpTs(ax,v){
@@ -2845,7 +2579,6 @@ const lyPick = (ax,v,x,neg) => {
     else PICK.push({ax,v,rt:x.rt,n:x.n,lf:x.lf,ban:!!neg});
     viewLayer();}}, on?"담음":"담기");
 };
-function lyGo(ax,v){ LY.ax=ax; LY.v=v; LY.open=null; go("layer"); }
 
 /* 가설 한 칸 */
 function lyCard(no, h, body){
@@ -2861,123 +2594,6 @@ function lyCard(no, h, body){
   return c;
 }
 
-function viewLayer(){
-  const m=$("#main");m.innerHTML="";
-  /* 목차에 없는 화면이다 — 가설 제안 줄이나 소구에서 들어온다. */
-  m.append(el("div",{class:"bar",style:"margin:0 0 2px"},
-    el("button",{class:"lnk",onclick:()=>go("idea")},"← 가설 제안으로"),
-    el("button",{class:"lnk",onclick:()=>go("deep")},"소구로")));
-  m.append(el("p",{class:"eyebrow"},"트렌드와 가설"),el("h2",{},"어디서 갈리나"),
-    el("p",{class:"lede"},
-      "값 하나를 고르면 가설이 셋 섭니다 — ① 이 값 자체가 되는가 ② 그 안에서 갈래가 중요한가 "+
-      "③ 갈래를 정한 뒤에도 워딩이 중요한가. 어디까지 성립하느냐가 곧 「원고를 쓸 때 어디까지 정해야 하나」입니다."));
-
-  /* 고르기 — 갈래가 달린 값을 먼저, 그다음 묶음별로 */
-  const all=hyp3All();
-  const deep=all.filter(h=>h.h2.kind==="갈래").sort((a,b)=>b.row.n-a.row.n);
-  if(!LY.v){const d=deep[0]||all[0]; if(d){LY.ax=d.ax;LY.v=d.v;}}
-  const bar=el("div",{class:"lypick"});
-  deep.forEach(h=>bar.append(el("button",{class:"qb"+(LY.v===h.v&&LY.ax===h.ax?" on":""),
-    onclick:()=>lyGo(h.ax,h.v)},
-    el("b",{},h.v), el("span",{class:h.row.rt>=D.base?"g":"b"},` ${pc(h.row.rt)}`),
-    el("span",{class:"dim"},` ${h.row.n}편`))));
-  m.append(el("p",{class:"dim",style:"margin:8px 0 3px"},"갈래가 달린 값"),bar);
-
-  const other=el("div",{class:"bar"});
-  const gsel=el("select",{});
-  gsel.append(el("option",{value:""},"다른 묶음에서 고르기"));
-  [...new Set(all.map(h=>h.grp).filter(Boolean))].forEach(g=>gsel.append(el("option",{value:g},g)));
-  const vsel=el("select",{style:"min-width:230px"});
-  const fillv=()=>{vsel.innerHTML="";
-    all.filter(h=>h.grp===gsel.value).sort((a,b)=>b.row.n-a.row.n)
-      .forEach(h=>vsel.append(el("option",{value:h.ax+""+h.v},
-        `${h.v} — ${h.ax} · ${h.row.w}/${h.row.n}편 ${pc(h.row.rt)}`)));};
-  gsel.addEventListener("change",()=>{fillv(); if(vsel.value){const[a,v]=vsel.value.split("");lyGo(a,v);}});
-  vsel.addEventListener("change",()=>{const[a,v]=vsel.value.split("");lyGo(a,v);});
-  other.append(gsel,vsel);
-  m.append(other);
-
-  const H=hyp3(LY.ax,LY.v);
-  if(!H){m.append(el("p",{class:"dim"},"고른 값의 판정이 없습니다."));return;}
-  const R=H.row;
-
-  m.append(el("div",{class:"lytop"},
-    el("p",{class:"lybig"},el("b",{},H.v),
-      el("span",{class:"dim"},` · ${H.ax}`),
-      " — ", el("span",{class:R.lf>=0?"g":"b"},`${R.w}/${R.n}편 ${pc(R.rt)}`),
-      el("span",{class:"dim"},` · 기저 ${pc(D.base)}보다 `),el("span",{class:R.lf>=0?"g":"b"},pp(R.lf)),
-      lyPick(H.ax,H.v,R,R.lf<0)),
-    el("p",{class:"h3up"},el("b",{},"어디까지 정해서 써야 하나 — "),H.upto)));
-
-  /* 가설1 */
-  m.append(lyCard(1,H.h1));
-
-  /* 가설2 — 갈래(또는 칸)를 표로 */
-  let b2=null;
-  if(H.h2.list.length>=2){
-    const tb=el("div",{class:"lytab"});
-    tb.append(el("div",{class:"lyr2 lyhd"},
-      el("span",{},H.h2.kind==="갈래"?"갈래":"이 칸의 값"),
-      el("span",{},"성공률"),el("span",{},"성공/편수"),el("span",{},"기저 대비"),el("span",{},"")));
-    H.h2.list.forEach(b=>{
-      const nm=H.h2.kind==="갈래"?b.br:b.v;
-      const one=H.h2.kind==="갈래"&&b.one;
-      const lf=b.rt-D.base;
-      tb.append(el("div",{class:"lyr2"},
-        el("span",{class:"lyv",title:one?`${b.a} — 값이 이것 하나뿐입니다`:nm},
-          nm, one?el("span",{class:"dim wone"}," · 워딩 하나"):null),
-        lyBar(b.rt),
-        el("span",{class:"lyn"},el("b",{},pc(b.rt)),el("span",{class:"dim"},` ${b.w}/${b.n}편`)),
-        el("span",{class:"lyd "+(lf>=0?"g":"b")},pp(lf)),
-        H.h2.kind!=="갈래" ? lyPick(H.ax,b.v,b,lf<0)
-        : one ? lyPick(b.a,b.vs[0].v,b.vs[0],b.vs[0].lf<0)
-        : el("button",{class:"lnk ic",onclick:()=>{LY.open=(LY.open===b.a?null:b.a);viewLayer();}},
-            LY.open===b.a?"접기":"워딩")));
-      if(H.h2.kind==="갈래" && !one && LY.open===b.a){
-        const rs=h3Vals(b.a).sort((x,y)=>y.rt-x.rt);
-        const in2=el("div",{class:"h3in"});
-        rs.forEach(r=>{
-          in2.append(el("div",{class:"lyr2"},
-            el("span",{class:"lyv",title:r.v},r.disp||r.v), lyBar(r.rt),
-            el("span",{class:"lyn"},el("b",{},pc(r.rt)),el("span",{class:"dim"},` ${r.w}/${r.n}편`)),
-            el("span",{class:"lyd "+(r.lf>=0?"g":"b")},pp(r.lf)),
-            lyPick(b.a,r.v,r,r.lf<0)));
-          const t0=Object.keys(r.ev||{})[0];
-          if(t0) in2.append(el("p",{class:"wrs"},
-            el("span",{class:"dim"},t0+" "),el("span",{class:"wrq"},`“${r.ev[t0][0]}”`)));
-        });
-        tb.append(in2);
-      }
-    });
-    b2=tb;
-  }
-  m.append(lyCard(2,H.h2,b2));
-
-  /* 가설3 — 갈래 안 워딩이 벌어지는 곳 */
-  let b3=null;
-  if(H.h3.list.length){
-    const tb=el("div",{class:"lytab"});
-    tb.append(el("div",{class:"lyr3 lyhd"},
-      el("span",{},"갈래"),el("span",{},"제일 나은 워딩"),el("span",{},"제일 낮은 워딩"),
-      el("span",{},"벌어짐"),el("span",{},"")));
-    H.h3.list.forEach(e=>{
-      const hi=e.rs[0], lo=e.rs[e.rs.length-1];
-      tb.append(el("div",{class:"lyr3"},
-        el("span",{class:"lybr dim",title:e.a},e.br),
-        el("span",{class:"lyv",title:hi.v},`${hi.disp||hi.v} ${pc(hi.rt)}`),
-        el("span",{class:"lyv dim",title:lo.v},`${lo.disp||lo.v} ${pc(lo.rt)}`),
-        el("span",{class:e.spread>=H3_STEP?"g":"dim"},pp(e.spread)),
-        el("span",{class:"mk "+(e.spread>=H3_STEP?"yes":"none")},
-          e.spread>=H3_STEP?"갈림":"안 갈림")));
-    });
-    b3=tb;
-  }
-  m.append(lyCard(3,H.h3,b3));
-
-  m.append(el("div",{class:"bar",style:"margin-top:12px"},
-    el("button",{class:"btn",onclick:()=>go("idea")},`담은 가설 보기 (${PICK.length}) →`),
-    el("button",{class:"btn2",onclick:()=>{if(!NX.pick)nxRoll(false);go("next");}},"원고 짜러 가기 →")));
-}
 /* ══ 가설 제안 — 전체 기간 ═══════════════════════════════════════════
    원고 제안과 같은 표·같은 펼침을 쓴다. 다른 것은 기간뿐이다 —
    저쪽은 두 달로 잘라 「요즘 되나」를 보고, 이쪽은 자르지 않고 판정 전체를 본다.
@@ -4271,6 +3887,9 @@ function pk칸카드(이름, 줄들, 제목){
       .forEach(([a,rs])=>통.append(카드하나(a, rs, 이름+"｜"+a)));
   return 통;
 }
+/* 「어디서 갈리나」를 접으면서, 그리로 보내던 단추가 남았다.
+   그 값을 원고 제안에서 찾아 주는 것으로 바꾼다 — 죽은 단추를 두지 않는다. */
+function lyGo(ax, v){ window.PKQ = v; window.PK = "본문"; go("pick"); }
 function pk내려가기(){
   /* 그린 다음 프레임에 자리가 잡힌다 — 바로 부르면 엉뚱한 데로 간다 */
   requestAnimationFrame(()=>{
@@ -4558,9 +4177,15 @@ const pkDet=(r)=>{
                       rt:(r.nL?r.wL/r.nL:0),n:(r.nL||r.nE||0)});
       bb.textContent=담김()?"담음":"담기";});
     d.append(el("div",{class:"bar",style:"margin:8px 0 0"}, bb,
-      r.axr?el("button",{class:"btn2",onclick:()=>lyGo(r.axr,r.v)},"이 값만 크게 보기 →"):null,
       el("button",{class:"btn2",onclick:()=>{
         DFT={name:"",items:[],hyp:{ax:축,v:r.v,ban:false}};go("draft");}},"넣고 써보기 →")));
+  }
+  /* 「어디서 갈리나」가 내던 결론 — 이 값까지만 정하면 되나, 갈래까지 가야 하나,
+     워딩까지 골라야 하나. 다른 데 없는 말이라 여기로 옮겨 왔다. (2026-09-01) */
+  if(r.axr){
+    const H=hyp3(r.axr,r.v);
+    if(H&&H.upto) d.insertBefore(el("p",{class:"h3up"},
+      el("b",{},"어디까지 정해서 써야 하나 — "),H.upto), d.firstChild);
   }
   const brs=(r.axr?h3Branches(r.axr,r.v):null)||[];
   if(brs.length){
@@ -4875,44 +4500,6 @@ function viewPick(){
     "「빼세요」에 걸린 것은 「원고 검증」에서 원고를 넣으면 따로 짚어 줍니다."));
 }
 
-function viewJudge(){
-  const m=$("#main");m.innerHTML="";
-  m.append(el("p",{class:"eyebrow"},"전지표 판정"),el("h2",{},"지표값 찾기"),
-    el("p",{class:"lede"},`전지표 판정의 지표값 ${D.vals.length}개를 축·편수로 찾아보는 곳입니다. 기저율 ${pc(D.base)}에서 얼마나 움직이는지. `+
-      `줄을 누르면 그 값을 쓴 원고가 실제로 뭐라고 썼는지 오른쪽에 펼쳐집니다.`));
-  const solid=D.vals.filter(v=>v.split&&v.n>=5),thin=D.vals.filter(v=>v.split&&v.n<5);
-  const near=[];
-  const und=D.vals.length-solid.length-thin.length;
-  m.append(el("div",{class:"kpi"},
-    el("div",{},el("b",{},String(und)),el("span",{},`구분 안 됨 (${pc(und/D.vals.length)})`)),
-    el("div",{},el("b",{class:"g"},String(solid.length)),el("span",{},"갈림 · 5편 이상")),
-    el("div",{},el("b",{},String(thin.length)),el("span",{},"갈림 · 표본 부족")),
-    
-    el("div",{},el("b",{},String(D.vals.length)),el("span",{},"지표값 전체"))));
-  m.append(el("div",{class:"note wa"},el("b",{},"개별 지표값은 시간을 못 넘습니다. "),
-    "앞 기간에서 채택된 값이 뒤 기간에도 기저 이상인 비율은 37~50%였습니다. "+
-    "여기 숫자는 지금까지의 기록이지 다음 달의 예측이 아닙니다."));
-  const axSel=el("select",{},el("option",{value:""},"축 전체"),
-    ...[...new Set(D.vals.map(v=>v.ax))].sort().map(a=>el("option",{value:a},a)));
-  const minIn=el("input",{type:"number",value:"5",min:"1",style:"width:64px"});
-  const q=el("input",{type:"search",placeholder:"값 검색",style:"width:150px"});
-  m.append(el("div",{class:"bar"},axSel,"최소 편수",minIn,q));
-  const host=el("div");m.append(host);
-  const two=el("div",{class:"two"}),L2=el("div"),R2=el("div");two.append(L2,R2);m.append(two);
-  const render=()=>{let rs=D.vals.filter(v=>v.n>=(+minIn.value||1));
-    if(axSel.value)rs=rs.filter(v=>v.ax===axSel.value);
-    if(q.value.trim())rs=rs.filter(v=>(v.v+" "+v.ax).includes(q.value.trim()));
-    L2.innerHTML="";L2.append(table([
-      {h:"축",l:1,k:r=>r.ax,c:r=>el("span",{class:"dim"},r.ax)},
-      {h:"값",l:1,k:r=>r.v,c:r=>r.split?el("b",{},r.v):r.v},
-      {h:"편",k:r=>r.n},{h:"성공",k:r=>r.w},
-      {h:"성공률",k:r=>r.rt,c:r=>el("span",{class:r.rt>=D.base?"g":"b"},pc(r.rt))},
-      {h:"기저대비",k:r=>r.lf,c:r=>el("span",{class:r.lf>0?"g":"b"},pp(r.lf))},
-      {h:"판정",k:r=>r.split?1:0,c:r=>el("span",{class:"pill "+(r.split?"p-ok":"p-dim")},r.split?"갈림":"구분 안 됨")},
-      {h:"지출",k:r=>r.sp,c:r=>man(r.sp)}],rs,{sort:5,onrow:v=>showVal(v,R2)}));
-    if(rs.length)showVal(rs[0],R2);};
-  [axSel,minIn,q].forEach(x=>x.addEventListener("input",render));render();
-}
 function showVal(v,host){
   host.innerHTML="";
   const der=(D.derived||{})[v.ax];
@@ -5427,8 +5014,8 @@ function viewPerf(){
   m.append(el("p",{class:"dim"},
     "이번 달은 아직 매출이 다 붙지 않았습니다 — 카페24 귀속이 며칠 걸립니다."));
 }
-const VIEWS={build:viewBuild,pick:viewPick,deep:viewDeep,write:viewWrite,sogu:viewSogu,layer:viewLayer,home:viewHome,full:viewFull,code:viewCode,idea:viewPick,draft:viewDraft,
-  judge:viewJudge,drafts:viewDrafts,perf:viewPerf,place:viewPlace};
+const VIEWS={build:viewBuild,pick:viewPick,write:viewWrite,home:viewHome,full:viewFull,code:viewCode,draft:viewDraft,
+  drafts:viewDrafts,perf:viewPerf,place:viewPlace};
 document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()=>go(b.dataset.v)));
 function boot(data){
   D=data; COD=D.jcod; DR=Object.fromEntries(D.drafts.map(d=>[d.t,d]));
