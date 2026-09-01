@@ -654,7 +654,6 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
   <button data-v="home" aria-current="true">지금</button>
   <button data-v="perf">계정 흐름</button>
   <div class="lab">2 · 트렌드와 가설</div>
-  <button data-v="idea">가설 제안</button>
   <button data-v="deep">소구</button>
   <button data-v="trend">트렌드</button>
   <button data-v="pick">원고 제안</button>
@@ -2987,11 +2986,14 @@ function viewLayer(){
    원고 제안과 같은 표·같은 펼침을 쓴다. 다른 것은 기간뿐이다 —
    저쪽은 두 달로 잘라 「요즘 되나」를 보고, 이쪽은 자르지 않고 판정 전체를 본다.
    편수가 적어 최근 창에 못 드는 값이 전기간으로는 갈리기도 한다. (2026-08-28) */
-window.IK = "후킹"; window.IKS = "메인"; window.IKG = "";
+/* 탭·소구 고른 것은 원고 제안과 같이 쓴다 — 한 화면이 됐다 */
+Object.defineProperty(window,"IK",{get:()=>window.PK,set:v=>{window.PK=v;}});
+Object.defineProperty(window,"IKS",{get:()=>window.PKS,set:v=>{window.PKS=v;}});
+Object.defineProperty(window,"IKG",{get:()=>window.PKG,set:v=>{window.PKG=v;}});
 function viewIdea(){
   const m=$("#main");m.innerHTML="";
   const A=((D.trend||{}).sugall)||[];
-  m.append(el("p",{class:"eyebrow"},"트렌드와 가설"),el("h2",{},"가설 제안"));
+  m.append(el("p",{class:"eyebrow"},"트렌드와 가설"),el("h2",{},"원고 제안"));
   if(!A.length){ m.append(el("p",{class:"lede"},"아직 제안을 못 냅니다.")); return; }
   m.append(el("p",{class:"lede"},
     `판정이 닫힌 ${D.n}편 전체를 놓고 셉니다. 기저 ${pc(D.base)}. `+
@@ -3009,6 +3011,7 @@ function viewIdea(){
   Object.keys(PK_TABS).forEach(k=>seg.append(el("button",{class:"csb"+(window.IK===k?" on":""),
     onclick:()=>{window.IK=k;viewIdea();}},k)));
   m.append(el("div",{class:"bar"},seg));
+  m.append(pkWinBar(viewPick));
   m.append(el("p",{class:"lede"},PK_NOTE[window.IK]));
 
   if(window.IK==="본문"){
@@ -4303,7 +4306,7 @@ function pkWrap(m, 그리기){
    그 값이 닳은 것은 다른 문제라서다. (2026-09-01) */
 window.PKW = 2;                     // 최근 몇 달로 볼 것인가 (단추를 누를 때)
 window.PKD = null;                  // 날짜로 직접 고르면 {부터, 까지}
-const PKW_고를것 = [1, 2, 3, 6];
+const PKW_고를것 = [1, 2, 3, 0];      // 0 = 자르지 않고 전체
 
 const pk날범위 = () => {
   const ds=((PKT().pool||{}).소재||[]).map(x=>x.d).filter(Boolean).sort();
@@ -4355,7 +4358,8 @@ function pkWinBar(다시그리기){
   const seg=el("div",{class:"cseg"});
   PKW_고를것.forEach(m=>seg.append(el("button",{
     class:"csb"+(!window.PKD&&window.PKW===m?" on":""),
-    onclick:()=>{window.PKW=m;window.PKD=null;다시그리기();}},m+"달")));
+    title:m?`최근 ${m}달과 그 앞을 갈라 견줍니다`:"기간을 자르지 않고 판정 전체를 놓고 셉니다",
+    onclick:()=>{window.PKW=m;window.PKD=null;다시그리기();}},m?m+"달":"전체")));
   const 부터=el("input",{type:"date",value:(window.PKD&&window.PKD.부터)||pkCut(window.PKW),
     min:처음,max:끝});
   const 까지=el("input",{type:"date",value:(window.PKD&&window.PKD.까지)||끝,min:처음,max:끝});
@@ -4363,9 +4367,12 @@ function pkWinBar(다시그리기){
     window.PKD={부터:부터.value, 까지:까지.value}; 다시그리기(); };
   부터.addEventListener("change",맞추기); 까지.addEventListener("change",맞추기);
   const 되돌리기=el("button",{class:"lnk ic",onclick:()=>{window.PKD=null;다시그리기();}},"달로 되돌리기");
+  const 전체 = (window.PKW===0 && !window.PKD);
   return el("div",{class:"bar",style:"flex-wrap:wrap;gap:8px"},
-    el("span",{class:"dim sm2"},"최근을 어디까지 볼까"), seg,
-    el("span",{class:"dim sm2"},"또는 날짜로"), 부터, el("span",{class:"dim"},"~"), 까지,
+    el("span",{class:"dim sm2"},"어느 기간으로 볼까"), seg,
+    전체?el("span",{class:"dim sm2"},"— 자르지 않고 판정 전체"):null,
+    전체?null:el("span",{class:"dim sm2"},"또는 날짜로"),
+    전체?null:부터, 전체?null:el("span",{class:"dim"},"~"), 전체?null:까지,
     window.PKD?되돌리기:null);
 }
 /* 성공률 막대 — 세로선이 기저. 전체 기간이면 전기간 성공률, 아니면 그 기간 것. */
@@ -4727,6 +4734,9 @@ const pkTable=(rs,값,칸,고름)=>{
 
 
 function viewPick(){
+  /* 「전체」를 고르면 기간을 안 자른 셈법으로 넘긴다 — 화면은 같은 표를 쓴다.
+     둘을 따로 둘 이유가 기간뿐이었다. (2026-09-01) */
+  if(window.PKW===0 && !window.PKD) return viewIdea();
   const m=$("#main");m.innerHTML="";
   const T=D.trend, S=(T&&T.suggest)||[];
   m.append(el("p",{class:"eyebrow"},"트렌드와 가설"),el("h2",{},"원고 제안"));
@@ -5427,7 +5437,7 @@ function viewPerf(){
   m.append(el("p",{class:"dim"},
     "이번 달은 아직 매출이 다 붙지 않았습니다 — 카페24 귀속이 며칠 걸립니다."));
 }
-const VIEWS={build:viewBuild,trend:viewTrend,pick:viewPick,deep:viewDeep,bank:viewBank,write:viewWrite,sogu:viewSogu,layer:viewLayer,home:viewHome,full:viewFull,code:viewCode,idea:viewIdea,draft:viewDraft,
+const VIEWS={build:viewBuild,trend:viewTrend,pick:viewPick,deep:viewDeep,bank:viewBank,write:viewWrite,sogu:viewSogu,layer:viewLayer,home:viewHome,full:viewFull,code:viewCode,idea:viewPick,draft:viewDraft,
   judge:viewJudge,drafts:viewDrafts,perf:viewPerf,place:viewPlace};
 document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()=>go(b.dataset.v)));
 function boot(data){
