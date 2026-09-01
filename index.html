@@ -3063,11 +3063,11 @@ function viewIdea(){
         const k=A.filter(z=>z.칸===이름)[0];
         const rs=(k&&k.줄)||[];
         if(!rs.length) return;
-        안.append(el("div",{class:"card tight"},
-          el("h3",{},이름),
-          el("p",{class:"note"},"소구를 가리지 않고 원고 전체를 놓고 센 것입니다 — "+
-            `위의 「${고른.v}」와는 다른 층입니다.`),
-          pkTable(rs,"값","")));
+        const c=pk칸카드(이름, rs);
+        c.insertBefore(el("p",{class:"note"},
+          "소구를 가리지 않고 원고 전체를 놓고 센 것입니다 — "+
+          `위의 「${고른.v}」와는 다른 층입니다.`), c.children[1]);
+        안.append(c);
       });
       const toc=pkToc(안);
       if(toc) m.append(el("div",{class:"pkgrid"},el("div",{},toc),안));
@@ -3080,7 +3080,7 @@ function viewIdea(){
     A.filter(칸=>(PK_TABS[window.IK]||[]).indexOf(칸.칸)>=0 && !칸.소구별).forEach(칸=>{
       const rs=(칸.줄||[]);
       if(!rs.length) return;
-      안.append(el("div",{class:"card tight"},el("h3",{},칸.칸),pkTable(rs,"값","")));
+      안.append(pk칸카드(칸.칸, rs));
     });
   });
   m.append(el("div",{class:"note"},
@@ -4244,6 +4244,30 @@ function pk소구제목(이름, 소구){
   return 소구 + " — " + 이름;
 }
 
+/* 한 카드에 축이 열 개까지 들어간다. 위 14줄만 보이면 「감정 온도」처럼
+   아래로 밀린 축은 아예 안 보이고, 카드 제목만으로는 뭐가 들었는지 알 수 없다.
+   무엇이 들었는지 적고, 눌러서 다 펴게 한다. (2026-09-01) */
+window.PK_다펴 = {};
+function pk칸카드(이름, 줄들, 제목){
+  const c=el("div",{class:"card tight"},el("h3",{},제목||이름));
+  const 축들=[...new Set(줄들.map(r=>r.ax).filter(Boolean))];
+  const 다 = !!window.PK_다펴[이름];
+  const 볼것 = 다 ? 줄들 : 줄들.slice(0, 14);
+  if(축들.length>1){
+    const 셈={}; 줄들.forEach(r=>{셈[r.ax]=(셈[r.ax]||0)+1;});
+    c.append(el("p",{class:"note"},"이 칸에 든 것 — "+
+      축들.map(a=>a+"("+셈[a]+")").join(" · ")));
+  }
+  c.append(pkTable(볼것,"값",""));
+  if(줄들.length>볼것.length || 다)
+    c.append(el("button",{class:"lnk more",onclick:()=>{
+      window.PK_다펴[이름]=!다;
+      (window.PK && document.querySelector("nav button[aria-current=true]")
+        && document.querySelector("nav button[aria-current=true]").dataset.v==="idea")
+        ? viewIdea() : viewPick();
+    }}, 다 ? "접기" : (줄들.length-볼것.length)+"줄 더 보기"));
+  return c;
+}
 function pk내려가기(){
   /* 그린 다음 프레임에 자리가 잡힌다 — 바로 부르면 엉뚱한 데로 간다 */
   requestAnimationFrame(()=>{
@@ -4802,13 +4826,13 @@ function viewPick(){
         "안에서만 셉니다 — 두 쪽은 원고가 겹치지 않아 같은 답이 나오면 안 됩니다."));
       /* 소구를 안 가리는 칸 — 원고 전체 기준이라 따로 세우고 그렇게 적는다 */
       PK_전체칸.forEach(이름=>{
-        const rs=RC?pkSort(RC.줄.filter(r=>r.칸===이름)).slice(0,14):[];
+        const rs=RC?pkSort(RC.줄.filter(r=>r.칸===이름)):[];
         if(!rs.length) return;
-        안.append(el("div",{class:"card tight"},
-          el("h3",{},이름),
-          el("p",{class:"note"},"소구를 가리지 않고 원고 전체를 놓고 센 것입니다 — "+
-            `위의 「${고른.v}」와는 다른 층입니다.`),
-          pkTable(rs,"값","")));
+        const c=pk칸카드(이름, rs);
+        c.insertBefore(el("p",{class:"note"},
+          "소구를 가리지 않고 원고 전체를 놓고 센 것입니다 — "+
+          `위의 「${고른.v}」와는 다른 층입니다.`), c.children[1]);
+        안.append(c);
       });
       const toc=pkToc(안);
       if(toc) m.append(el("div",{class:"pkgrid"},el("div",{},toc),안));
@@ -4822,19 +4846,15 @@ function viewPick(){
   pkWrap(m, 안=>{
     if(RC){
       칸이름.forEach(이름=>{
-        const rs=pkSort(RC.줄.filter(r=>r.칸===이름)).slice(0,14);
+        const rs=pkSort(RC.줄.filter(r=>r.칸===이름));
         if(!rs.length) return;            // 빈 카드는 목차만 늘린다
-        const c=el("div",{class:"card tight"},el("h3",{},이름));
-        c.append(pkTable(rs,"값",""));
-        안.append(c);
+        안.append(pk칸카드(이름, rs));
       });
     } else {
       S.filter(칸=>칸이름.indexOf(칸.칸)>=0).forEach(칸=>{
         const rs=(칸.이제||[]).concat(칸.다시||[]);
         if(!rs.length) return;
-        const c=el("div",{class:"card tight"},el("h3",{},칸.칸));
-        c.append(pkTable(rs,"값",""));
-        안.append(c);
+        안.append(pk칸카드(칸.칸, rs));
       });
     }
   });
