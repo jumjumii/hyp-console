@@ -4171,6 +4171,56 @@ const PK_RANK = {"요즘 된다":0, "다시 해볼 것":1, "힘이 빠짐":2,
                  "표본 모자람":3, "요즘 안 씀":4, "기저 아래":5};
 
 const PKT=()=>D.trend||{};
+
+/* ══ 기간을 화면에서 정한다 ═══════════════════════════════════════════
+   서버가 두 달로 잘라 둔 것만 보면 「석 달로 보면 어떤가」를 못 묻는다.
+   값마다 그 값을 쓴 원고 번호가 실려 오니, 어떤 날짜로든 여기서 다시 센다.
+   기저도 그 기간 것으로 다시 낸다 — 계정이 통째로 내려간 것과
+   그 값이 닳은 것은 다른 문제라서다. (2026-09-01) */
+window.PKW = 2;                     // 최근 몇 달로 볼 것인가
+const PKW_고를것 = [1, 2, 3, 6];
+
+function pkCut(달){
+  const P=(PKT().pool)||{}; const ds=(P.소재||[]).map(x=>x.d).filter(Boolean).sort();
+  if(!ds.length) return "";
+  const 끝=ds[ds.length-1]+"-01", d=new Date(끝);
+  d.setMonth(d.getMonth()-(달-1));
+  return d.toISOString().slice(0,7);
+}
+function pkRecount(달){
+  const P=(PKT().pool)||{}; const 소=(P.소재||[]);
+  const 끊=pkCut(달);
+  const 늦=[], 이=[];
+  소.forEach((x,i)=>{ if(!x.d) return; (x.d>=끊?늦:이).push(i); });
+  const 율=a=>a.length? a.reduce((s,i)=>s+소[i].s,0)/a.length : null;
+  const bL=율(늦), bE=율(이);
+  const 셈=(ids,쪽)=>{const g=ids.filter(i=>쪽.has(i));
+    return {n:g.length, w:g.reduce((s,i)=>s+소[i].s,0)};};
+  const SL=new Set(늦), SE=new Set(이);
+  const out=(P.줄||[]).map(r=>{
+    const L=셈(r.ids,SL), E=셈(r.ids,SE);
+    const rL=L.n?L.w/L.n:null, rE=E.n?E.w/E.n:null;
+    const d=(rL==null||rE==null||bL==null||bE==null)?null:((rL-bL)-(rE-bE));
+    let 어디;
+    if(L.n===0) 어디=(E.n>=3&&rE!=null&&bE!=null&&rE>=bE+0.10)?"다시 해볼 것":"요즘 안 씀";
+    else if(L.n<2) 어디="표본 모자람";
+    else if(E.n>=2&&rL>=bL&&(d||0)>=-0.05) 어디="요즘 된다";
+    else if(rL>=bL) 어디="힘이 빠짐";
+    else 어디="기저 아래";
+    return Object.assign({},r,{nE:E.n,wE:E.w,nL:L.n,wL:L.w,
+      d:(d==null?null:Math.round(d*1000)/1000), 어디:어디,
+      ts:r.ids.map(i=>소[i].t).slice(0,80)});
+  });
+  return {줄:out, baseE:bE, baseL:bL, nE:이.length, nL:늦.length, 끊:끊};
+}
+/* 기간을 바꾸면 화면 위에 무엇으로 잰 것인지 적어 둔다 — 안 적으면
+   같은 표가 다른 숫자를 내는 것으로 보인다. */
+function pkWinBar(다시그리기){
+  const seg=el("div",{class:"cseg"});
+  PKW_고를것.forEach(m=>seg.append(el("button",{class:"csb"+(window.PKW===m?" on":""),
+    onclick:()=>{window.PKW=m;다시그리기();}},m+"달")));
+  return el("div",{class:"bar"},el("span",{class:"dim sm2"},"최근을 몇 달로 볼까 "),seg);
+}
 /* 성공률 막대 — 세로선이 기저. 전체 기간이면 전기간 성공률, 아니면 그 기간 것. */
 const pkBar=(r)=>{
   if(r.전체){ const rt=r.n?r.w/r.n:0;
@@ -4527,6 +4577,11 @@ function viewPick(){
   Object.keys(PK_TABS).forEach(k=>seg.append(el("button",{class:"csb"+(window.PK===k?" on":""),
     onclick:()=>{window.PK=k;viewPick();}},k)));
   m.append(el("div",{class:"bar"},seg));
+  m.append(pkWinBar(viewPick));
+  const RC=(PKT().pool&&PKT().pool.줄)?pkRecount(window.PKW):null;
+  if(RC) m.append(el("p",{class:"dim sm2"},
+    `최근 ${RC.끊} 이후 ${RC.nL}편(${pc(RC.baseL)}) · 그 앞 ${RC.nE}편(${pc(RC.baseE)})으로 갈라 셌습니다. `+
+    `기저도 기간마다 따로 냅니다.`));
   m.append(el("p",{class:"lede"},PK_NOTE[window.PK]));
   m.append(el("p",{class:"dim sm2"},
     "표 읽는 법 — 「이전 → 최근」은 성공 편수/그 값을 쓴 편수입니다. "+
@@ -4537,7 +4592,18 @@ function viewPick(){
   // 본문은 「메인으로 세울 소구」와 「한 줄 곁들일 소구」가 아예 다른 물건이다.
   if(window.PK==="본문"){
     const 소구칸=S.filter(x=>x.소구별)[0];
-    const 모두=(소구칸&&소구칸.모두)||[];
+    let 모두=(소구칸&&소구칸.모두)||[];
+    if(RC){
+      /* 메인·서브 성적은 고른 기간으로 다시 센 것을 쓴다.
+         근거·워딩은 서버가 그 쪽 원고로만 센 것이라 그대로 쓴다. */
+      const 표={}; RC.줄.filter(r=>r.칸==="소구 — 무엇을 말할까")
+        .forEach(r=>{표[r.ax+"｜"+r.v]=r;});
+      모두=모두.map(r=>{
+        const o=Object.assign({},r);
+        ["메인","서브"].forEach(k=>{const n=표["소구 · "+k+"｜"+r.v];
+          if(n) o[k]=Object.assign({},r[k],{nE:n.nE,wE:n.wE,nL:n.nL,wL:n.wL,d:n.d,어디:n.어디});});
+        return o;});
+    }
     if(모두.length){
       const 쪽키=window.PKS==="서브"?"서브":"메인";
       const 순=r=>pkKey(Object.assign({},r,r[쪽키]));
@@ -4603,13 +4669,25 @@ function viewPick(){
     }
   }
 
-  S.filter(칸=>(PK_TABS[window.PK]||[]).indexOf(칸.칸)>=0).forEach(칸=>{
-    const c=el("div",{class:"card tight"},el("h3",{},칸.칸));
-    const rs=(칸.이제||[]).concat(칸.다시||[]);
-    if(!rs.length) c.append(el("p",{class:"dim"},"양쪽 기간에 3편 이상 있는 값이 없어 아직 방향을 못 말합니다."));
-    else c.append(pkTable(rs,"값",""));
-    m.append(c);
-  });
+  /* 기간을 바꿨으면 다시 센 줄로 그린다. 서버가 잘라 둔 것은 두 달일 때만 쓴다. */
+  const 칸이름 = (PK_TABS[window.PK]||[]);
+  if(RC){
+    칸이름.forEach(이름=>{
+      const rs=pkSort(RC.줄.filter(r=>r.칸===이름)).slice(0,14);
+      const c=el("div",{class:"card tight"},el("h3",{},이름));
+      if(!rs.length) c.append(el("p",{class:"dim"},"이 기간에 3편 이상 쓴 값이 없습니다."));
+      else c.append(pkTable(rs,"값",""));
+      m.append(c);
+    });
+  } else {
+    S.filter(칸=>칸이름.indexOf(칸.칸)>=0).forEach(칸=>{
+      const c=el("div",{class:"card tight"},el("h3",{},칸.칸));
+      const rs=(칸.이제||[]).concat(칸.다시||[]);
+      if(!rs.length) c.append(el("p",{class:"dim"},"양쪽 기간에 3편 이상 있는 값이 없어 아직 방향을 못 말합니다."));
+      else c.append(pkTable(rs,"값",""));
+      m.append(c);
+    });
+  }
   m.append(el("div",{class:"note"},
     "여기 없는 칸은 최근 표본이 모자라 방향을 못 말하는 자리입니다. "+
     "「빼세요」에 걸린 것은 「원고 검증」에서 원고를 넣으면 따로 짚어 줍니다."));
@@ -4936,12 +5014,22 @@ function 결(d){
   const r=(d.w==null?d.r:d.w);
   return (r!=null && r>=1 && r<D.cut) ? "보통" : null;
 }
+function 짧은까닭(d){
+  if(결(d)) return "보통";
+  if(d.early) return "조기 중단";
+  if(d.st!=="판정 밖") return null;
+  const w=d.why||"";
+  if(/프로모션/.test(w)) return "프로모션 제외";
+  if(/돌고 있습니다|집행중/.test(w)) return "아직 돌는 중";
+  if(/판정 창/.test(w)) return "판정 창 닫힘";
+  return "판정 밖";
+}
 function 밖까닭(d){
-  const g=결(d);
-  if(g) return el("span",{class:"dim sm2"}," — "+g+" (판정 창 ROAS "+
-    ((d.w==null?d.r:d.w)||0).toFixed(2)+" · 컷 "+D.cut+"은 못 넘음)");
-  if(d.early) return el("span",{class:"dim sm2"}," — 조기 중단");
-  return d.st==="판정 밖" && d.why ? el("span",{class:"dim sm2"}," — "+d.why) : null; }
+  const t=짧은까닭(d);
+  if(!t || t===(결(d)||"")) return null;
+  const 긴=결(d)?`판정 창 ROAS ${((d.w==null?d.r:d.w)||0).toFixed(2)} · 컷 ${D.cut}은 못 넘음`
+          :(d.why||"");
+  return el("span",{class:"dim sm2",title:긴}," — "+t); }
 function viewDrafts(){
   const m=$("#main");m.innerHTML="";
   m.append(el("p",{class:"eyebrow"},"아카이브"),el("h2",{},`소재 ${D.drafts.length}편`),
@@ -4964,6 +5052,11 @@ function viewDrafts(){
       {h:"판정 창",k:r=>r.w1?r.w1.roas:-1,
        c:r=>r.w1&&r.w1.call?el("span",{class:"pill "+(CP[r.w1.call]||"p-dim")},r.w1.call):"—"},
         {h:"판정 창 ROAS",k:r=>r.w??-1,c:r=>r.w==null?"—":el("span",{class:r.w>=D.cut?"g":"b"},r.w.toFixed(2))},
+        /* 판정 밖·프로모션이라도 돈이 오갔으면 ROAS는 낸다 — 판정을 못 할 뿐
+           성적이 없는 것은 아니다. 48편 가운데 44편에 매출이 있다. */
+        {h:"누적 ROAS",k:r=>(r.sp?(r.r??-1):-1),
+         c:r=>!r.sp?el("span",{class:"dim"},"—")
+              :el("span",{class:(r.r||0)>=D.cut?"g":"b"},(r.r||0).toFixed(2))},
       {h:"지출",k:r=>r.sp,c:r=>man(r.sp)},{h:"매출",k:r=>r.nt,c:r=>man(r.nt)},
       {h:"첫 라이브",k:r=>r.ws||"",
        c:r=>r.ws?짧은날(r.ws):el("span",{class:"dim"},"—")},
