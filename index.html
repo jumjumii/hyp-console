@@ -612,6 +612,10 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
 .bdchip.on{border-color:var(--acc);background:var(--acc2);color:var(--acc);font-weight:650}
 .bdchip .bdmk{font-size:11.5px;padding:0 5px;line-height:1.5}
 .bdchk{margin:2px 0;font-size:12.5px;display:flex;flex-wrap:wrap;gap:6px;align-items:baseline}
+.bdskel{width:100%;margin:6px 0 0;padding:9px 11px;border:1px solid var(--line);
+  border-radius:var(--rs);font:inherit;font-size:12.5px;line-height:1.65;
+  background:var(--paper);color:var(--ink);resize:vertical;
+  font-family:ui-monospace,Menlo,Consolas,monospace}
 .bdtoast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:99;
   background:var(--ink);color:var(--paper);padding:8px 16px;border-radius:99px;font-size:13px}
 .pkgrp{margin:18px 0 6px;font-size:11px;font-weight:700;color:var(--ink4);
@@ -1439,398 +1443,127 @@ const SG_COLORS=["#4f7fff","#22c55e","#f59e0b","#ef4444","#a78bfa","#14b8a6","#e
                  "#0ea5e9","#f97316","#8b5cf6","#06b6d4"];
 const sgColor = i => SG_COLORS[i % SG_COLORS.length];
 /* ─── 원고 빌더 ────────────────────────────────────────────────────────────
-   원고를 쓸 때 실제로 밟는 순서를 그대로 화면으로 옮긴 것.
-
-     ① 형식      무엇으로 찍을까            제목 꼬리표가 따라 붙는다
-     ② 소구·기전  무엇을 주제로, 왜 그런지    메인/서브 배치까지
-     ③ 후킹      어떻게 열까                검증된 실제 문장을 가져온다
-     ④ 쓰기      쓰면서 바로 진단
-
-   1~3에서 고른 것이 4의 오른쪽에 붙박여 있고, 쓰는 동안 그 조건과 어긋나면
-   바로 알려 준다. 순서를 강제하지는 않는다 — 어느 단계로든 건너뛸 수 있다.
-
-   숫자는 전부 전지표 판정에서 온다. 「누적」은 판정 전체, 「최근」은 판정된
-   원고를 라이브 시작일로 갈라 뒤쪽 절반이다(bE → bL). */
-let BD = {step:1, fmt:null, main:null, subs:[], mech:[], hook:null, hookw:[],
-          name:"", text:{제목:"", 후킹:"", 본문:"", CTA:""}, read:null};
-
-const BD_STEPS = [[1,"형식"],[2,"소구·기전"],[3,"후킹"],[4,"쓰기"]];
-
-/* ── 새 빌더가 고르는 칸 ── 원고 제안의 카드를 그대로 쓴다 */
+   왼쪽에서 고르면 오른쪽이 그때그때 「이대로 괜찮은지」를 말한다.
+   그리고 고른 것을 그대로 <원고 뼈대>로 뽑는다 — 페르소나·형식·후킹·
+   소구별 근거 워딩·CTA 까지. 그 뼈대를 통째로 복사해 AI에 넣거나 손으로 다듬는다.
+   판정은 원고 제안과 같은 것을 쓴다 — 두 곳에서 다르게 세면 안 된다. (2026-09-03) */
 const BD_칸 = [
   {키:"형식",  이름:"영상 형식", 칸:"영상 형식",               하나:true},
   {키:"화자",  이름:"화자",     칸:"화자 — 누가 말할까",       하나:false},
+  {키:"구조",  이름:"구조",     칸:"구조",                   하나:false},
   {키:"후킹",  이름:"후킹",     칸:"후킹 유형 — 무엇으로 열까",  하나:true},
   {키:"소구",  이름:"소구",     칸:"소구 — 무엇을 말할까",      하나:false},
   {키:"CTA",  이름:"CTA",     칸:"CTA — 어떻게 닫을까",      하나:true},
 ];
-window.BD2 = window.BD2 || {고름:{}, 글:{제목:"", 후킹:"", 본문:"", CTA:""}, 이름:"", 편것:null};
+window.BD2 = window.BD2 || {고름:{}, 워딩:{}, 글:{제목:"", 후킹:"", 본문:"", CTA:""},
+                            이름:"", 편것:null};
 
-/* 판정 한 줄 찾기 */
-const bdRow = (ax,v) => D.idea.find(x=>x.ax===ax && x.v===v);
-const bdAx  = ax => D.idea.filter(x=>x.ax===ax && x.n>=3).sort((a,b)=>b.rt-a.rt);
-/* 값 하나를 쓴 원고의 영상 지표 */
-function bdVid(ts){
-  let im=0, th=0, sec=0;
-  (ts||[]).forEach(t=>{ const v=(DR[t]||{}).v; if(!v||!v.im)return;
-    im+=v.im; th+=v.thru*v.im; sec+=v.sec*v.im; });
-  return im ? {thru:th/im, sec:sec/im, im} : null;
-}
-const bdMark = x => wrMark(x);
-const bdPct = x => x==null ? "—" : pc(x);
-/* 누적과 최근을 나란히 */
-function bdNow(x){
-  const late = x.nL ? x.wL/x.nL : null;
-  return el("span",{class:"bdnow"},
-    el("b",{},pc(x.rt)), el("span",{class:"dim"},` ${x.w}/${x.n}편`),
-    el("span",{class:"dim"}," · 최근 "),
-    late==null ? el("span",{class:"dim"},"—")
-      : el("span",{class:late>=D.baseL?"g":"b"},`${pc(late)} ${x.wL}/${x.nL}편`),
-    (x.nL && late!=null && late-x.rt>=0.12) ? el("span",{class:"mk yes",style:"margin-left:5px"},"오름") : null);
-}
-
-
-/* 고른 것 — 어느 단계에서나 위에 붙박여 보인다 */
-function bdPicked(){
-  const box=el("div",{class:"bdpick"});
-  const chip=(lab,v,go2)=>el("span",{class:"bdc"+(v?" on":"")},
-    el("span",{class:"dim"},lab+" "),
-    el("button",{class:"lnk",onclick:()=>{BD.step=go2;viewBuild();}}, v||"안 정함"));
-  box.append(chip("형식",BD.fmt,1), chip("메인 소구",BD.main,2),
-    chip("서브",BD.subs.join(" · "),2), chip("기전",BD.mech.map(x=>x.v).join(" · "),2),
-    chip("후킹",BD.hook,3));
-  if(BD.name||BD.fmt) box.append(el("span",{class:"bdc"},
-    el("span",{class:"dim"},"광고 이름 "), el("b",{},bdTag())));
-  return box;
-}
-function bdTag(){
-  const d=new Date(D.asof.replace(/-/g,"/"));
-  const yy=String(d.getFullYear()).slice(2),
-        mm=String(d.getMonth()+1).padStart(2,"0"), dd=String(d.getDate()).padStart(2,"0");
-  const tail=(String(BD.fmt||"").match(/^[A-Z]+/)||[""])[0];
-  return `001_${yy}${mm}${dd}_${BD.name||"이름"}_${tail||"?"}`;
-}
-
-/* ── STEP 1 형식 ───────────────────────────────────────────────────────── */
-function bdStep1(m){
-  m.append(el("h3",{},"① 무엇으로 찍을까"),
-    el("p",{class:"lede"},"제작 방식을 고르면 광고 이름의 꼬리표가 따라 붙습니다. 누적과 최근을 같이 보세요 — 형식은 유행을 탑니다."));
-  ["제작 방식","형식 묶음","형식 세분(정독)","길이(글자수)"].forEach(ax=>{
-    const rs=bdAx(ax); if(!rs.length) return;
-    m.append(el("h4",{class:"bdh"},ax));
-    const g=el("div",{class:"bdcards"});
-    rs.forEach(x=>{
-      const mk=bdMark(x), late=x.nL?x.wL/x.nL:null;
-      const hot = late!=null && late-x.rt>=0.12 && x.nL>=3;
-      const on = BD.fmt===x.v;
-      g.append(el("button",{class:"bdcard"+(on?" on":""),
-        onclick:()=>{BD.fmt=on?null:x.v;viewBuild();}},
-        el("div",{class:"bar",style:"margin:0 0 4px"},
-          el("span",{class:"mk "+mk.c},mk.t),
-          hot?el("span",{class:"mk maybe"},"최근 오름"):null),
-        el("b",{class:"bdv"},x.v),
-        el("p",{class:"bdn"},el("b",{},pc(x.rt)),el("span",{class:"dim"},` 누적 ${x.w}/${x.n}편`)),
-        el("p",{class:"bdn"},
-          late==null?el("span",{class:"dim"},"최근 —")
-            :el("span",{class:late>=D.baseL?"g":"b"},`최근 ${pc(late)}`),
-          el("span",{class:"dim"},late==null?"":` ${x.wL}/${x.nL}편`)),
-        x.wn?el("p",{class:"dim sm2"},`이번 주 ${x.wn}편 ROAS ${(x.wroas||0).toFixed(2)}`):null));
-    });
-    m.append(g);
-  });
-  const nm=el("input",{type:"text",placeholder:"소재 이름",value:BD.name,style:"flex:1;min-width:180px"});
-  nm.addEventListener("input",()=>{BD.name=nm.value;
-    const e=$("#bdtag"); if(e)e.textContent=bdTag();});
-  m.append(el("div",{class:"bar",style:"margin-top:14px"},nm,
-    el("span",{class:"dim"},"광고 이름 "),el("b",{id:"bdtag"},bdTag()),
-    el("button",{class:"btn",onclick:()=>{BD.step=2;viewBuild();}},"소구 고르러 →")));
-}
-
-/* ── STEP 2 소구 · 기전 ────────────────────────────────────────────────── */
-function bdStep2(m){
-  m.append(el("h3",{},"② 무엇을 주제로, 왜 그런지"));
-  /* 소구 개수 */
-  const cnt=bdAx("소구 개수");
-  if(cnt.length){
-    const best=cnt[0];
-    m.append(el("div",{class:"note"+(best.lf>0?" ok":"")},
-      el("b",{},"몇 개를 넣을까. "),
-      cnt.map(x=>`${x.v} ${pc(x.rt)}(${x.w}/${x.n}편)`).join(" · "),
-      el("span",{},` — 지금 데이터로는 ${best.v}가 제일 낫습니다.`)));
-  }
-  /* 소구 — 메인/서브 배치까지 */
-  m.append(el("h4",{class:"bdh"},"소구 · 메인으로 열까 서브로 넣을까"),
-    el("p",{class:"dim sm2",style:"margin:-2px 0 6px"},
-      "「메인」은 그 소구로 연 원고(첫 소구), 「서브」는 쓰기는 했는데 첫 소구는 아닌 원고입니다."));
-  const tb=el("div",{class:"lytab"});
-  tb.append(el("div",{class:"bdr lyhd"},
-    el("span",{},"판정"),el("span",{},"소구"),el("span",{},"넣기만 하면"),
-    el("span",{},"메인으로 열면"),el("span",{},"권장"),el("span",{},"메인"),el("span",{},"서브")));
-  bdAx("소구").forEach(x=>{
-    const f=bdRow("첫 소구",x.v);
-    const d=f? f.rt-x.rt : null;
-    const rec = d==null ? "—" : d>=0.10 ? "메인" : d<=-0.10 ? "서브" : "상관없음";
-    const mk=bdMark(x);
-    tb.append(el("div",{class:"bdr"},
-      el("span",{class:"mk "+mk.c},mk.t),
-      el("span",{class:"lyv",title:x.v},x.v),
-      el("span",{class:"lyn"},el("b",{},pc(x.rt)),el("span",{class:"dim"},` ${x.w}/${x.n}편`)),
-      f?el("span",{class:"lyn"},el("b",{class:f.rt>=D.base?"g":"b"},pc(f.rt)),
-         el("span",{class:"dim"},` ${f.w}/${f.n}편`)):el("span",{class:"dim"},"—"),
-      el("span",{class:"mk "+(rec==="메인"?"yes":rec==="서브"?"maybe":"none")},rec),
-      el("button",{class:"lnk ic"+(BD.main===x.v?" on":""),
-        onclick:()=>{BD.main=BD.main===x.v?null:x.v;BD.mech=[];viewBuild();}},
-        BD.main===x.v?"메인✓":"메인"),
-      el("button",{class:"lnk ic"+(BD.subs.includes(x.v)?" on":""),
-        onclick:()=>{const i=BD.subs.indexOf(x.v);
-          if(i>=0)BD.subs.splice(i,1); else BD.subs.push(x.v); viewBuild();}},
-        BD.subs.includes(x.v)?"서브✓":"서브")));
-  });
-  m.append(tb);
-
-  /* 기전 — 고른 소구마다 */
-  const picks=[BD.main,...BD.subs].filter(Boolean);
-  m.append(el("h4",{class:"bdh"},"기전 · 왜 그런지 무엇으로 댈까"));
-  if(!picks.length){ m.append(el("p",{class:"dim"},"위에서 소구를 먼저 고르세요.")); }
-  picks.forEach(sg=>{
-    const brs=h3Branches("소구",sg)||[];
-    const rows=[];
-    brs.forEach(b=>b.vs.forEach(x=>rows.push({...x, br:b.name})));
-    rows.sort((a,b)=>b.rt-a.rt);
-    m.append(el("p",{class:"bdsg"},el("b",{},sg),
-      el("span",{class:"dim"},` — 문제 · 근거 · 방식에서 고릅니다`)));
-    if(!rows.length){ m.append(el("p",{class:"dim sm2"},"이 소구 아래로 갈라 볼 것이 판정에 없습니다.")); return; }
-    const box=el("div",{class:"bdmech"});
-    rows.slice(0,14).forEach(r=>{
-      const mk=bdMark(r), on=BD.mech.some(x=>x.ax===r.ax&&x.v===r.v);
-      const ev=Object.entries(r.ev||{})[0];
-      box.append(el("div",{class:"bdm"+(on?" on":"")+(mk.t==="금지"?" no":"")},
-        el("div",{class:"bar",style:"margin:0"},
-          el("span",{class:"mk "+mk.c},mk.t),
-          el("b",{},r.disp||r.v),
-          el("span",{class:"dim"},` ${r.w}/${r.n}편 ${pc(r.rt)} `),
-          el("span",{class:r.lf>=0?"g":"b"},pp(r.lf)),
-          el("span",{class:"dim"},` · ${r.br}`),
-          el("button",{class:"lnk ic"+(on?" on":""),onclick:()=>{
-            const i=BD.mech.findIndex(x=>x.ax===r.ax&&x.v===r.v);
-            if(i>=0)BD.mech.splice(i,1); else BD.mech.push({ax:r.ax,v:r.v,rt:r.rt,n:r.n,lf:r.lf,sg,ev:r.ev});
-            viewBuild();}}, on?"담음":"담기")),
-        ev?el("p",{class:"wrs"},el("span",{class:"dim"},ev[0]+" "),
-          el("span",{class:"wrq"},`“${ev[1][0]}”`)):null));
-    });
-    m.append(box);
-  });
-  m.append(el("div",{class:"bar",style:"margin-top:12px"},
-    el("button",{class:"btn2",onclick:()=>{BD.step=1;viewBuild();}},"← 형식"),
-    el("button",{class:"btn",onclick:()=>{BD.step=3;viewBuild();}},"후킹 짜러 →")));
-}
-
-/* ── STEP 3 후킹 ───────────────────────────────────────────────────────── */
-function bdStep3(m){
-  m.append(el("h3",{},"③ 어떻게 열까"),
-    el("p",{class:"lede"},
-      "유형을 고르면 그 유형에서 실제로 성공한 문장이 아래에 나옵니다. "+
-      "끝까지 본 비율도 같이 봅니다 — 다만 그게 높다고 잘 팔리는 것은 아닙니다."));
-  const tys=(D.ptab||[]).filter(x=>x.part==="후킹"&&x.tab==="12유형"&&x.n>=4)
-    .sort((a,b)=>b.rt-a.rt);
-  const tb=el("div",{class:"lytab"});
-  tb.append(el("div",{class:"bdh3 lyhd"},
-    el("span",{},"판정"),el("span",{},"후킹 유형"),el("span",{},"성공률"),
-    el("span",{},"기저 대비"),el("span",{title:"ThruPlay ÷ 노출 — 15초 또는 끝까지 본 비율"},"끝까지"),
-    el("span",{},"평균 초"),el("span",{},"")));
-  tys.forEach(x=>{
-    const mk=bdMark({...x, ban:false, split:x.out!=="구분 안 됨"});
-    const v=bdVid(x.ts);
-    tb.append(el("div",{class:"bdh3"+(BD.hook===x.v?" on":"")},
-      el("span",{class:"mk "+mk.c},mk.t),
-      el("span",{class:"lyv",title:x.v},x.v),
-      el("span",{class:"lyn"},el("b",{},pc(x.rt)),el("span",{class:"dim"},` ${x.w}/${x.n}편`)),
-      el("span",{class:"lyd "+(x.lf>=0?"g":"b")},pp(x.lf)),
-      el("span",{class:"lyn dim"},v?pc(v.thru):"—"),
-      el("span",{class:"lyn dim"},v?v.sec.toFixed(1)+"초":"—"),
-      el("button",{class:"lnk ic"+(BD.hook===x.v?" on":""),
-        onclick:()=>{BD.hook=BD.hook===x.v?null:x.v;BD.hookw=[];viewBuild();}},
-        BD.hook===x.v?"고름":"고르기")));
-  });
-  m.append(tb);
-
-  m.append(el("h4",{class:"bdh"},"실제로 성공한 여는 문장"));
-  if(!BD.hook){ m.append(el("p",{class:"dim"},"위에서 유형을 하나 고르세요.")); }
-  else {
-    const ws=(D.ptab||[]).filter(x=>x.part==="후킹"&&x.tab==="워딩"&&x.g===BD.hook&&x.n>=3)
-      .sort((a,b)=>b.rt-a.rt);
-    if(!ws.length) m.append(el("p",{class:"dim"},"이 유형 아래로 나뉜 워딩이 판정에 없습니다."));
-    ws.forEach(r=>{
-      const mk=bdMark({...r, ban:false, split:r.out!=="구분 안 됨"});
-      const box=el("div",{class:"bdw"});
-      box.append(el("div",{class:"bar",style:"margin:0"},
-        el("span",{class:"mk "+mk.c},mk.t),
-        el("b",{},r.v),
-        el("span",{class:"dim"},` ${r.w}/${r.n}편 ${pc(r.rt)} `),
-        el("span",{class:r.lf>=0?"g":"b"},pp(r.lf))));
-      Object.entries(r.ev||{}).slice(0,3).forEach(([t,lines])=>{
-        const ok=DR[t]&&DR[t].st==="성공";
-        box.append(el("p",{class:"wrs"},
-          el("button",{class:"lnk "+(ok?"g":"b"),onclick:()=>{BD.read=t;viewBuild();}},t),
-          el("span",{class:"wrq"},` “${lines[0]}”`),
-          el("button",{class:"lnk ic",style:"margin-left:6px",onclick:()=>{
-            BD.text.후킹=(BD.text.후킹?BD.text.후킹+"\\n":"")+lines[0];
-            BD.hookw.push(r.v); BD.step=4; viewBuild();}},"에디터로")));
-      });
-      m.append(box);
-    });
-  }
-  if(BD.read){
-    const d=DR[BD.read];
-    m.append(el("div",{class:"card"},
-      el("div",{class:"bar",style:"margin:0 0 4px"},
-        el("h3",{style:"margin:0"},BD.read),
-        el("span",{class:"pill "+(d&&d.st==="성공"?"p-ok":"p-no")},d?d.st:""),
-        el("span",{class:"dim"},d?` ROAS ${(d.r||0).toFixed(2)} · ${man(d.sp)}`:""),
-        el("button",{class:"lnk",onclick:()=>{BD.read=null;viewBuild();}},"닫기")),
-      ...((d&&d.body)||["본문이 없습니다."]).map(x=>el("p",{class:"nxq"},x))));
-  }
-  m.append(el("div",{class:"bar",style:"margin-top:12px"},
-    el("button",{class:"btn2",onclick:()=>{BD.step=2;viewBuild();}},"← 소구"),
-    el("button",{class:"btn",onclick:()=>{BD.step=4;viewBuild();}},"쓰러 가기 →")));
-}
-
-/* ── STEP 4 쓰기 ───────────────────────────────────────────────────────── */
-function bdStep4(m){
-  m.append(el("h3",{},"④ 쓰면서 바로 본다"));
-  const two=el("div",{class:"two bd2"}),L=el("div"),R=el("div");two.append(L,R);m.append(two);
-
-  ["제목","후킹","본문","CTA"].forEach(k=>{
-    const ta=el("textarea",{rows:k==="본문"?12:3,placeholder:k,
-      style:"width:100%;font:inherit;font-size:13px;line-height:1.7"});
-    ta.value=BD.text[k]||"";
-    ta.addEventListener("input",()=>{BD.text[k]=ta.value;bdAudit();});
-    L.append(el("p",{class:"bdlab"},k),ta);
-  });
-  L.append(el("div",{class:"bar",style:"margin-top:8px"},
-    el("button",{class:"btn",onclick:()=>{
-      DFT={name:BD.name, items:[], hyp:null,
-           picks:[...(BD.main?[{ax:"소구",v:BD.main}]:[]),
-                  ...BD.subs.map(v=>({ax:"소구",v})),
-                  ...BD.mech.map(x=>({ax:x.ax,v:x.v})),
-                  ...(BD.hook?[{ax:"훅 유형",v:BD.hook}]:[])],
-           body:["제목","후킹","본문","CTA"].map(k=>BD.text[k]).filter(Boolean).join("\\n")};
-      go("draft");}},"원고 검증으로 넘기기 →"),
-    el("button",{class:"btn2",onclick:()=>{
-      const t=["제목","후킹","본문","CTA"].map(k=>BD.text[k]).filter(Boolean).join("\\n");
-      navigator.clipboard && navigator.clipboard.writeText(t);}},"전체 복사")));
-
-  R.append(el("div",{id:"bdaudit"}));
-  bdAudit();
-}
-
-/* 실시간 처방전 — 고른 조건과 쓴 글을 견준다 */
-function bdAudit(){
-  const host=$("#bdaudit"); if(!host) return;
-  host.innerHTML="";
-  const body=["제목","후킹","본문","CTA"].map(k=>BD.text[k]).join("\n");
-  const has=s=>body.indexOf(s)>=0;
-
-  host.append(el("h4",{class:"bdh"},"지금 상태"));
-  const chk=(ok,txt,why)=>el("p",{class:"bdchk"},
-    el("span",{class:"mk "+(ok?"yes":"none")},ok?"됨":"아직"),
-    el("span",{},txt), why?el("span",{class:"dim"}," — "+why):null);
-
-  host.append(chk(!!BD.fmt,"형식", BD.fmt||"안 정함"));
-  host.append(chk(!!BD.main,"메인 소구", BD.main||"안 정함"));
-  host.append(chk(BD.mech.length>0,`기전 ${BD.mech.length}개`,
-    BD.mech.map(x=>x.v).join(" · ")||"안 정함"));
-  host.append(chk(!!BD.hook,"후킹 유형", BD.hook||"안 정함"));
-  host.append(chk(!!(BD.text.제목||"").trim(),"제목"));
-  host.append(chk(!!(BD.text.후킹||"").trim(),"후킹 문장"));
-  host.append(chk(!!(BD.text.본문||"").trim(),"본문"));
-  host.append(chk(!!(BD.text.CTA||"").trim(),"CTA"));
-
-  /* 금지 — 고른 것 중 판정이 금지인 것 */
-  const bans=[...BD.mech].filter(x=>{
-    const r=D.vals.find(y=>y.ax===x.ax&&y.v===x.v);
-    return r && ((r.n>=5&&r.w===0)||(r.split&&r.n>=5&&r.lf<=-0.15));});
-  if(bans.length) host.append(el("div",{class:"note wa"},
-    el("b",{},"금지로 판정된 것을 골랐습니다. "),
-    bans.map(x=>`「${x.v}」`).join(" · ")));
-
-  /* 놓친 것 — 고른 소구에서 추천인데 안 담은 기전 */
-  const miss=[];
-  [BD.main,...BD.subs].filter(Boolean).forEach(sg=>{
-    (h3Branches("소구",sg)||[]).forEach(b=>b.vs.forEach(r=>{
-      if(!(r.split && r.n>=5 && r.lf>=0.15)) return;
-      if(BD.mech.some(x=>x.ax===r.ax&&x.v===r.v)) return;
-      miss.push({sg, ...r});
-    }));
-  });
-  miss.sort((a,b)=>b.lf-a.lf);
-  if(miss.length) host.append(el("div",{class:"note"},
-    el("b",{},`안 담았지만 추천인 기전 ${miss.length}개. `),
-    ...miss.slice(0,3).map((r,i)=>el("span",{},(i?" · ":""),
-      el("button",{class:"lnk",onclick:()=>{
-        BD.mech.push({ax:r.ax,v:r.v,rt:r.rt,n:r.n,lf:r.lf,sg:r.sg,ev:r.ev});viewBuild();}},
-        `${r.v} ${pc(r.rt)}`)))));
-
-  /* 담은 것의 성적 */
-  const picks=[...(BD.main?[bdRow("소구",BD.main)]:[]),
-               ...BD.subs.map(v=>bdRow("소구",v)),
-               ...BD.mech,
-               ...(BD.hook?[(D.ptab||[]).find(x=>x.part==="후킹"&&x.tab==="12유형"&&x.v===BD.hook)]:[])]
-              .filter(Boolean);
-  if(picks.length){
-    host.append(el("h4",{class:"bdh"},"고른 것의 성적"));
-    const tb=el("div",{class:"lytab"});
-    picks.forEach(x=>tb.append(el("div",{class:"bdp"},
-      el("span",{class:"lyv",title:x.v},x.v),
-      el("span",{class:"lyn"},el("b",{},pc(x.rt)),el("span",{class:"dim"},` ${x.w||0}/${x.n}편`)),
-      el("span",{class:"lyd "+((x.lf||0)>=0?"g":"b")},pp(x.lf||0)))));
-    host.append(tb);
-    const avg=picks.reduce((s,x)=>s+x.rt,0)/picks.length;
-    host.append(el("p",{class:"dim",style:"margin-top:6px"},
-      `고른 ${picks.length}개의 성공률 평균 ${pc(avg)} · 기저 ${pc(D.base)}. `+
-      `칸을 다 지킨 원고의 성적이 아니라 칸마다의 기록입니다 — 더할 수 있는 숫자가 아닙니다.`));
-  }
-}
-function bd줄찾기(칸, v){
-  const RC = (PKT().pool && PKT().pool.줄) ? pkRecount(window.PKW||0) : null;
-  if(!RC) return null;
-  return RC.줄.filter(r=>r.칸===칸 && r.v===v)[0] || null;
-}
+/* 그 값이 지금 기간에서 어떤가 — 원고 제안이 쓰는 그 판정을 그대로 쓴다 */
 function bd값들(칸){
   const RC = (PKT().pool && PKT().pool.줄) ? pkRecount(window.PKW||0) : null;
   if(!RC) return [];
   return pkSort(RC.줄.filter(r=>r.칸===칸));
 }
-/* 고른 것들을 통틀어 한마디 — 이대로 쓰면 괜찮은가 */
+function bd줄찾기(칸, v){
+  return bd값들(칸).filter(r=>r.v===v)[0] || null;
+}
+/* 고른 소구에 딸린 근거·워딩 — 원고 제안 본문 탭이 쓰는 것과 같은 재료 */
+function bd소구줄(소구, 칸){
+  const RC = (PKT().pool && PKT().pool.줄) ? pkRecount(window.PKW||0) : null;
+  if(!RC) return [];
+  return pkSort(RC.줄.filter(r=>
+    r.칸===칸 && r.키 && r.키[1]===소구));
+}
 function bd점검(){
   const 골 = Object.entries(window.BD2.고름).flatMap(([k,vs])=>
     (vs||[]).map(v=>({칸:(BD_칸.find(x=>x.키===k)||{}).칸, k, v})));
   const 줄 = 골.map(g=>Object.assign({}, g, {r:bd줄찾기(g.칸, g.v)})).filter(x=>x.r);
   const 등 = r=>pkRec(r)[0];
-  return {
-    쓰세요: 줄.filter(x=>등(x.r)==="쓰세요"),
-    지켜: 줄.filter(x=>["지켜보세요","해보세요","괜찮음"].indexOf(등(x.r))>=0),
-    빼세요: 줄.filter(x=>["빼세요","굳이"].indexOf(등(x.r))>=0),
-    모름: 골.length - 줄.length,
-    골: 골,
-  };
+  return {쓰세요: 줄.filter(x=>등(x.r)==="쓰세요"),
+          지켜: 줄.filter(x=>["지켜보세요","해보세요","괜찮음"].indexOf(등(x.r))>=0),
+          빼세요: 줄.filter(x=>["빼세요","굳이"].indexOf(등(x.r))>=0),
+          모름: 골.length - 줄.length, 골: 골};
 }
 function bd고르기(k, v, 하나){
   const g = window.BD2.고름;
   const 있 = (g[k]||[]).indexOf(v) >= 0;
   if(하나) g[k] = 있 ? [] : [v];
-  else {
-    g[k] = g[k] || [];
-    g[k] = 있 ? g[k].filter(x=>x!==v) : g[k].concat([v]);
-  }
+  else { g[k] = g[k] || []; g[k] = 있 ? g[k].filter(x=>x!==v) : g[k].concat([v]); }
+  if(k==="소구" && 있) delete window.BD2.워딩[v];   // 뺀 소구의 워딩도 같이 뺀다
   viewBuild();
+}
+/* 워딩 고르기 — 소구마다 근거·문제·방식을 따로 담는다 */
+function bd워딩(소구, 칸, v){
+  const w = window.BD2.워딩;
+  w[소구] = w[소구] || {};
+  w[소구][칸] = w[소구][칸] || [];
+  const i = w[소구][칸].indexOf(v);
+  if(i>=0) w[소구][칸].splice(i,1); else w[소구][칸].push(v);
+  viewBuild();
+}
+/* 그 워딩을 실제로 쓴 문장 하나 — 뼈대에 보기로 붙인다 */
+function bd보기문장(칸, 소구, v){
+  const r = bd소구줄(소구, 칸).filter(x=>x.v===v)[0];
+  if(!r) return "";
+  const 온 = pk온문장(r);
+  const 성 = (온||[]).filter(o=>o.성)[0] || (온||[])[0];
+  return 성 ? 성.t : "";
+}
+
+/* ══ 원고 뼈대 ══════════════════════════════════════════════════════
+   고른 것을 쓰는 차례대로 늘어놓는다. 이대로 AI에 넣거나 손으로 다듬는다. */
+function bd뼈대(){
+  const G = window.BD2.고름, W = window.BD2.워딩;
+  const L = [];
+  const 값 = k => (G[k]||[]);
+  L.push("[영상 요소]");
+  if(값("형식").length) L.push("형식: " + 값("형식").join(" · "));
+  if(값("화자").length) L.push("화자: " + 값("화자").join(" · "));
+  if(값("구조").length) L.push("구조: " + 값("구조").join(" · "));
+  L.push("");
+  L.push("[후킹]");
+  값("후킹").forEach(v=>{
+    L.push("유형: " + v);
+    const 보 = (bd줄찾기("후킹 유형 — 무엇으로 열까", v)||{});
+    const 온 = pk온문장(보);
+    const 성 = (온||[]).filter(o=>o.성)[0] || (온||[])[0];
+    if(성) L.push("  보기: " + 성.t);
+  });
+  L.push("  ▸ 여기에 첫 대사를 씁니다");
+  L.push("");
+  L.push("[본문]");
+  값("소구").forEach((s,i)=>{
+    L.push(`소구${i+1}: ${s}`);
+    [["문제","그 소구를 어떻게 말할까"],
+     ["근거","근거 — 무엇으로 받칠까"]].forEach(([이름,칸])=>{
+      const vs = ((W[s]||{})[칸]) || [];
+      vs.forEach((v,n)=>{
+        L.push(`  ${이름}${n+1}: ${v}`);
+        const b = bd보기문장(칸, s, v);
+        if(b) L.push(`     보기: ${b}`);
+      });
+    });
+    L.push("  ▸ 여기에 이 소구를 씁니다");
+    L.push("");
+  });
+  L.push("[CTA]");
+  값("CTA").forEach(v=>{
+    L.push("갈래: " + v);
+    const 보 = (bd줄찾기("CTA — 어떻게 닫을까", v)||{});
+    const 온 = pk온문장(보);
+    const 성 = (온||[]).filter(o=>o.성)[0] || (온||[])[0];
+    if(성) L.push("  보기: " + 성.t);
+  });
+  L.push("  ▸ 여기에 마무리를 씁니다");
+  return L.join("\n");
 }
 
 function viewBuild(){
   const m=$("#main");m.innerHTML="";
   m.append(el("p",{class:"eyebrow"},"원고 빌더"),el("h2",{},"원고 빌더"),
     el("p",{class:"lede"},
-      "왼쪽에서 고르면 오른쪽이 그때그때 「이대로 괜찮은지」를 말합니다. "+
+      "왼쪽에서 고르면 오른쪽이 「이대로 괜찮은지」를 말하고, 고른 것이 그대로 "+
+      "원고 뼈대가 됩니다. 소구를 고르면 그 소구의 근거·워딩까지 고를 수 있습니다. "+
       "판정은 「원고 제안」과 같은 것이고, 기간도 여기서 같이 고릅니다."));
   m.append(pkWinBar(viewBuild));
 
@@ -1848,32 +1581,54 @@ function viewBuild(){
     const box = el("div",{class:"bdchips"});
     rs.slice(0, 14).forEach(r=>{
       const 권 = pkRec(r);
-      box.append(el("button",{class:"bdchip"+(고.indexOf(r.v)>=0?" on":"")+" mk-"+권[1],
+      box.append(el("button",{class:"bdchip"+(고.indexOf(r.v)>=0?" on":""),
         title:`${권[0]} · ${r.전체?(r.w+"/"+r.n+"편"):("이전 "+r.wE+"/"+r.nE+" → 최근 "+(r.nL?r.wL+"/"+r.nL:"안 씀"))}`,
         onclick:()=>bd고르기(칸.키, r.v, 칸.하나)},
-        el("b",{},r.v),
-        el("span",{class:"bdmk mk "+권[1]},권[0])));
+        el("b",{},r.v), el("span",{class:"bdmk mk "+권[1]},권[0])));
     });
     c.append(box);
-    if(rs.length>14) c.append(el("p",{class:"dim sm2"},
-      `추천 순으로 위 14개만 냅니다. 나머지는 「원고 제안」에서 보세요.`));
     L.append(c);
+
+    /* 소구를 고르면 그 소구의 문제·근거 워딩을 바로 아래에서 고른다 */
+    if(칸.키==="소구"){
+      고.forEach(s=>{
+        const wc = el("div",{class:"card tight"},
+          el("h3",{},`${s} — 무엇으로 채울까`),
+          el("p",{class:"note"},"고르면 그 워딩과 실제 문장이 뼈대에 들어갑니다"));
+        [["문제·방식","그 소구를 어떻게 말할까"],
+         ["근거","근거 — 무엇으로 받칠까"]].forEach(([이름,칸2])=>{
+          const rs2 = bd소구줄(s, 칸2);
+          if(!rs2.length) return;
+          const 든 = ((window.BD2.워딩[s]||{})[칸2]) || [];
+          wc.append(el("p",{class:"dim sm2",style:"margin:8px 0 3px"},이름));
+          const b2 = el("div",{class:"bdchips"});
+          rs2.slice(0, 10).forEach(r=>{
+            const 권 = pkRec(r);
+            b2.append(el("button",{class:"bdchip"+(든.indexOf(r.v)>=0?" on":""),
+              title:권[0],onclick:()=>bd워딩(s, 칸2, r.v)},
+              el("b",{},r.v),
+              r.종?el("span",{class:"vtag"+(r.확>=0.7?"":" half")},r.종):null,
+              el("span",{class:"bdmk mk "+권[1]},권[0])));
+          });
+          wc.append(b2);
+        });
+        L.append(wc);
+      });
+    }
   });
 
-  /* ── 오른쪽 — 점검과 쓰기 ───────────────────────────── */
+  /* ── 오른쪽 — 점검 · 뼈대 ───────────────────────────── */
   const 검 = bd점검();
   const 점 = el("div",{class:"card tight"},el("h3",{},"이대로 괜찮은가"));
   if(!검.골.length) 점.append(el("p",{class:"dim"},"왼쪽에서 하나씩 고르면 여기에 판정이 쌓입니다."));
   else {
     const 줄내기=(제목, 것, 클)=>{
       if(!것.length) return;
-      점.append(el("p",{class:"lrow",style:"margin-top:8px"},
-        el("b",{class:클},제목+" "+것.length)));
+      점.append(el("p",{class:"lrow",style:"margin-top:8px"},el("b",{class:클},제목+" "+것.length)));
       것.forEach(x=>{
         const r=x.r;
         점.append(el("p",{class:"bdchk"},
-          el("span",{class:"dim"},x.k+" · "),
-          el("b",{},x.v),
+          el("span",{class:"dim"},x.k+" · "), el("b",{},x.v),
           el("span",{class:"n"}," "+(r.전체?`${r.w}/${r.n}편 ${pc(r.n?r.w/r.n:0)}`
             :`이전 ${r.wE}/${r.nE} → 최근 ${r.nL?r.wL+"/"+r.nL:"안 씀"}`)),
           el("button",{class:"lnk ic",onclick:()=>{
@@ -1886,49 +1641,50 @@ function viewBuild(){
     if(검.모름) 점.append(el("p",{class:"dim sm2",style:"margin-top:8px"},
       `${검.모름}개는 이 기간에 편수가 모자라 판정이 없습니다.`));
     const 한마디 = 검.빼세요.length ? ["바꿀 것이 있습니다","wa"]
-                 : 검.쓰세요.length >= 3 ? ["이대로 좋습니다","ok"]
-                 : ["더 골라 보세요",""];
+                 : 검.쓰세요.length >= 3 ? ["이대로 좋습니다","ok"] : ["더 골라 보세요",""];
     점.insertBefore(el("div",{class:"note "+한마디[1]},el("b",{},한마디[0]+". "),
       `고른 ${검.골.length}개 가운데 쓰세요 ${검.쓰세요.length} · 지켜볼 것 ${검.지켜.length} · 바꿀 것 ${검.빼세요.length}.`),
       점.children[1] || null);
   }
   R.append(점);
 
-  /* 쓰는 칸 — 고른 것을 보면서 그 자리에서 쓴다 */
-  const 쓰기 = el("div",{class:"card tight"},el("h3",{},"여기에 씁니다"));
-  ["제목","후킹","본문","CTA"].forEach(k=>{
-    const ta=el("textarea",{placeholder:k,rows:k==="본문"?8:2,
-      style:"width:100%;margin:0 0 6px;padding:7px 9px;border:1px solid var(--line);"+
-            "border-radius:var(--rs);font:inherit;font-size:13px;line-height:1.6"});
-    ta.value = window.BD2.글[k] || "";
-    ta.addEventListener("input",()=>{window.BD2.글[k]=ta.value; 글자세기();});
-    쓰기.append(el("p",{class:"dim sm2",style:"margin:6px 0 2px"},k), ta);
-  });
-  const 세기=el("p",{class:"dim sm2"});
-  쓰기.append(세기);
-  function 글자세기(){
-    const 온=["제목","후킹","본문","CTA"].map(k=>window.BD2.글[k]||"").join("\n");
-    const ch=온.replace(/\s/g,"").length;
-    const ln=온.split("\n").filter(x=>x.trim()).length;
-    const 길 = ch<330?"330자 미만":ch<470?"330~470자":"470자 이상";
-    const r = bd줄찾기("구조","길이(글자수)") || bd줄찾기("구조",길);
-    세기.textContent=`${ch}자 · ${ln}줄 · 길이 「${길}」`;
-  }
-  글자세기();
-  쓰기.append(el("div",{class:"bar",style:"margin:8px 0 0"},
-    el("button",{class:"btn",onclick:()=>{
-      const 온=["제목","후킹","본문","CTA"].map(k=>window.BD2.글[k]||"").join("\n");
-      bkCopy(온, null);
-      알림("원고를 복사했습니다");
-    }},"원고 복사"),
+  /* 원고 뼈대 — 고른 것이 그대로 여기 쌓인다 */
+  const 뼈 = bd뼈대();
+  const 뼈카 = el("div",{class:"card tight"},el("h3",{},"원고 뼈대"),
+    el("p",{class:"note"},"고른 것이 쓰는 차례대로 쌓입니다. 통째로 복사해 AI에 넣거나 손으로 다듬으세요."));
+  const ta = el("textarea",{class:"bdskel",rows:18});
+  ta.value = 뼈;
+  뼈카.append(ta);
+  뼈카.append(el("div",{class:"bar",style:"margin:8px 0 0"},
+    el("button",{class:"btn",onclick:function(){bkCopy(ta.value,null);알림("뼈대를 복사했습니다");}},
+      "뼈대 복사"),
+    el("button",{class:"btn2",onclick:function(){
+      bkCopy(bd프롬프트(ta.value),null);알림("AI에 넣을 말까지 붙여 복사했습니다");}},
+      "AI용으로 복사"),
     el("button",{class:"btn2",onclick:()=>{
       DFT={name:"", items:[], hyp:null,
            picks:Object.entries(window.BD2.고름).flatMap(([k,vs])=>(vs||[]).map(v=>({ax:k,v:v}))),
-           body:["제목","후킹","본문","CTA"].map(k=>window.BD2.글[k]).filter(Boolean).join("\n")};
-      go("draft");}},"원고 검증으로 넘기기 →"),
+           body:ta.value};
+      go("draft");}},"원고 검증으로 →"),
     el("button",{class:"lnk ic",onclick:()=>{
-      window.BD2.고름={}; window.BD2.글={제목:"",후킹:"",본문:"",CTA:""}; viewBuild();}},"비우기")));
-  R.append(쓰기);
+      window.BD2.고름={}; window.BD2.워딩={}; viewBuild();}},"비우기")));
+  R.append(뼈카);
+}
+
+/* AI에 넣을 때 앞에 붙일 말 — 뼈대만 던지면 엉뚱하게 쓴다 */
+function bd프롬프트(뼈){
+  return [
+    "너는 골전도 이어폰 「베이스튠」의 퍼포먼스 광고 원고를 쓰는 사람이다.",
+    "아래는 실제 성과 데이터로 고른 뼈대다. 이 뼈대대로 영상 원고를 써라.", "",
+    "지켜야 할 것.",
+    "  · 「보기」로 붙인 문장은 실제로 성과가 난 원고의 문장이다. 그 결을 따라가되",
+    "    그대로 베끼지는 마라. 같은 말을 새로 쓴다.",
+    "  · 자리마다 「▸」로 표시한 곳에 실제 대사를 쓴다.",
+    "  · 소구는 적힌 것만 쓴다. 없는 소구를 끌어오지 않는다.",
+    "  · 한 줄은 말로 읽었을 때 3초 안에 끝나는 길이로.", "",
+    뼈, "",
+    "완성한 원고만 낸다. 설명은 붙이지 않는다.",
+  ].join("\n");
 }
 function 알림(t){
   const d=el("div",{class:"bdtoast"},t);
