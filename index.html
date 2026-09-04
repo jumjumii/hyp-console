@@ -5090,6 +5090,24 @@ function showDraft(d,host,닫기){
         title:a.n+" · "+man(a.sp)},(i?" · ":"")+a.n))):null,
     d.w1?el("p",{class:"dim"},`판정 창 ${d.w1.days}일 · ROAS ${d.w1.roas} · ${d.w1.call||"—"} · `+
       `지출 ${man(d.w1.sp)} · 주문 ${d.w1.od}건`):null,
+    /* ★소구는 접힌 「판정 값」 안에 축 이름으로만 있어 안 보였다. 이 소재가
+       무엇을 말하는가는 제일 먼저 보여야 한다 — 메인은 굵게, 서브는 흐리게.
+       메인 = 그 소구를 두 문장 이상 판 것. (2026-09-04) */
+    (function(){
+      const 쓴=(cod["소구 · 어떻게 썼나"]||[]);
+      if(!쓴.length) return null;
+      const 메=쓴.filter(x=>x.endsWith("메인")).map(x=>x.replace(" — 메인",""));
+      const 서=쓴.filter(x=>x.endsWith("서브")).map(x=>x.replace(" — 서브",""));
+      const 근=(cod["소구 × 근거"]||[]);
+      return el("div",{class:"note"},
+        el("b",{},"소구 — "),
+        메.length?el("span",{},"메인 ",
+          ...메.map((v,i)=>el("b",{class:"g"},(i?" · ":"")+v))):null,
+        (메.length&&서.length)?el("span",{class:"dim"},"   "):null,
+        서.length?el("span",{class:"dim"},"서브 "+서.join(" · ")):null,
+        근.length?el("p",{class:"dim sm2",style:"margin:4px 0 0"},
+          "무엇으로 받쳤나 — "+근.join(" · ")):null);
+    })(),
     bans.length?el("div",{class:"note no"},el("b",{},`금지 ${bans.length}개`),
       el("ul",{style:"margin:6px 0 0;padding-left:18px"},...bans.map(h=>el("li",{},h.claim))))
       :el("div",{class:"note ok"},"금지 위반 없음"),
