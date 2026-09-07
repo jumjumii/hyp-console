@@ -412,7 +412,9 @@ button.lnk.ic:hover{text-decoration:none;background:var(--tint);border-color:var
 .cdot{stroke:var(--paper);stroke-width:2}
 .cring{fill:none;stroke-width:2;opacity:.55}
 .cv{stroke:var(--line2);stroke-width:1}
-.ctip{position:absolute;top:8px;background:var(--paper);border:1px solid var(--line);
+/* 값에 따라 위아래를 뒤집는다 — top을 8px에 못 박아 두니 값이 높은 달에서
+   말풍선이 선을 그대로 덮었다. 자리는 그릴 때 정한다. (2026-09-07) */
+.ctip{position:absolute;background:var(--paper);border:1px solid var(--line);
   border-radius:var(--rs);padding:7px 10px;font-size:12px;line-height:1.7;
   pointer-events:none;box-shadow:var(--sh);min-width:158px;white-space:nowrap}
 .ctip .ck{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:5px;vertical-align:middle}
@@ -668,6 +670,8 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
 .lt.mk{border-style:dashed;border-color:var(--line2);background:transparent}
 .lt.sg{border-color:transparent;color:var(--acc);background:var(--acc2)}
 .lt.gd{border-color:transparent;color:var(--run);background:var(--run2)}
+.lt.st{border-color:var(--line2);color:var(--ink2);background:transparent}
+.lt.cl{border-color:transparent;color:var(--ok);background:var(--ok2)}
 .pdet .dpsum{margin:4px 0 8px}
 .pdet .irows{margin:6px 0 10px}
 .srcbox{margin:2px 0 8px 14px;padding:6px 10px;border-left:2px solid var(--ln);}
@@ -1127,6 +1131,10 @@ function trendChart(rows, st) {
       tip.style.display = "block";
       const lx = pts[i][0] / W * b.width;
       tip.style.left = Math.min(b.width - 168, Math.max(0, lx - 76)) + "px";
+      // 점이 그림 위쪽 절반에 있으면 말풍선을 아래에, 아래쪽이면 위에 붙인다.
+      const 위쪽 = pts[i][1] < P.t + ih / 2;
+      tip.style.top = 위쪽 ? "" : "8px";
+      tip.style.bottom = 위쪽 ? "8px" : "";
     });
     hit.addEventListener("mouseleave", () => {
       vline.setAttribute("opacity", 0); ring.setAttribute("opacity", 0); tip.style.display = "none"; });
@@ -1211,6 +1219,12 @@ function multiChart(series, met){
       `<span class="dim"> ${o.p.d}편 ${man(o.p.sp)}</span>`).join("");
     tip.style.display="block";
     tip.style.left=Math.min(b.width-215,Math.max(0,x(i)/b.width*0+x(i)/W*b.width-100))+"px";
+    // 그 세로줄에서 제일 높은 점을 기준으로 위아래를 뒤집는다
+    const _ys=series.map(sr=>{const q=sr.pts.find(z=>z.k===keys[i]);
+      return q?y(M.f(q)):null;}).filter(z=>z!=null);
+    const 위쪽=_ys.length?Math.min(..._ys)<P.t+ih/2:false;
+    tip.style.top=위쪽?"":"8px";
+    tip.style.bottom=위쪽?"8px":"";
   });
   hit.addEventListener("mouseleave",()=>{vline.setAttribute("opacity",0);tip.style.display="none";});
   host.append(g,tip);
@@ -1459,11 +1473,11 @@ const sgColor = i => SG_COLORS[i % SG_COLORS.length];
    소구별 근거 워딩·CTA 까지. 그 뼈대를 통째로 복사해 AI에 넣거나 손으로 다듬는다.
    판정은 원고 제안과 같은 것을 쓴다 — 두 곳에서 다르게 세면 안 된다. (2026-09-03) */
 const BD_칸 = [
-  {키:"형식",  이름:"영상 형식", 칸:"영상 형식",               하나:true},
+  {키:"형식",  이름:"영상 요소", 칸:"영상 요소",               하나:true},
   {키:"화자",  이름:"화자",     칸:"화자 — 누가 말할까",       하나:false},
   {키:"구조",  이름:"구조",     칸:"구조",                   하나:false},
-  {키:"후킹",  이름:"후킹",     칸:"후킹 유형 — 무엇으로 열까",  하나:true},
-  {키:"소구",  이름:"소구",     칸:"소구 — 무엇을 말할까",      하나:false},
+  {키:"후킹",  이름:"후킹",     칸:"후킹 — 무엇으로 열까",  하나:true},
+  {키:"소구",  이름:"소구",     칸:"본문 — 소구",      하나:false},
   {키:"CTA",  이름:"CTA",     칸:"CTA — 어떻게 닫을까",      하나:true},
 ];
 window.BD2 = window.BD2 || {고름:{}, 워딩:{}, 글:{제목:"", 후킹:"", 본문:"", CTA:""},
@@ -1535,7 +1549,7 @@ function bd뼈대(){
   L.push("[후킹]");
   값("후킹").forEach(v=>{
     L.push("유형: " + v);
-    const 보 = (bd줄찾기("후킹 유형 — 무엇으로 열까", v)||{});
+    const 보 = (bd줄찾기("후킹 — 무엇으로 열까", v)||{});
     const 온 = pk온문장(보);
     const 성 = (온||[]).filter(o=>o.성)[0] || (온||[])[0];
     if(성) L.push("  보기: " + 성.t);
@@ -1545,8 +1559,9 @@ function bd뼈대(){
   L.push("[본문]");
   값("소구").forEach((s,i)=>{
     L.push(`소구${i+1}: ${s}`);
-    [["문제","그 소구를 어떻게 말할까"],
-     ["근거","근거 — 무엇으로 받칠까"]].forEach(([이름,칸])=>{
+    [["문제","무엇이 문제라고 했나"],
+     ["주장","무엇을 주장했나"],
+     ["근거","무엇으로 받쳤나"]].forEach(([이름,칸])=>{
       const vs = ((W[s]||{})[칸]) || [];
       vs.forEach((v,n)=>{
         L.push(`  ${이름}${n+1}: ${v}`);
@@ -1606,8 +1621,9 @@ function viewBuild(){
         const wc = el("div",{class:"card tight"},
           el("h3",{},`${s} — 무엇으로 채울까`),
           el("p",{class:"note"},"고르면 그 워딩과 실제 문장이 뼈대에 들어갑니다"));
-        [["문제·방식","그 소구를 어떻게 말할까"],
-         ["근거","근거 — 무엇으로 받칠까"]].forEach(([이름,칸2])=>{
+        [["문제상황","무엇이 문제라고 했나"],
+         ["주장","무엇을 주장했나"],
+         ["근거","무엇으로 받쳤나"]].forEach(([이름,칸2])=>{
           const rs2 = bd소구줄(s, 칸2);
           if(!rs2.length) return;
           const 든 = ((window.BD2.워딩[s]||{})[칸2]) || [];
@@ -2879,14 +2895,15 @@ function viewIdea(){
          종류(기전·수치·권위)는 근거 워딩에 이름표로 붙어 있으니 따로 세우지 않는다. */
       [["문제","%s — 무엇이 문제라고 했나","이 소구로 무엇을 문제 삼았나"],
        ["근거","%s — 무엇으로 받쳤나","실제로 쓴 근거 워딩. 대괄호는 그 워딩이 무슨 종류인지"],
-       ["방식","%s — 어떻게 말했나","같은 것을 어떤 결로 말했나"]].forEach(function(kv){
+       ["방식","%s — 무엇을 주장했나","이 소구로 무엇을 내세웠나"]].forEach(function(kv){
         const rs=(쪽것[kv[0]]||[]);
+        /* 쓸 것이 없으면 카드를 아예 안 낸다. 빈 카드가 자리만 먹고,
+           고르는 사람은 「여기는 아직 안 됐나」 하고 헷갈린다. (2026-09-07) */
+        if(!rs.length) return;
         const c=el("div",{class:"card tight"},
           el("h3",{},kv[1].replace("%s",고른.v)),
           el("p",{class:"note"},kv[2]));
-        if(rs.length) c.append(pkTable(rs,"워딩",""));
-        else c.append(el("p",{class:"dim"},
-          `${고른.v}을(를) ${쪽키}으로 쓴 원고에서는 여기에 쓸 만한 것이 2편을 못 넘습니다.`));
+        c.append(pkTable(rs,"워딩",""));
         안.append(c);
       });
 
@@ -3980,11 +3997,11 @@ function vRow(r, lines){
    지금 어느 자리를 고르는 중인지가 사라진다. 표 모양도 가설 제안과 같은 것을 쓴다. */
 window.PK = "후킹"; window.PKS = "메인"; window.PKG = "";
 const PK_TABS = {
-  "후킹": ["후킹 유형 — 무엇으로 열까", "후킹 — 어떻게 열까", "후킹 — 그 밖의 갈래"],
-  "본문": ["소구 — 무엇을 말할까", "그 소구를 어떻게 말할까", "근거 — 무엇으로 받칠까",
-           "근거 — 원고 전체로 보면", "소구 — 얼개"],
+  "후킹": ["후킹 — 무엇으로 열까", "후킹 — 어떤 말로 열었나", "후킹 — 그 밖의 갈래"],
+  "본문": ["본문 — 소구", "무엇이 문제라고 했나", "무엇을 주장했나",
+           "무엇으로 받쳤나", "본문 — 근거"],
   "CTA": ["CTA — 어떻게 닫을까", "CTA — 어떻게 닫았나"],
-  "영상 요소": ["영상 형식", "화자 — 누가 말할까", "구조", "그 밖"],
+  "영상 요소": ["영상 요소", "화자 — 누가 말할까", "구조", "그 밖"],
 };
 const PK_NOTE = {
   "후킹":"무엇으로 여는가. 3초를 여기서 잃습니다.",
@@ -4035,7 +4052,8 @@ const PK_소구칸 = {
   "소구 — 그 안의 갈래": (r, g) => (r.ax || "").indexOf(g) === 0,
 };
 /* 소구를 안 가리는 칸 — 원고 전체를 놓고 보는 것이라 소구 아래 두면 안 된다 */
-const PK_전체칸 = ["근거 — 원고 전체로 보면", "소구 — 얼개"];
+/* 원고 단위로 다시 세던 칸 — 2026-09-07에 없앴다. 남겨 두면 빈 칸이 뜬다. */
+const PK_전체칸 = [];
 
 function pk소구칸(줄들, 이름, 소구){
   const f = PK_소구칸[이름];
@@ -4321,6 +4339,10 @@ const 줄표=(x)=>{
     x.자+(x.갈&&x.갈!=="미상"?" · "+x.갈:""))];
   if(x.막) 조각.push(el("span",{class:"lt mk"},"화면 자막"));
   (x.소||[]).forEach(g=>조각.push(el("span",{class:"lt sg"},g)));
+  /* 상황은 소구와 다른 축이다 — 「러닝할 때」는 어디에 쓰는가지 제품력이 아니다 */
+  (x.상||[]).forEach(g=>조각.push(el("span",{class:"lt st"},g)));
+  /* CTA에는 소구가 없다. 대신 무엇으로 닫았나가 붙는다 */
+  (x.닫||[]).forEach(g=>조각.push(el("span",{class:"lt cl"},g)));
   if(x.근) 조각.push(el("span",{class:"lt gd"},x.근));
   return el("span",{class:"ltw"},...조각);
 };
@@ -4619,7 +4641,7 @@ function viewPick(){
     if(RC){
       /* 메인·서브 성적은 고른 기간으로 다시 센 것을 쓴다.
          근거·워딩은 서버가 그 쪽 원고로만 센 것이라 그대로 쓴다. */
-      const 표={}; RC.줄.filter(r=>r.칸==="소구 — 무엇을 말할까")
+      const 표={}; RC.줄.filter(r=>r.칸==="본문 — 소구")
         .forEach(r=>{표[r.ax+"｜"+r.v]=r;});
       모두=모두.map(r=>{
         const o=Object.assign({},r);
@@ -4676,14 +4698,15 @@ function viewPick(){
          종류(기전·수치·권위)는 근거 워딩에 이름표로 붙어 있으니 따로 세우지 않는다. */
       [["문제","%s — 무엇이 문제라고 했나","이 소구로 무엇을 문제 삼았나"],
        ["근거","%s — 무엇으로 받쳤나","실제로 쓴 근거 워딩. 대괄호는 그 워딩이 무슨 종류인지"],
-       ["방식","%s — 어떻게 말했나","같은 것을 어떤 결로 말했나"]].forEach(function(kv){
+       ["방식","%s — 무엇을 주장했나","이 소구로 무엇을 내세웠나"]].forEach(function(kv){
         const rs=(쪽것[kv[0]]||[]);
+        /* 쓸 것이 없으면 카드를 아예 안 낸다. 빈 카드가 자리만 먹고,
+           고르는 사람은 「여기는 아직 안 됐나」 하고 헷갈린다. (2026-09-07) */
+        if(!rs.length) return;
         const c=el("div",{class:"card tight"},
           el("h3",{},kv[1].replace("%s",고른.v)),
           el("p",{class:"note"},kv[2]));
-        if(rs.length) c.append(pkTable(rs,"워딩",""));
-        else c.append(el("p",{class:"dim"},
-          `${고른.v}을(를) ${쪽키}으로 쓴 원고에서는 여기에 쓸 만한 것이 2편을 못 넘습니다.`));
+        c.append(pkTable(rs,"워딩",""));
         안.append(c);
       });
       안.append(el("div",{class:"note"},
