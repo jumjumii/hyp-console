@@ -690,6 +690,7 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
   <button data-v="perf">계정 흐름</button>
   <div class="lab">2 · 트렌드와 가설</div>
   <button data-v="pick">원고 제안</button>
+  <button data-v="promo">프로모션</button>
   <div class="lab">3 · 원고 빌더</div>
   <button data-v="build">빌더</button>
   <button data-v="draft">원고 검증</button>
@@ -929,7 +930,7 @@ function go(v){document.querySelectorAll("nav button").forEach(x=>
     x.setAttribute("aria-current",String(x.dataset.v===v)));
   try{localStorage.setItem("bt_view",v);}catch(e){}
   VIEWS[v]();
-  if(v==="pick") 프로모션붙이기();   // 나가는 길이 여럿이라 여기서 한 번에 붙인다
+  /* 프로모션은 이제 제 화면(viewPromo)이 있다. 아래에 또 붙이면 두 벌이 된다. */
   window.scrollTo({top:0,behavior:"smooth"});}
 const STEPS=[["bench","1","무엇을 검증할까","가설을 고르고 사례를 본다"],
   ["write","2","어떻게 쓸까","A안·B안을 여기서 쓴다"],
@@ -2843,7 +2844,7 @@ Object.defineProperty(window,"IKS",{get:()=>window.PKS,set:v=>{window.PKS=v;}});
 Object.defineProperty(window,"IKG",{get:()=>window.PKG,set:v=>{window.PKG=v;}});
 function viewIdea(){
   const m=$("#main");m.innerHTML="";
-  const A=((D.trend||{}).sugall)||[];
+  const A=((PKT()).sugall)||[];
   m.append(el("p",{class:"eyebrow"},"트렌드와 가설"),el("h2",{},"원고 제안"));
   if(!A.length){ m.append(el("p",{class:"lede"},"아직 제안을 못 냅니다.")); return; }
   m.append(el("p",{class:"lede"},
@@ -4028,7 +4029,11 @@ const PK_MK = {"요즘 된다":"yes", "다시 해볼 것":"maybe", "힘이 빠�
 const PK_RANK = {"요즘 된다":0, "다시 해볼 것":1, "힘이 빠짐":2,
                  "표본 모자람":3, "요즘 안 씀":4, "기저 아래":5};
 
-const PKT=()=>D.trend||{};
+/* ★프로모션 화면은 「원고 제안」과 같은 렌더러를 쓰고 자료만 바꿔 문다.
+   화면을 복사하면 한쪽만 고치는 일이 반드시 생긴다 — 이미 두 번 겪었다.
+   PKSRC 하나만 바꾸면 표·기간 단추·원문 카드가 그대로 따라온다. (2026-09-08) */
+window.PKSRC = "trend";
+const PKT=()=>D[window.PKSRC]||D.trend||{};
 
 /* ══ 왼쪽 목차 ═══════════════════════════════════════════════════════
    한 탭에 카드가 여덟 개까지 쌓인다. 목차 없이 세로로만 두면 아래에 뭐가
@@ -4609,12 +4614,31 @@ const pkTable=(rs,값,칸,고름)=>{
   return tb;};
 
 
+/* 프로모션 소재만 놓고 같은 표를 본다. 판정이 따로 없어 <그 소재들 안에서>
+   컷을 넘겼나로 성공을 세고, 기저도 프로모션 안에서 낸다. (2026-09-08) */
+function viewPromo(){
+  window.PKSRC = "promotrend";
+  try{
+    if(!D.promotrend||!(D.promotrend.suggest||[]).length){
+      const m=$("#main"); m.innerHTML="";
+      m.append(el("p",{class:"eyebrow"},"프로모션"),el("h2",{},"프로모션 소재"),
+        el("p",{class:"lede"},"프로모션 소재가 아직 판정할 만큼 안 모였습니다."));
+      return;
+    }
+    viewPick();
+    const h=$("#main").querySelector("h2");
+    if(h) h.textContent="프로모션 소재";
+    const e=$("#main").querySelector("p.eyebrow");
+    if(e) e.textContent="프로모션";
+  } finally { window.PKSRC = "trend"; }
+}
+
 function viewPick(){
   /* 「전체」를 고르면 기간을 안 자른 셈법으로 넘긴다 — 화면은 같은 표를 쓴다.
      둘을 따로 둘 이유가 기간뿐이었다. (2026-09-01) */
   if(window.PKW===0 && !window.PKD) return viewIdea();
   const m=$("#main");m.innerHTML="";
-  const T=D.trend, S=(T&&T.suggest)||[];
+  const T=PKT(), S=(T&&T.suggest)||[];
   m.append(el("p",{class:"eyebrow"},"트렌드와 가설"),el("h2",{},"원고 제안"));
   if(!S.length){ m.append(el("p",{class:"lede"},"아직 제안을 못 냅니다.")); return; }
   m.append(el("p",{class:"lede"},
@@ -4921,7 +4945,7 @@ function advise(){
   /* ── 트렌드 딱지 — 판정은 전기간 성적이라 「반년 전에 되던 것」을 오늘도 된다고 말한다.
      이 원고가 쓴 값 중 최근에 지고 있는 것을 먼저 짚는다. (2026-08-26) */
   (function(){
-    const T=D.trend; if(!T) return;
+    const T=PKT(); if(!T) return;
     const 표={};
     (T.down||[]).forEach(x=>표[x.ax+SEPJ+x.v]={칸:"지고 있음", d:x.d, r:x});
     (T.up||[]).forEach(x=>표[x.ax+SEPJ+x.v]={칸:"떠오름", d:x.d, r:x});
@@ -5348,7 +5372,7 @@ function viewPerf(){
   m.append(el("p",{class:"dim"},
     "이번 달은 아직 매출이 다 붙지 않았습니다 — 카페24 귀속이 며칠 걸립니다."));
 }
-const VIEWS={build:viewBuild,pick:viewPick,write:viewWrite,home:viewHome,full:viewFull,code:viewCode,draft:viewDraft,
+const VIEWS={build:viewBuild,pick:viewPick,promo:viewPromo,write:viewWrite,home:viewHome,full:viewFull,code:viewCode,draft:viewDraft,
   drafts:viewDrafts,perf:viewPerf,place:viewPlace};
 document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()=>go(b.dataset.v)));
 function boot(data){
