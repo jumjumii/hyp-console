@@ -929,8 +929,8 @@ function 표정렬(tb){
 function go(v){document.querySelectorAll("nav button").forEach(x=>
     x.setAttribute("aria-current",String(x.dataset.v===v)));
   try{localStorage.setItem("bt_view",v);}catch(e){}
+  if(v!=="promo") window.PKSRC="trend";   // 그리기 <전에> 되돌린다
   VIEWS[v]();
-  /* 프로모션은 이제 제 화면(viewPromo)이 있다. 아래에 또 붙이면 두 벌이 된다. */
   window.scrollTo({top:0,behavior:"smooth"});}
 const STEPS=[["bench","1","무엇을 검증할까","가설을 고르고 사례를 본다"],
   ["write","2","어떻게 쓸까","A안·B안을 여기서 쓴다"],
@@ -2845,7 +2845,9 @@ Object.defineProperty(window,"IKG",{get:()=>window.PKG,set:v=>{window.PKG=v;}});
 function viewIdea(){
   const m=$("#main");m.innerHTML="";
   const A=((PKT()).sugall)||[];
-  m.append(el("p",{class:"eyebrow"},"트렌드와 가설"),el("h2",{},"원고 제안"));
+  const 프모 = window.PKSRC === "promotrend";
+  m.append(el("p",{class:"eyebrow"}, 프모?"프로모션":"트렌드와 가설"),
+           el("h2",{}, 프모?"프로모션 소재":"원고 제안"));
   if(!A.length){ m.append(el("p",{class:"lede"},"아직 제안을 못 냅니다.")); return; }
   m.append(el("p",{class:"lede"},
     `판정이 닫힌 ${D.n}편 전체를 놓고 셉니다. 기저 ${pc(D.base)}. `+
@@ -4617,29 +4619,29 @@ const pkTable=(rs,값,칸,고름)=>{
 /* 프로모션 소재만 놓고 같은 표를 본다. 판정이 따로 없어 <그 소재들 안에서>
    컷을 넘겼나로 성공을 세고, 기저도 프로모션 안에서 낸다. (2026-09-08) */
 function viewPromo(){
+  /* ★자료는 <이 화면에 머무는 동안> 바뀌어 있어야 한다. 그릴 때만 바꿨다가
+     되돌리면, 탭이나 기간 단추를 누르는 순간 viewPick 이 일반 자료로 다시
+     그려서 「원고 제안」으로 돌아가 버린다 — 실제로 그랬다. (2026-09-08)
+     그래서 여기서 세우고, go() 가 다른 화면으로 갈 때 되돌린다. */
   window.PKSRC = "promotrend";
-  try{
-    if(!D.promotrend||!(D.promotrend.suggest||[]).length){
-      const m=$("#main"); m.innerHTML="";
-      m.append(el("p",{class:"eyebrow"},"프로모션"),el("h2",{},"프로모션 소재"),
-        el("p",{class:"lede"},"프로모션 소재가 아직 판정할 만큼 안 모였습니다."));
-      return;
-    }
-    viewPick();
-    const h=$("#main").querySelector("h2");
-    if(h) h.textContent="프로모션 소재";
-    const e=$("#main").querySelector("p.eyebrow");
-    if(e) e.textContent="프로모션";
-  } finally { window.PKSRC = "trend"; }
+  if(!D.promotrend||!(D.promotrend.suggest||[]).length){
+    const m=$("#main"); m.innerHTML="";
+    m.append(el("p",{class:"eyebrow"},"프로모션"),el("h2",{},"프로모션 소재"),
+      el("p",{class:"lede"},"프로모션 소재가 아직 판정할 만큼 안 모였습니다."));
+    return;
+  }
+  viewPick();
 }
 
 function viewPick(){
   /* 「전체」를 고르면 기간을 안 자른 셈법으로 넘긴다 — 화면은 같은 표를 쓴다.
      둘을 따로 둘 이유가 기간뿐이었다. (2026-09-01) */
-  if(window.PKW===0 && !window.PKD) return viewIdea();
+  if(window.PKW===0 && !window.PKD && window.PKSRC!=="promotrend") return viewIdea();
   const m=$("#main");m.innerHTML="";
   const T=PKT(), S=(T&&T.suggest)||[];
-  m.append(el("p",{class:"eyebrow"},"트렌드와 가설"),el("h2",{},"원고 제안"));
+  const 프모 = window.PKSRC === "promotrend";
+  m.append(el("p",{class:"eyebrow"}, 프모?"프로모션":"트렌드와 가설"),
+           el("h2",{}, 프모?"프로모션 소재":"원고 제안"));
   if(!S.length){ m.append(el("p",{class:"lede"},"아직 제안을 못 냅니다.")); return; }
   m.append(el("p",{class:"lede"},
     "쓰는 차례대로 — 영상 형식 → 구조 → 후킹 → 소구 → 근거 → CTA. "+
