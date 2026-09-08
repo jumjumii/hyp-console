@@ -4201,8 +4201,14 @@ function pkRecount(달){
     else if(E.n>=2&&rL>=bL&&(d||0)>=-0.05) 어디="요즘 된다";
     else if(rL>=bL) 어디="힘이 빠짐";
     else 어디="기저 아래";
+    /* ★원문도 기간을 따라야 한다. 숫자만 다시 세고 원문은 서버가 2달로 뽑아
+       둔 것을 그대로 물려주고 있었다 — 1달로 좁혀도 1월에 태운 소재의 문장이
+       예시로 떴다. 「이게 1달에 있는 소재냐」는 물음이 그래서 나왔다. (2026-09-08) */
+    const 안이름 = new Set(r.ids.filter(i=>SL.has(i)).map(i=>소[i].t));
+    const 원문2 = (r.원문||[]).filter(o=>안이름.has(o.소재)||안이름.has(o.d));
     return Object.assign({},r,{nE:E.n,wE:E.w,nL:L.n,wL:L.w,
       d:(d==null?null:Math.round(d*1000)/1000), 어디:어디,
+      원문:(원문2.length?원문2:[]), 기간밖원문:((r.원문||[]).length-원문2.length),
       ts:r.ids.map(i=>소[i].t).slice(0,80)});
   });
   return {줄:out, baseE:bE, baseL:bL, nE:이.length, nL:늦.length,
@@ -4389,8 +4395,31 @@ const 본문펴기=(t,붙을곳,문장)=>{
     el("button",{class:"lnk ic",onclick:()=>openDraft(t)},"소재 화면에서 보기 →")));
   붙을곳.after(box);
 };
+/* ★기간을 좁히면 그 기간에 태운 소재의 문장만 보여야 한다.
+   D.ptab 에서 통째로 끌어오는 길이 따로 있어서, 1달로 좁혀도 1월에 태운
+   소재의 문장이 예시로 떴다 — 「이게 1달에 있는 소재냐」. (2026-09-08) */
+function pk기간안(){
+  const P=(PKT().pool)||{}; const 소=(P.소재||[]);
+  if(!소.length) return null;
+  const 달=window.PKW, D2=window.PKD;
+  if(!D2 && !달) return null;                 // 「전체」면 안 거른다
+  const ds=소.map(x=>x.d).filter(Boolean).sort();
+  const 끝=(D2&&D2.까지)||ds[ds.length-1];
+  let 부터=(D2&&D2.부터);
+  if(!부터){ const d=new Date(ds[ds.length-1]); d.setMonth(d.getMonth()-달);
+             d.setDate(d.getDate()+1); 부터=d.toISOString().slice(0,10); }
+  const 안=new Set();
+  소.forEach(x=>{ if(x.d && x.d>=부터 && x.d<=끝) 안.add(x.t); });
+  return 안;
+}
 function pk온문장(r){
-  if(!r.키) return (r.원문||[]);
+  const 안=pk기간안();
+  const 거르기=(a)=>{
+    if(!안) return a;
+    const b=(a||[]).filter(o=>안.has(o.소재)||안.has(o.d));
+    return b;
+  };
+  if(!r.키) return 거르기(r.원문||[]);
   const [part,g,tab,v]=r.키;
   const out=[], 본=new Set();
   (D.ptab||[]).forEach(x=>{
@@ -4405,7 +4434,8 @@ function pk온문장(r){
     });
   });
   out.sort((a2,b2)=>(b2.성?1:0)-(a2.성?1:0));
-  return out.length?out:(r.원문||[]);
+  const 온=거르기(out);
+  return 온.length?온:거르기(r.원문||[]);
 }
 const pkDet=(r)=>{
   const d=el("div",{class:"pdet wide"});
