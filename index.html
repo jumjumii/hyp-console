@@ -688,6 +688,7 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
   <div class="lab">1 · 라이브 모니터</div>
   <button data-v="home" aria-current="true">지금</button>
   <button data-v="perf">계정 흐름</button>
+  <button data-v="mon">월별 소재</button>
   <div class="lab">2 · 트렌드와 가설</div>
   <button data-v="pick">원고 제안</button>
   <button data-v="promo">프로모션</button>
@@ -5291,6 +5292,62 @@ function showDraft(d,host,닫기){
         el("p",{class:"eyebrow",style:"margin:0 0 2px"},a),
         el("div",{style:"font-size:12.5px"},cod[a].join(" · "))))):null));
 }
+/* 달마다 소재 가르기 — 월간분석.html이 하던 일. 판정(성공/실패)은 첫 14일로
+   한 번 매기고 끝이라 오래 도는 소재가 지금 버는지 태우는지는 안 보인다.
+   기준은 이 화면에서만 쓴다 — 판정은 안 바꾼다. (2026-09-21) */
+function viewMon(){
+  const m=$("#main");m.innerHTML="";
+  const 달=Object.keys(D.mon||{}).sort().reverse();
+  let 기준={잘:D.cut,안:1,최소:300000};
+  try{Object.assign(기준,JSON.parse(localStorage.getItem("bt_mon")||"{}"));}catch(e){}
+  m.append(el("p",{class:"eyebrow"},"라이브 모니터"),el("h2",{},"달마다 잘된 소재 · 안된 소재"),
+    el("p",{class:"lede"},"고른 달에 쓴 돈과 붙은 매출만으로 가릅니다. "+
+      "판정(첫 14일)과 별개입니다 — 판정은 원고가 좋았나, 이 화면은 그 달에 누가 벌고 누가 태웠나."));
+  const mSel=el("select",{},...달.map(k=>el("option",{value:k},k)));
+  const 칸=(v,w)=>el("input",{type:"number",step:"any",value:v,style:`width:${w}px`});
+  const 잘=칸(기준.잘,64),안=칸(기준.안,64),최소=칸(기준.최소,96);
+  const cSel=el("select",{},...["전체","잘됨","보통","안됨","지출 적음"].map(s=>el("option",{value:s},s)));
+  m.append(el("div",{class:"bar"},mSel,
+    el("span",{class:"dim"}," 잘됨 ROAS ≥"),잘,el("span",{class:"dim"}," 안됨 <"),안,
+    el("span",{class:"dim"}," 최소 지출"),최소,cSel));
+  const two=el("div",{class:"two one"}),L=el("div"),R=el("div",{style:"display:none"});
+  two.append(L,R);m.append(two);
+  const 닫기=()=>{R.innerHTML="";R.style.display="none";two.classList.add("one");};
+  const 열기=t=>{const d=DR[t];if(!d)return;R.style.display="";two.classList.remove("one");showDraft(d,R,닫기);};
+  const 가름=(c,n)=>c<기준.최소?"지출 적음":(n/c>=기준.잘?"잘됨":(n/c<기준.안?"안됨":"보통"));
+  const PILL={잘됨:"p-ok",보통:"p-dim",안됨:"p-no","지출 적음":"p-dim"};
+  const render=()=>{
+    기준={잘:+잘.value||0,안:+안.value||0,최소:+최소.value||0};
+    try{localStorage.setItem("bt_mon",JSON.stringify(기준));}catch(e){}
+    const ym=mSel.value, 앞=달[달.indexOf(ym)+1];
+    const 전={};((D.mon||{})[앞]||[]).forEach(([t,c,n])=>전[t]=c?n/c:null);
+    const rs=((D.mon||{})[ym]||[]).filter(r=>r[1]>0).map(([t,c,n,o])=>
+      ({t,c,n,o,r:n/c,g:가름(c,n),p:전[t],d:DR[t]}));
+    L.innerHTML="";
+    const 합={};rs.forEach(x=>{const a=(합[x.g]=합[x.g]||{k:0,c:0,n:0});a.k++;a.c+=x.c;a.n+=x.n;});
+    L.append(el("div",{class:"kpi"},...["잘됨","보통","안됨","지출 적음"].map(g=>{const a=합[g]||{k:0,c:0,n:0};
+      return el("div",{},el("b",{},a.k+"편"),el("span",{},`${g} · 지출 ${man(a.c)} · ROAS ${a.c?(a.n/a.c).toFixed(2):"—"}`));})));
+    const 지친=rs.filter(x=>x.g==="안됨"&&x.d&&x.d.st==="성공");
+    if(지친.length) L.append(el("div",{class:"note wa"},el("b",{},`판정은 성공인데 이 달은 안됨 ${지친.length}편 `),
+      "— 지친 소재일 수 있습니다: "+지친.map(x=>이름(x.t)).join(" · ")));
+    if(ym===달[0]) L.append(el("p",{class:"dim"},"이번 달은 아직 매출이 다 붙지 않았습니다 — 카페24 귀속이 며칠 걸립니다."));
+    if(D.csvuntil && ym>D.csvuntil.slice(0,7)) L.append(el("p",{class:"dim"},
+      `카페24 내보내기가 ${D.csvuntil}까지라 그 뒤 매출은 API 유추분입니다(확정 아님).`));
+    const 보일=cSel.value==="전체"?rs:rs.filter(x=>x.g===cSel.value);
+    L.append(table([
+      {h:"소재",l:1,k:r=>이름(r.t),c:r=>el("b",{title:r.t},이름(r.t))},
+      {h:"이 달",k:r=>["안됨","지출 적음","보통","잘됨"].indexOf(r.g),c:r=>el("span",{class:"pill "+PILL[r.g]},r.g)},
+      {h:"지출",k:r=>r.c,c:r=>man(r.c)},{h:"매출",k:r=>r.n,c:r=>man(r.n)},
+      {h:"ROAS",k:r=>r.r,c:r=>el("b",{class:r.r>=기준.잘?"g":"b"},r.r.toFixed(2))},
+      {h:"주문",k:r=>r.o,c:r=>num(r.o)},
+      {h:"CPA",k:r=>r.o?r.c/r.o:-1,c:r=>r.o?num(r.c/r.o):"—"},
+      {h:"전월 ROAS",tip:"앞 달 같은 소재",k:r=>r.p??-1,c:r=>r.p==null?el("span",{class:"dim"},"—"):r.p.toFixed(2)},
+      {h:"판정",tip:"첫 14일로 매긴 평생 판정",k:r=>r.d?r.d.st:"",
+       c:r=>r.d?el("span",{class:"pill "+(SP[r.d.st]||"p-dim")},r.d.st):"—"}],
+      보일,{sort:2,onrow:r=>열기(r.t)}));
+  };
+  [mSel,잘,안,최소,cSel].forEach(x=>x.addEventListener("input",render));render();
+}
 function viewPerf(){
   const m=$("#main");m.innerHTML="";
   m.append(el("p",{class:"eyebrow"},"라이브 모니터"),el("h2",{},"계정 전체가 어디로 가고 있나"),
@@ -5405,7 +5462,7 @@ function viewPerf(){
     "이번 달은 아직 매출이 다 붙지 않았습니다 — 카페24 귀속이 며칠 걸립니다."));
 }
 const VIEWS={build:viewBuild,pick:viewPick,promo:viewPromo,write:viewWrite,home:viewHome,full:viewFull,code:viewCode,draft:viewDraft,
-  drafts:viewDrafts,perf:viewPerf,place:viewPlace};
+  drafts:viewDrafts,perf:viewPerf,mon:viewMon,place:viewPlace};
 document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()=>go(b.dataset.v)));
 function boot(data){
   D=data; COD=D.jcod; DR=Object.fromEntries(D.drafts.map(d=>[d.t,d]));
