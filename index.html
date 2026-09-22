@@ -5302,7 +5302,7 @@ function viewMon(){
   try{Object.assign(기준,JSON.parse(localStorage.getItem("bt_mon")||"{}"));}catch(e){}
   m.append(el("p",{class:"eyebrow"},"라이브 모니터"),el("h2",{},"달마다 잘된 소재 · 안된 소재"),
     el("p",{class:"lede"},"고른 달에 쓴 돈과 붙은 매출만으로 가릅니다. "+
-      "판정(첫 14일)과 별개입니다 — 판정은 원고가 좋았나, 이 화면은 그 달에 누가 벌고 누가 태웠나."));
+      "원고 없는 광고(파트너십·이미지)도 넣었습니다. 판정(첫 14일)과 별개입니다 — 판정은 원고가 좋았나, 이 화면은 그 달에 누가 벌고 누가 태웠나."));
   const mSel=el("select",{},...달.map(k=>el("option",{value:k},k)));
   const 칸=(v,w)=>el("input",{type:"number",step:"any",value:v,style:`width:${w}px`});
   const 잘=칸(기준.잘,64),안=칸(기준.안,64),최소=칸(기준.최소,96);
@@ -5321,8 +5321,8 @@ function viewMon(){
     try{localStorage.setItem("bt_mon",JSON.stringify(기준));}catch(e){}
     const ym=mSel.value, 앞=달[달.indexOf(ym)+1];
     const 전={};((D.mon||{})[앞]||[]).forEach(([t,c,n])=>전[t]=c?n/c:null);
-    const rs=((D.mon||{})[ym]||[]).filter(r=>r[1]>0).map(([t,c,n,o])=>
-      ({t,c,n,o,r:n/c,g:가름(c,n),p:전[t],d:DR[t]}));
+    const rs=((D.mon||{})[ym]||[]).filter(r=>r[1]>0).map(([t,c,n,o,밖])=>
+      ({t,c,n,o,밖,r:n/c,g:가름(c,n),p:전[t],d:DR[t]}));
     L.innerHTML="";
     const 합={};rs.forEach(x=>{const a=(합[x.g]=합[x.g]||{k:0,c:0,n:0});a.k++;a.c+=x.c;a.n+=x.n;});
     L.append(el("div",{class:"kpi"},...["잘됨","보통","안됨","지출 적음"].map(g=>{const a=합[g]||{k:0,c:0,n:0};
@@ -5343,7 +5343,8 @@ function viewMon(){
       {h:"CPA",k:r=>r.o?r.c/r.o:-1,c:r=>r.o?num(r.c/r.o):"—"},
       {h:"전월 ROAS",tip:"앞 달 같은 소재",k:r=>r.p??-1,c:r=>r.p==null?el("span",{class:"dim"},"—"):r.p.toFixed(2)},
       {h:"판정",tip:"첫 14일로 매긴 평생 판정",k:r=>r.d?r.d.st:"",
-       c:r=>r.d?el("span",{class:"pill "+(SP[r.d.st]||"p-dim")},r.d.st):"—"}],
+       c:r=>r.d?el("span",{class:"pill "+(SP[r.d.st]||"p-dim")},r.d.st)
+             :el("span",{class:"dim",title:"원고가 없는 광고라 판정 대상이 아닙니다"},r.밖||"—")}],
       보일,{sort:2,onrow:r=>열기(r.t)}));
   };
   [mSel,잘,안,최소,cSel].forEach(x=>x.addEventListener("input",render));render();
