@@ -5318,6 +5318,57 @@ function showDraft(d,host,닫기){
 /* 달마다 소재 가르기 — 월간분석.html이 하던 일. 판정(성공/실패)은 첫 14일로
    한 번 매기고 끝이라 오래 도는 소재가 지금 버는지 태우는지는 안 보인다.
    기준은 이 화면에서만 쓴다 — 판정은 안 바꾼다. (2026-09-21) */
+/* 파일을 여기서 바로 넣는다 — 폴더를 찾아 들어갈 일을 없앤다. (2026-09-29)
+   ★서버(실행.bat)가 있어야 실제로 저장된다. GitHub Pages에는 받아 둘 곳이 없어서
+     그때는 어디에 두면 되는지 말해 준다. 없는 단추를 눌러 보게 두지 않는다. */
+function 넣는칸(){
+  const 칸=el("div",{class:"card tight"});
+  const 몸=el("div");
+  칸.append(el("div",{class:"bar",style:"margin:0 0 6px"},
+    el("h3",{style:"margin:0"},"매체 지출·매출 넣기"),
+    el("span",{class:"dim sm2"},"구글 「광고 보고서」 csv · 틱톡 내보내기 xlsx · 카페24 「광고 유입 상세」 csv")),몸);
+  if(location.protocol==="file:"||!location.port){
+    몸.append(el("p",{class:"dim"},
+      "이 화면은 사이트로 열려 있어 파일을 받아 둘 곳이 없습니다. 두 가지 길이 있습니다 — ",
+      el("b",{},"① "),"파일을 ",el("code",{},"D:/체다/소재딥분석/자료/매체지출"),
+      " 에 두면 다음 갱신(하루 4번)이 알아서 집어갑니다. ",
+      el("b",{},"② "),"PC에서 ",el("code",{},"실행.bat"),
+      " 으로 열면 이 자리에 파일을 끌어다 놓을 수 있습니다."));
+    return 칸;
+  }
+  const 고르기=el("input",{type:"file",multiple:"",accept:".csv,.xlsx"});
+  const 말=el("p",{class:"dim",style:"margin:6px 0 0"},"파일을 고르거나 이 칸에 끌어다 놓으세요.");
+  const 보내기=async(파일들)=>{
+    if(!파일들||!파일들.length) return;
+    말.textContent="";
+    for(const f of 파일들){
+      const 줄=el("p",{class:"lrow"},el("b",{},f.name),el("span",{class:"dim"}," 보내는 중…"));
+      말.append(줄);
+      try{
+        const r=await fetch(`/api/upload?name=${encodeURIComponent(f.name)}&run=0`,
+                            {method:"POST",body:f});
+        const j=await r.json();
+        줄.lastChild.textContent = j.ok ? ` 넣었습니다 (${Math.round(j.bytes/1024).toLocaleString()}KB)`
+                                        : ` 실패 — ${j.err||r.status}`;
+      }catch(e){ 줄.lastChild.textContent=" 실패 — "+String(e).slice(0,60); }
+    }
+    말.append(el("p",{class:"dim"},"이제 ",el("b",{},"갱신"),
+      " 을 누르면 읽어서 화면에 붙습니다. 4분쯤 걸립니다."),
+      el("button",{class:"btn",onclick:async(e)=>{
+        e.target.disabled=true; e.target.textContent="갱신 중… (창을 닫지 마세요)";
+        await api("/api/refresh");
+        const 재기=setInterval(async()=>{const s2=await api("/api/status");
+          if(s2&&!s2.running){clearInterval(재기);location.reload();}},2000);
+      }},"갱신"));
+  };
+  고르기.addEventListener("change",()=>보내기(고르기.files));
+  칸.addEventListener("dragover",e=>{e.preventDefault();칸.style.outline="2px dashed var(--ok)";});
+  칸.addEventListener("dragleave",()=>칸.style.outline="");
+  칸.addEventListener("drop",e=>{e.preventDefault();칸.style.outline="";
+    보내기(e.dataTransfer&&e.dataTransfer.files);});
+  몸.append(고르기,말);
+  return 칸;
+}
 function viewMon(){
   const m=$("#main");m.innerHTML="";
   const 달=Object.keys(D.mon||{}).sort().reverse();
@@ -5337,6 +5388,7 @@ function viewMon(){
   m.append(el("div",{class:"bar"},mSel,chSel,
     el("span",{class:"dim"}," 잘됨 ROAS ≥"),잘,el("span",{class:"dim"}," 안됨 <"),안,
     el("span",{class:"dim"}," 최소 지출"),최소,cSel));
+  m.append(넣는칸());
   const two=el("div",{class:"two one"}),L=el("div"),R=el("div",{style:"display:none"});
   two.append(L,R);m.append(two);
   const 닫기=()=>{R.innerHTML="";R.style.display="none";two.classList.add("one");};
