@@ -5239,9 +5239,13 @@ function viewDrafts(){
       if(q.value.trim()){const _q=q.value.trim();
         ms=ms.filter(x=>x.t.includes(_q)||(x.nm||"").includes(_q));}
       host.innerHTML="";
+      const 쟀 = (D.mediarev||{})[chSel.value] || null;
       host.append(el("p",{class:"dim",style:"margin:0 0 6px"},
         `${이름} 기준 ${ms.length}편 — 지출 ${man(ms.reduce((a,x)=>a+x.sp,0))} · `+
-        `매출 ${man(ms.reduce((a,x)=>a+x.nt,0))}. 「판정」 칸은 메타 기준 그대로입니다.`),
+        `매출 ${man(ms.reduce((a,x)=>a+x.nt,0))}. 「판정」 칸은 메타 기준 그대로입니다.`,
+        (쟀&&쟀.miss)?el("span",{},` ${이름} 전체 매출 ${man(쟀.all)} 가운데 `,
+          el("b",{},man(쟀.miss)),`(${Math.round(쟀.miss/쟀.all*100)}%)는 소재 이름 없이 기록돼 `,
+          "어느 소재에도 안 붙습니다 — 그만큼 아래 ROAS가 낮게 보입니다."):null),
         table([
         {h:"소재",l:1,k:r=>r.nm||r.t,c:r=>el("b",{title:r.t},r.nm||r.t)},
         {h:"판정(메타)",k:r=>r.st,c:r=>el("span",{class:"pill "+(SP[r.st]||"p-dim"),
