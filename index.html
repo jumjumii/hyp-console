@@ -5261,6 +5261,29 @@ function showDraft(d,host,닫기){
         title:a.n+" · "+man(a.sp)},(i?" · ":"")+a.n))):null,
     d.w1?el("p",{class:"dim"},`판정 창 ${d.w1.days}일 · ROAS ${d.w1.roas} · ${d.w1.call||"—"} · `+
       `지출 ${man(d.w1.sp)} · 주문 ${d.w1.od}건`):null,
+    /* 매체별 — 이 소재가 구글·틱톡에서도 돌았나, 거기선 어땠나. (2026-09-29)
+       ★판정(성공/실패)은 메타 기준 그대로다. 구글·틱톡은 지출이 사람이 뽑은 보고서에서 오고
+         달 단위라 판정 창(첫 14일)을 못 만든다 — 그래서 누적만 보여 주고 판정은 안 한다. */
+    (function(){
+      const 줄=(D.media||[]).filter(x=>x[2]===d.t);
+      if(!줄.length) return null;
+      const 묶={meta:{c:d.sp,n:d.nt,o:0}};
+      줄.forEach(([ym,mm,t,c,n,o])=>{const a2=(묶[mm]=묶[mm]||{c:0,n:0,o:0});
+        a2.c+=c;a2.n+=n;a2.o+=o;});
+      const 이름={meta:"메타",google:"구글",tiktok:"틱톡"};
+      const tb=el("table",{class:"tb"});
+      tb.append(el("tr",{},el("th",{},"매체"),el("th",{class:"n"},"지출"),
+        el("th",{class:"n"},"매출"),el("th",{class:"n"},"ROAS"),el("th",{},"")));
+      Object.keys(묶).forEach(mm=>{const a2=묶[mm];
+        tb.append(el("tr",{},el("td",{},이름[mm]||mm),
+          el("td",{class:"n"},a2.c?man(a2.c):el("span",{class:"dim"},"보고서 없음")),
+          el("td",{class:"n"},man(a2.n)),
+          el("td",{class:"n"},a2.c?el("b",{class:a2.n/a2.c>=D.cut?"g":"b"},(a2.n/a2.c).toFixed(2))
+                              :el("span",{class:"dim"},"—")),
+          el("td",{class:"dim sm2"},mm==="meta"?"판정 기준":"달 단위 · 판정 안 함")));});
+      return el("details",{class:"gbox",open:""},
+        el("summary",{},el("b",{},"매체별"),el("span",{class:"dim"}," 구글·틱톡은 보고서가 있는 달만")),tb);
+    })(),
     /* ★소구는 접힌 「판정 값」 안에 축 이름으로만 있어 안 보였다. 이 소재가
        무엇을 말하는가는 제일 먼저 보여야 한다 — 메인은 굵게, 서브는 흐리게.
        메인 = 그 소구를 두 문장 이상 판 것. (2026-09-04) */
@@ -5304,10 +5327,14 @@ function viewMon(){
     el("p",{class:"lede"},"고른 달에 쓴 돈과 붙은 매출만으로 가릅니다. "+
       "원고 없는 광고(파트너십·이미지)도 넣었습니다. 판정(첫 14일)과 별개입니다 — 판정은 원고가 좋았나, 이 화면은 그 달에 누가 벌고 누가 태웠나."));
   const mSel=el("select",{},...달.map(k=>el("option",{value:k},k)));
+  /* 매체 — 메타는 API로 날마다 들어오고, 구글·틱톡은 사람이 뽑은 보고서에서 온다.
+     그래서 보고서가 없는 달은 매출만 있고 지출이 0이다. 그때는 판정을 하지 않고 그렇다고 말한다. */
+  const 매체들=[["meta","메타"],["google","구글"],["tiktok","틱톡"],["all","전체 합산"]];
+  const chSel=el("select",{},...매체들.map(([v,n])=>el("option",{value:v},n)));
   const 칸=(v,w)=>el("input",{type:"number",step:"any",value:v,style:`width:${w}px`});
   const 잘=칸(기준.잘,64),안=칸(기준.안,64),최소=칸(기준.최소,96);
   const cSel=el("select",{},...["전체","잘됨","보통","안됨","지출 적음"].map(s=>el("option",{value:s},s)));
-  m.append(el("div",{class:"bar"},mSel,
+  m.append(el("div",{class:"bar"},mSel,chSel,
     el("span",{class:"dim"}," 잘됨 ROAS ≥"),잘,el("span",{class:"dim"}," 안됨 <"),안,
     el("span",{class:"dim"}," 최소 지출"),최소,cSel));
   const two=el("div",{class:"two one"}),L=el("div"),R=el("div",{style:"display:none"});
@@ -5315,16 +5342,44 @@ function viewMon(){
   const 닫기=()=>{R.innerHTML="";R.style.display="none";two.classList.add("one");};
   const 열기=t=>{const d=DR[t];if(!d)return;R.style.display="";two.classList.remove("one");showDraft(d,R,닫기);};
   const 가름=(c,n)=>c<기준.최소?"지출 적음":(n/c>=기준.잘?"잘됨":(n/c<기준.안?"안됨":"보통"));
-  const PILL={잘됨:"p-ok",보통:"p-dim",안됨:"p-no","지출 적음":"p-dim"};
+  const PILL={잘됨:"p-ok",보통:"p-dim",안됨:"p-no","지출 적음":"p-dim","지출 모름":"p-dim"};
   const render=()=>{
     기준={잘:+잘.value||0,안:+안.value||0,최소:+최소.value||0};
     try{localStorage.setItem("bt_mon",JSON.stringify(기준));}catch(e){}
-    const ym=mSel.value, 앞=달[달.indexOf(ym)+1];
-    const 전={};((D.mon||{})[앞]||[]).forEach(([t,c,n])=>전[t]=c?n/c:null);
-    const rs=((D.mon||{})[ym]||[]).filter(r=>r[1]>0).map(([t,c,n,o,밖])=>
-      ({t,c,n,o,밖,r:n/c,g:가름(c,n),p:전[t],d:DR[t]}));
+    const ym=mSel.value, 앞=달[달.indexOf(ym)+1], 매=chSel.value;
+    /* 한 달·한 매체의 소재별 [지출,매출,주문] — 메타는 D.mon, 구글·틱톡은 D.media */
+    const 모으기=(y,ch)=>{
+      const o={};
+      const 더=(t,c,n,od,밖)=>{const a=(o[t]=o[t]||{c:0,n:0,o:0,밖:밖});a.c+=c;a.n+=n;a.o+=od;};
+      if(ch==="meta"||ch==="all")
+        ((D.mon||{})[y]||[]).forEach(([t,c,n,od,밖])=>더(t,c,n,od,밖));
+      (D.media||[]).forEach(([y2,m2,t,c,n,od])=>{
+        if(y2!==y) return;
+        if(ch==="all"||ch===m2) 더(t,c,n,od,null);
+      });
+      return o;
+    };
+    const 이번=모으기(ym,매), 앞달=모으기(앞,매);
+    const 전={};Object.keys(앞달).forEach(t=>전[t]=앞달[t].c?앞달[t].n/앞달[t].c:null);
+    const rs=Object.keys(이번).map(t=>{const a=이번[t];
+      return {t,c:a.c,n:a.n,o:a.o,밖:a.밖,r:a.c?a.n/a.c:0,
+              g:a.c?가름(a.c,a.n):"지출 모름",p:전[t],d:DR[t]};})
+      .filter(r=>r.c>0||r.n>0);
     L.innerHTML="";
     const 합={};rs.forEach(x=>{const a=(합[x.g]=합[x.g]||{k:0,c:0,n:0});a.k++;a.c+=x.c;a.n+=x.n;});
+    /* 구글·틱톡은 그 달 보고서가 있어야 지출이 붙는다 — 없으면 그렇다고 말한다 */
+    if(매!=="meta"){
+      const 없=rs.filter(r=>!r.c&&r.n), 있=rs.filter(r=>r.c);
+      if(!있.length) L.append(el("div",{class:"note wa"},
+        el("b",{},`${매==="all"?"구글·틱톡":(매==="google"?"구글":"틱톡")} 지출 보고서가 이 달에 없습니다. `),
+        `매출만 ${man(rs.reduce((s2,r)=>s2+r.n,0))} 보입니다. 보고서를 넣으면 ROAS가 붙습니다 — `,
+        "구글은 「광고 보고서」(세그먼트 일), 틱톡은 소재 내보내기를 D:/Downloads 에 두세요."));
+      else if(없.length) L.append(el("p",{class:"dim"},
+        `지출 보고서에 없는 소재 ${없.length}편은 매출만 있어 「지출 모름」으로 둡니다.`));
+      (D.mediaout||[]).filter(x=>매==="all"||x.media===매).slice(0,1).forEach(x=>
+        L.append(el("p",{class:"dim sm2"},
+          `매체 지출 중 소재 이름이 없어 안 붙은 몫이 있습니다(스파크·인플루언서·검색). 가장 큰 것 ${man(x.sp)}.`)));
+    }
     L.append(el("div",{class:"kpi"},...["잘됨","보통","안됨","지출 적음"].map(g=>{const a=합[g]||{k:0,c:0,n:0};
       return el("div",{},el("b",{},a.k+"편"),el("span",{},`${g} · 지출 ${man(a.c)} · ROAS ${a.c?(a.n/a.c).toFixed(2):"—"}`));})));
     const 지친=rs.filter(x=>x.g==="안됨"&&x.d&&x.d.st==="성공");
@@ -5338,16 +5393,18 @@ function viewMon(){
       {h:"소재",l:1,k:r=>이름(r.t),c:r=>el("b",{title:r.t},이름(r.t))},
       {h:"이 달",k:r=>["안됨","지출 적음","보통","잘됨"].indexOf(r.g),c:r=>el("span",{class:"pill "+PILL[r.g]},r.g)},
       {h:"지출",k:r=>r.c,c:r=>man(r.c)},{h:"매출",k:r=>r.n,c:r=>man(r.n)},
-      {h:"ROAS",k:r=>r.r,c:r=>el("b",{class:r.r>=기준.잘?"g":"b"},r.r.toFixed(2))},
+      /* 지출이 0인 줄은 「지출 모름」이다 — 0.00으로 찍으면 성적이 나쁜 것으로 읽힌다 */
+      {h:"ROAS",k:r=>(r.c?r.r:-1),c:r=>r.c?el("b",{class:r.r>=기준.잘?"g":"b"},r.r.toFixed(2))
+                                         :el("span",{class:"dim"},"—")},
       {h:"주문",k:r=>r.o,c:r=>num(r.o)},
-      {h:"CPA",k:r=>r.o?r.c/r.o:-1,c:r=>r.o?num(r.c/r.o):"—"},
+      {h:"CPA",k:r=>(r.c&&r.o?r.c/r.o:-1),c:r=>(r.c&&r.o)?num(r.c/r.o):el("span",{class:"dim"},"—")},
       {h:"전월 ROAS",tip:"앞 달 같은 소재",k:r=>r.p??-1,c:r=>r.p==null?el("span",{class:"dim"},"—"):r.p.toFixed(2)},
       {h:"판정",tip:"첫 14일로 매긴 평생 판정",k:r=>r.d?r.d.st:"",
        c:r=>r.d?el("span",{class:"pill "+(SP[r.d.st]||"p-dim")},r.d.st)
              :el("span",{class:"dim",title:"원고가 없는 광고라 판정 대상이 아닙니다"},r.밖||"—")}],
       보일,{sort:2,onrow:r=>열기(r.t)}));
   };
-  [mSel,잘,안,최소,cSel].forEach(x=>x.addEventListener("input",render));render();
+  [mSel,chSel,잘,안,최소,cSel].forEach(x=>x.addEventListener("input",render));render();
 }
 function viewPerf(){
   const m=$("#main");m.innerHTML="";
