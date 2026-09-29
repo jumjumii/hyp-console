@@ -5214,12 +5214,52 @@ function viewDrafts(){
   const q=el("input",{type:"search",placeholder:"소재 검색",style:"width:190px"});
   const sSel=el("select",{},el("option",{value:""},"상태 전체"),
     ...[...new Set(D.drafts.map(d=>결(d)||d.st))].map(s=>el("option",{value:s},s)));
-  L.append(el("div",{class:"bar"},q,sSel));
+  /* 매체 기준 — 판정은 메타로 내리지만, 같은 소재를 구글·틱톡에서 어땠는지도 본다.
+     ★판정 칸은 어느 매체를 골라도 <메타 판정> 그대로다. 매체마다 컷이 다를 수 있고
+       구글·틱톡은 판정 규칙(첫 14일·조기 중단)을 적용해 본 적이 없다. (2026-09-29) */
+  const chSel=el("select",{},...[["meta","메타 기준"],["google","구글 기준"],
+                                 ["tiktok","틱톡 기준"]].map(([v,n])=>el("option",{value:v},n)));
+  L.append(el("div",{class:"bar"},q,sSel,chSel));
   const host=el("div");L.append(host);
+  /* 소재×매체 누적 — [매체, 소재, 지출, 매출, 주문, 첫라이브, 집행일, 창ROAS, 갈래] */
+  const 매체표=(ch)=>{const o={};
+    (D.mdraft||[]).forEach(([m,t,sp,nt,od,d0,days,w,밖])=>{ if(m===ch) o[t]={sp,nt,od,d0,days,w,밖}; });
+    return o;};
   const render=()=>{let rs=D.drafts.slice();
     if(q.value.trim()){const _q=q.value.trim();
       rs=rs.filter(d=>d.t.includes(_q)||(d.nm||"").includes(_q));}
     if(sSel.value)rs=rs.filter(d=>(결(d)||d.st)===sSel.value);
+    if(chSel.value!=="meta"){
+      const M=매체표(chSel.value), 이름={google:"구글",tiktok:"틱톡"}[chSel.value];
+      /* 그 매체에서 돈 쓴 소재만 — 판정 대장에 없는 광고(파트너십 등)도 같이 세운다 */
+      const 있는=D.drafts.filter(d=>M[d.t]).map(d=>Object.assign({},d,M[d.t]));
+      const 대장밖=Object.keys(M).filter(t=>!DR[t]).map(t=>Object.assign(
+        {t,nm:t,st:"판정 밖",why:"원고가 없는 광고입니다",sp:0,nt:0,r:0,days:0},M[t],{밖:M[t].밖||"원고 없음"}));
+      let ms=있는.concat(대장밖).filter(x=>x.sp>0||x.nt>0);
+      if(q.value.trim()){const _q=q.value.trim();
+        ms=ms.filter(x=>x.t.includes(_q)||(x.nm||"").includes(_q));}
+      host.innerHTML="";
+      host.append(el("p",{class:"dim",style:"margin:0 0 6px"},
+        `${이름} 기준 ${ms.length}편 — 지출 ${man(ms.reduce((a,x)=>a+x.sp,0))} · `+
+        `매출 ${man(ms.reduce((a,x)=>a+x.nt,0))}. 「판정」 칸은 메타 기준 그대로입니다.`),
+        table([
+        {h:"소재",l:1,k:r=>r.nm||r.t,c:r=>el("b",{title:r.t},r.nm||r.t)},
+        {h:"판정(메타)",k:r=>r.st,c:r=>el("span",{class:"pill "+(SP[r.st]||"p-dim"),
+            title:r.밖||r.why||""},r.밖?r.밖:(결(r)||r.st))},
+        {h:"지출",k:r=>r.sp,c:r=>man(r.sp)},{h:"매출",k:r=>r.nt,c:r=>man(r.nt)},
+        {h:"ROAS",k:r=>(r.sp?r.nt/r.sp:-1),c:r=>r.sp?el("b",{class:r.nt/r.sp>=D.cut?"g":"b"},
+            (r.nt/r.sp).toFixed(2)):el("span",{class:"dim"},"—")},
+        {h:"주문",k:r=>r.od||0,c:r=>num(r.od||0)},
+        {h:"CPA",k:r=>(r.sp&&r.od?r.sp/r.od:-1),
+         c:r=>(r.sp&&r.od)?num(r.sp/r.od):el("span",{class:"dim"},"—")},
+        {h:"첫 14일 ROAS",tip:"그 매체에서 처음 돈 쓴 날부터 14일",k:r=>(r.w==null?-1:r.w),
+         c:r=>r.w==null?el("span",{class:"dim"},"—")
+              :el("span",{class:r.w>=D.cut?"g":"b"},r.w.toFixed(2))},
+        {h:"첫 집행",k:r=>r.d0||"",c:r=>r.d0?짧은날(r.d0):el("span",{class:"dim"},"—")},
+        {h:"집행일",k:r=>r.days||0,c:r=>r.days||0}],
+        ms,{sort:2,onrow:d=>DR[d.t]&&열기(DR[d.t])}));
+      return;
+    }
     host.innerHTML="";host.append(table([
       {h:"소재",l:1,k:r=>r.nm||r.t,c:r=>el("b",{title:r.t},r.nm||r.t)},
       {h:"상태",k:r=>(결(r)?"실패2 보통":r.st),c:r=>el("span",{},
@@ -5243,7 +5283,7 @@ function viewDrafts(){
      가로로 밀어 보던 자리다. 줄을 다시 누르면 도로 열린다. (2026-08-31) */
   const 닫기=()=>{R.innerHTML="";R.style.display="none";two.classList.add("one");};
   const 열기=(d)=>{R.style.display="";two.classList.remove("one");showDraft(d,R,닫기);};
-  [q,sSel].forEach(x=>x.addEventListener("input",render));render();
+  [q,sSel,chSel].forEach(x=>x.addEventListener("input",render));render();
   if(D.drafts.length)열기([...D.drafts].sort((a,b)=>b.sp-a.sp)[0]);
 }
 function showDraft(d,host,닫기){
