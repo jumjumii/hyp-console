@@ -2406,27 +2406,39 @@ function viewHome(){
         `${이름2}에서 최근 7일에 돈이 간 ${rs.length}편입니다. `+
         (끝&&끝<D.asof?`자료는 ${짧은날(끝)}까지 — 그 뒤는 보고서를 넣으면 붙습니다. `:"")+
         "판정은 메타 기준입니다."));
+      /* ★열을 메타판과 <같게> 둔다. 다르면 두 표를 견주다가 헷갈린다(사용자 지시).
+         영상 지표(끝까지·평균 초)는 메타 API에서만 오므로 「—」로 두고 까닭을 적는다. */
       lvHost.append(table([
         {h:"소재",l:1,k:r=>이름(r.t),c:r=>DR[r.t]
-            ?el("button",{class:"lnk",style:"font-weight:700",onclick:()=>openDraft(r.t)},이름(r.t))
-            :el("b",{title:"원고가 없는 광고"},r.t)},
-        {h:"판정",k:r=>(DR[r.t]?DR[r.t].st:""),c:r=>DR[r.t]
-            ?el("span",{class:"pill "+(SP[DR[r.t].st]||"p-dim")},결(DR[r.t])||DR[r.t].st)
-            :el("span",{class:"dim"},r.밖||"원고 없음")},
+            ?el("button",{class:"lnk",style:"font-weight:700",
+               title:r.t+" — 눌러서 미리보기·본문·판정값 보기",onclick:()=>openDraft(r.t)},이름(r.t))
+            :el("b",{title:"원고가 없는 광고입니다"},r.t)},
+        {h:"라이브",k:r=>r.days,c:r=>el("span",{title:r.d0?`${r.d0}부터 ${이름2}에서 집행`:""},
+            r.days?`${r.days}일`:"—")},
+        {h:"메인 소구",k:r=>메인소구(r.t)||"",c:r=>메인소구(r.t)||"—"},
+        {h:"서브",k:r=>서브소구(r.t).join(" "),c:r=>el("span",{class:"dim"},서브소구(r.t).join(" · ")||"—")},
         {h:"이번 주 지출",k:r=>r.w.sp,c:r=>man(r.w.sp)},
         {h:"매출",k:r=>r.w.nt,c:r=>man(r.w.nt)},
-        {h:"직접 ROAS",k:r=>r.w.roas,c:r=>el("b",{class:r.w.sp<300000?"dim":(r.w.roas>=D.cut?"g":"b"),
+        {h:"직접 ROAS",k:r=>r.w.roas,c:r=>el("span",{class:"n "+(r.w.sp<300000?"dim":(r.w.roas>=D.cut?"g":"b")),
             title:r.w.sp<300000?"이번 주 지출이 30만원이 안 됩니다 — 숫자가 튑니다":""},r.w.roas.toFixed(2))},
         {h:"어제",k:r=>(r.y.sp?r.y.roas:-1),c:r=>r.y.sp
-            ?el("span",{class:r.y.roas>=D.cut?"g":"b"},r.y.roas.toFixed(2)):el("span",{class:"dim"},"—")},
-        {h:"주문",k:r=>r.w.od,c:r=>num(r.w.od)},
-        {h:"직접 CPA",k:r=>(r.w.od?r.w.sp/r.w.od:-1),
+            ?el("span",{class:r.y.sp>=100000?(r.y.roas>=D.cut?"g":"b"):"dim"},
+               r.y.sp>=100000?r.y.roas.toFixed(2):"적음"):el("span",{class:"dim"},"—")},
+        {h:"직접 CPA",tip:"그 매체 지출 ÷ 카페24 귀속 주문수",
+         k:r=>(r.w.od?r.w.sp/r.w.od:-1),
          c:r=>r.w.od?num(Math.round(r.w.sp/r.w.od))+"원":el("span",{class:"dim"},"—")},
+        {h:"주문",k:r=>r.w.od,c:r=>num(r.w.od)},
+        {h:"끝까지",tip:"메타 API에서만 오는 값입니다",k:()=>-1,c:()=>el("span",{class:"dim"},"—")},
+        {h:"평균 초",tip:"메타 API에서만 오는 값입니다",k:()=>-1,c:()=>el("span",{class:"dim"},"—")},
         {h:"누적 지출",k:r=>r.c.sp,c:r=>el("span",{class:"dim"},man(r.c.sp))},
         {h:"누적 ROAS",k:r=>r.c.roas,c:r=>el("span",{class:"dim"},r.c.roas.toFixed(2))},
-        {h:"집행일",k:r=>r.days,c:r=>el("span",{class:"dim"},String(r.days))},
-        {h:"마지막 집행",k:r=>r.d1||"",c:r=>r.d1?짧은날(r.d1):el("span",{class:"dim"},"—")}],
-        rs,{sort:2}));
+        {h:"누적 CPA",k:r=>(r.c.od?r.c.sp/r.c.od:-1),
+         c:r=>el("span",{class:"dim"},r.c.od?num(Math.round(r.c.sp/r.c.od))+"원":"—")},
+        {h:"판정",tip:"판정은 메타 기준입니다 — 매체를 바꿔도 그대로입니다",
+         k:r=>(DR[r.t]?DR[r.t].st:""),c:r=>DR[r.t]
+            ?el("span",{class:"pill "+(SP[DR[r.t].st]||"p-dim")},결(DR[r.t])||DR[r.t].st)
+            :el("span",{class:"dim"},r.밖||"원고 없음")}],
+        rs,{sort:4}));
       return;
     }
     라이브메타(lvHost);
@@ -5268,6 +5280,16 @@ function 짧은날(d){
    열쇠를 바꾸면 패널·코딩·판정이 다 끊어지므로 보여주는 것만 바꾼다.
    ★주석에 실제 소재 이름을 쓰지 말 것 — 공개 판에 그대로 나간다. 배포 검사가 잡는다. */
 function 이름(t){ return (D.nm && D.nm[t]) || t; }
+/* 소구 — 메타판 라이브 표가 쓰는 것과 <같은 자리>에서 뽑는다(「소구 · 어떻게 썼나」).
+   매체판에도 같은 열을 두려면 이 함수가 있어야 한다. (2026-09-30) */
+function 메인소구(t){
+  const v=(COD[t]||{})["소구 · 어떻게 썼나"]||[];
+  return v.filter(x=>x.endsWith("메인")).map(x=>x.replace(" — 메인","")).join(" · ");
+}
+function 서브소구(t){
+  const v=(COD[t]||{})["소구 · 어떻게 썼나"]||[];
+  return v.filter(x=>x.endsWith("서브")).map(x=>x.replace(" — 서브",""));
+}
 function 결(d){
   if(d.st!=="실패" || d.early) return null;
   const r=(d.w==null?d.r:d.w);
@@ -5329,22 +5351,32 @@ function viewDrafts(){
         (쟀&&쟀.miss)?el("span",{},` ${이름} 전체 매출 ${man(쟀.all)} 가운데 `,
           el("b",{},man(쟀.miss)),`(${Math.round(쟀.miss/쟀.all*100)}%)는 소재 이름 없이 기록돼 `,
           "어느 소재에도 안 붙습니다 — 그만큼 아래 ROAS가 낮게 보입니다."):null),
+        /* ★열을 메타판과 같은 차례로 둔다 — 두 표를 견주다 헷갈리지 않게(사용자 지시).
+           판정 창(계속/중단 같은 등급)은 메타에만 있고, 그 자리에 매체의 첫 14일 ROAS를 둔다. */
         table([
         {h:"소재",l:1,k:r=>r.nm||r.t,c:r=>el("b",{title:r.t},r.nm||r.t)},
-        {h:"판정(메타)",k:r=>r.st,c:r=>el("span",{class:"pill "+(SP[r.st]||"p-dim"),
-            title:r.밖||r.why||""},r.밖?r.밖:(결(r)||r.st))},
-        {h:"지출",k:r=>r.sp,c:r=>man(r.sp)},{h:"매출",k:r=>r.nt,c:r=>man(r.nt)},
-        {h:"ROAS",k:r=>(r.sp?r.nt/r.sp:-1),c:r=>r.sp?el("b",{class:r.nt/r.sp>=D.cut?"g":"b"},
-            (r.nt/r.sp).toFixed(2)):el("span",{class:"dim"},"—")},
-        {h:"주문",k:r=>r.od||0,c:r=>num(r.od||0)},
-        {h:"CPA",k:r=>(r.sp&&r.od?r.sp/r.od:-1),
-         c:r=>(r.sp&&r.od)?num(r.sp/r.od):el("span",{class:"dim"},"—")},
-        {h:"첫 14일 ROAS",tip:"그 매체에서 처음 돈 쓴 날부터 14일",k:r=>(r.w==null?-1:r.w),
+        {h:"상태",k:r=>r.st,c:r=>el("span",{class:"pill "+(SP[r.st]||"p-dim"),
+            title:r.밖||r.why||"판정은 메타 기준입니다"},r.밖?r.밖:(결(r)||r.st))},
+        {h:"메인 소구",k:r=>메인소구(r.t)||"",c:r=>메인소구(r.t)||"—"},
+        {h:"서브",k:r=>서브소구(r.t).join(" "),
+         c:r=>el("span",{class:"dim"},서브소구(r.t).join(" · ")||"—")},
+        {h:"판정 창",tip:"판정 창 등급(계속·중단)은 메타에서만 냅니다",
+         k:()=>"",c:()=>el("span",{class:"dim"},"—")},
+        {h:"판정 창 ROAS",tip:"그 매체에서 처음 돈 쓴 날부터 14일 — 메타의 판정 창과 같은 자",
+         k:r=>(r.w==null?-1:r.w),
          c:r=>r.w==null?el("span",{class:"dim"},"—")
               :el("span",{class:r.w>=D.cut?"g":"b"},r.w.toFixed(2))},
-        {h:"첫 집행",k:r=>r.d0||"",c:r=>r.d0?짧은날(r.d0):el("span",{class:"dim"},"—")},
-        {h:"집행일",k:r=>r.days||0,c:r=>r.days||0}],
-        ms,{sort:2,onrow:d=>DR[d.t]&&열기(DR[d.t])}));
+        {h:"누적 ROAS",k:r=>(r.sp?r.nt/r.sp:-1),c:r=>r.sp?el("b",{class:r.nt/r.sp>=D.cut?"g":"b"},
+            (r.nt/r.sp).toFixed(2)):el("span",{class:"dim"},"—")},
+        {h:"지출",k:r=>r.sp,c:r=>man(r.sp)},{h:"매출",k:r=>r.nt,c:r=>man(r.nt)},
+        {h:"주문",k:r=>r.od||0,c:r=>num(r.od||0)},
+        {h:"CPA",k:r=>(r.sp&&r.od?r.sp/r.od:-1),
+         c:r=>(r.sp&&r.od)?num(Math.round(r.sp/r.od))+"원":el("span",{class:"dim"},"—")},
+        {h:"첫 라이브",k:r=>r.d0||"",c:r=>r.d0?짧은날(r.d0):el("span",{class:"dim"},"—")},
+        {h:"집행일",k:r=>r.days||0,c:r=>r.days||0},
+        {h:"글자수",k:r=>((DR[r.t]||{}).ch||0),
+         c:r=>((DR[r.t]||{}).ch?DR[r.t].ch.toLocaleString():el("span",{class:"dim"},"—"))}],
+        ms,{sort:6,onrow:d=>DR[d.t]&&열기(DR[d.t])}));
       return;
     }
     host.innerHTML="";host.append(table([
@@ -5352,6 +5384,10 @@ function viewDrafts(){
       {h:"상태",k:r=>(결(r)?"실패2 보통":r.st),c:r=>el("span",{},
         el("span",{class:"pill "+(결(r)?"p-dim":(SP[r.st]||"p-dim")),title:r.why||""},
           결(r)||r.st), 밖까닭(r))},
+      /* 소구 — 매체판에도 같은 열을 두었으니 여기에도 둔다(사용자 지시 2026-09-30) */
+      {h:"메인 소구",k:r=>메인소구(r.t)||"",c:r=>메인소구(r.t)||"—"},
+      {h:"서브",k:r=>서브소구(r.t).join(" "),
+       c:r=>el("span",{class:"dim"},서브소구(r.t).join(" · ")||"—")},
       {h:"판정 창",k:r=>r.w1?r.w1.roas:-1,
        c:r=>r.w1&&r.w1.call?el("span",{class:"pill "+(CP[r.w1.call]||"p-dim")},r.w1.call):"—"},
         {h:"판정 창 ROAS",k:r=>r.w??-1,c:r=>r.w==null?"—":el("span",{class:r.w>=D.cut?"g":"b"},r.w.toFixed(2))},
@@ -5361,6 +5397,10 @@ function viewDrafts(){
          c:r=>!r.sp?el("span",{class:"dim"},"—")
               :el("span",{class:(r.r||0)>=D.cut?"g":"b"},(r.r||0).toFixed(2))},
       {h:"지출",k:r=>r.sp,c:r=>man(r.sp)},{h:"매출",k:r=>r.nt,c:r=>man(r.nt)},
+      /* 주문·CPA — 매체판에 있는 열이라 여기에도 둔다(자리를 맞춘다). 2026-09-30 */
+      {h:"주문",k:r=>r.od||0,c:r=>num(r.od||0)},
+      {h:"CPA",k:r=>(r.sp&&r.od?r.sp/r.od:-1),
+       c:r=>(r.sp&&r.od)?num(Math.round(r.sp/r.od))+"원":el("span",{class:"dim"},"—")},
       {h:"첫 라이브",k:r=>r.ws||"",
        c:r=>r.ws?짧은날(r.ws):el("span",{class:"dim"},"—")},
       {h:"집행일",k:r=>r.days,c:r=>r.days},
