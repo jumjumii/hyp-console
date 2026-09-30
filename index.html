@@ -2295,6 +2295,39 @@ function viewHome(){
   m.append(el("div",{class:"kpi kpi3"},
     kpi("오늘",T,D.yday,"어제"),kpi("이번 주",W,D.prev7,"앞 7일"),kpi("누적",C)));
   m.append(el("p",{class:"dim",id:"kpiToday",style:"margin:8px 0 0"},""));
+
+  /* 매체별 — 어제·이번 주·누적을 메타/구글/틱톡으로 가른다. (2026-09-30)
+     ★자료가 오는 길이 달라 마지막 날짜도 다르다(메타는 API로 오늘까지, 구글·틱톡은
+       사람이 뽑은 보고서까지). 그걸 적지 않으면 「구글이 안 된다」로 잘못 읽는다.
+     ★판정은 메타로만 한다 — 여기 숫자는 매체 성적을 보는 것이고 판정을 바꾸지 않는다. */
+  (function(){
+    const M = D.mnow || {};
+    const 순 = ["meta","google","tiktok"].filter(m=>M[m]);
+    if(!순.length) return;
+    const 이름 = {meta:"메타",google:"구글",tiktok:"틱톡"};
+    const c = el("div",{class:"card tight"},
+      el("div",{class:"bar",style:"margin:0 0 6px"},
+        el("h3",{style:"margin:0"},"매체별"),
+        el("span",{class:"dim sm2"},"구글·틱톡은 넣어 둔 보고서까지만 보입니다")));
+    const tb=el("table",{class:"tb"});
+    tb.append(el("tr",{},el("th",{},"매체"),
+      el("th",{class:"n"},"어제 지출"),el("th",{class:"n"},"어제 ROAS"),
+      el("th",{class:"n"},"이번 주 지출"),el("th",{class:"n"},"이번 주 ROAS"),
+      el("th",{class:"n"},"누적 ROAS"),el("th",{},"자료 끝")));
+    const 칸=(v)=>v?el("b",{class:v>=D.cut?"g":"b"},v.toFixed(2)):el("span",{class:"dim"},"—");
+    순.forEach(m=>{const x=M[m];
+      tb.append(el("tr",{},el("td",{},이름[m]),
+        el("td",{class:"n"},man(x.yday.sp)), el("td",{class:"n"},칸(x.yday.roas)),
+        el("td",{class:"n"},man(x.week.sp)), el("td",{class:"n"},칸(x.week.roas)),
+        el("td",{class:"n"},칸(x.cum.roas)),
+        el("td",{class:"dim sm2"},x.cum.last===D.asof?"오늘까지":짧은날(x.cum.last))));});
+    c.append(tb);
+    const 늦 = 순.filter(m=>M[m].cum.last && M[m].cum.last < D.asof);
+    if(늦.length) c.append(el("p",{class:"dim sm2",style:"margin:6px 0 0"},
+      늦.map(m=>`${이름[m]}은 ${짧은날(M[m].cum.last)}까지`).join(" · ")+
+      " 들어와 있습니다 — 그 뒤는 보고서를 넣으면 붙습니다."));
+    m.append(c);
+  })();
   /* 이번 주 한 줄 — 돈이 간 소재의 소구를 모아 제일 잘 도는 것을 짚는다 */
   (function(){
     const acc={};
