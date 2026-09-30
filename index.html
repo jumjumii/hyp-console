@@ -2385,7 +2385,56 @@ function viewHome(){
       ...c.wait.slice(0,5).map((t,i)=>el("span",{},(i?" · ":""),
         el("button",{class:"lnk",onclick:()=>openDraft(t)},t)))));
   }
-  m.append(el("h3",{},`지금 라이브 ${D.live.length}편`));
+  /* 지금 라이브 — 매체를 갈아 볼 수 있다. (2026-09-30)
+     ★메타는 API로 오늘까지 들어오고 구글·틱톡은 넣어 둔 보고서까지다. 영상 지표
+       (끝까지·평균 초)는 메타에서만 오므로 다른 매체에서는 「—」로 둔다. */
+  const 라이브매체 = ["meta"].concat([...new Set((D.mlive||[]).map(x=>x.media))]
+    .filter(m=>m!=="meta").sort());
+  const lvSel = el("select",{},...라이브매체.map(m=>el("option",{value:m},
+    {meta:"메타",google:"구글",tiktok:"틱톡"}[m]||m)));
+  const lvHost = el("div");
+  m.append(el("div",{class:"bar"},el("h3",{style:"margin:0"},"지금 라이브"),lvSel),lvHost);
+  const 라이브그리기 = () => {
+    lvHost.innerHTML = "";
+    if(lvSel.value!=="meta"){
+      const 이름2={google:"구글",tiktok:"틱톡"}[lvSel.value]||lvSel.value;
+      const rs=(D.mlive||[]).filter(x=>x.media===lvSel.value)
+        .map(x=>({t:x.draft,w:x.w,y:x.y,c:x.c,d0:x.d0,d1:x.d1,days:x.days,밖:x.out}))
+        .sort((a,b)=>b.w.sp-a.w.sp);
+      const 끝=(D.mnow&&D.mnow[lvSel.value])?D.mnow[lvSel.value].cum.last:null;
+      lvHost.append(el("p",{class:"dim",style:"margin:0 0 6px"},
+        `${이름2}에서 최근 7일에 돈이 간 ${rs.length}편입니다. `+
+        (끝&&끝<D.asof?`자료는 ${짧은날(끝)}까지 — 그 뒤는 보고서를 넣으면 붙습니다. `:"")+
+        "판정은 메타 기준입니다."));
+      lvHost.append(table([
+        {h:"소재",l:1,k:r=>이름(r.t),c:r=>DR[r.t]
+            ?el("button",{class:"lnk",style:"font-weight:700",onclick:()=>openDraft(r.t)},이름(r.t))
+            :el("b",{title:"원고가 없는 광고"},r.t)},
+        {h:"판정",k:r=>(DR[r.t]?DR[r.t].st:""),c:r=>DR[r.t]
+            ?el("span",{class:"pill "+(SP[DR[r.t].st]||"p-dim")},결(DR[r.t])||DR[r.t].st)
+            :el("span",{class:"dim"},r.밖||"원고 없음")},
+        {h:"이번 주 지출",k:r=>r.w.sp,c:r=>man(r.w.sp)},
+        {h:"매출",k:r=>r.w.nt,c:r=>man(r.w.nt)},
+        {h:"직접 ROAS",k:r=>r.w.roas,c:r=>el("b",{class:r.w.sp<300000?"dim":(r.w.roas>=D.cut?"g":"b"),
+            title:r.w.sp<300000?"이번 주 지출이 30만원이 안 됩니다 — 숫자가 튑니다":""},r.w.roas.toFixed(2))},
+        {h:"어제",k:r=>(r.y.sp?r.y.roas:-1),c:r=>r.y.sp
+            ?el("span",{class:r.y.roas>=D.cut?"g":"b"},r.y.roas.toFixed(2)):el("span",{class:"dim"},"—")},
+        {h:"주문",k:r=>r.w.od,c:r=>num(r.w.od)},
+        {h:"직접 CPA",k:r=>(r.w.od?r.w.sp/r.w.od:-1),
+         c:r=>r.w.od?num(Math.round(r.w.sp/r.w.od))+"원":el("span",{class:"dim"},"—")},
+        {h:"누적 지출",k:r=>r.c.sp,c:r=>el("span",{class:"dim"},man(r.c.sp))},
+        {h:"누적 ROAS",k:r=>r.c.roas,c:r=>el("span",{class:"dim"},r.c.roas.toFixed(2))},
+        {h:"집행일",k:r=>r.days,c:r=>el("span",{class:"dim"},String(r.days))},
+        {h:"마지막 집행",k:r=>r.d1||"",c:r=>r.d1?짧은날(r.d1):el("span",{class:"dim"},"—")}],
+        rs,{sort:2}));
+      return;
+    }
+    라이브메타(lvHost);
+  };
+  lvSel.addEventListener("input",라이브그리기);
+  라이브그리기();
+  /* 메타 판 「지금 라이브」 — 원래 표 그대로. 매체를 메타로 두면 이걸 그린다. */
+  function 라이브메타(m){
   const tb=el("table",{class:"tt"});
   tb.append(el("thead",{},el("tr",{},...["소재","라이브","메인 소구","서브","이번 주 지출","매출",
     "직접 ROAS","어제","직접 CPA","주문","끝까지","평균 초","누적 지출","누적 ROAS","누적 CPA","판정"]
@@ -2424,6 +2473,7 @@ function viewHome(){
               if(i)i.value=r.t;},60);}},"판정 밖 →"))));
   });
   tb.append(tbody);m.append(el("div",{class:"scroll"},표정렬(tb)));
+  }   /* 라이브메타 끝 — 아래는 다시 「지금」 화면 본문이다 */
 
   /* 이번 주 소구·워딩 — 라이브 소재의 이번 주 숫자만으로 */
   ["소구","워딩"].forEach(g=>{
