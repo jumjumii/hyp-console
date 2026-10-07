@@ -970,18 +970,81 @@ async function pollLive(){
   }
   LIVE = st;
   box.textContent = `마지막 갱신 ${st.made || "-"}`;
-  const t = await api("/api/today");
-  if(t && !t.err){
-    const k = document.querySelector("#kpiToday");
-    if(k) k.innerHTML = `오늘 실시간 — 메타 주문 <b>${t.meta.n}건</b> · ${man(t.meta.amt)} ` +
-      `<span class="dim">(전체 ${t.all.n}건 · ${man(t.all.amt)})</span>`;
-  }
+  오늘그리기(await api("/api/today"));
 }
-async function doRefresh(){
+
+/* 오늘 성과 — 「새로고침」이 받아 둔 오늘.json을 그린다. (2026-10-07)
+   ★전날까지의 확정 값은 아침 8시 수집이 넣는다. 여기는 <오늘>만이다.
+   ★구글·틱톡은 오늘 치를 못 받는다(리포트 화면이 오늘 날짜를 못 고른다) → 메타만이라고 말한다. */
+function 오늘그리기(d){
+  const k = document.querySelector("#kpiToday");
+  if(!k) return;
+  const o = d && d.오늘;
+  if(!o){ k.textContent = "오늘 성과는 「새로고침」을 누르면 받아옵니다."; return; }
+  const m = o.메타 || {};
+  k.innerHTML = "";
+  k.append(el("span",{},`오늘(${o.날}) 메타 — 지출 `,el("b",{},man(m.sp)),
+    " · 매출 ",el("b",{},man(m.nt))," · ROAS ",
+    el("b",{class:(m.roas>=D.cut?"g":"b")},(m.roas||0).toFixed(2)),
+    ` · 주문 ${m.od||0}건 `),
+    el("span",{class:"dim"},`(${o.받은때} 기준 · 구글·틱톡은 오늘 치를 못 받습니다)`));
+  /* 소재별 — 지출이 간 것만, 많이 쓴 순서로 */
+  const 칸 = document.querySelector("#todayRows");
+  if(!칸) return;
+  칸.innerHTML = "";
+  const rs = (o.소재||[]).filter(x=>x.sp>0).slice(0,12);
+  if(!rs.length) return;
+  칸.append(el("p",{class:"dim sm2",style:"margin:8px 0 4px"},
+    `오늘 돈이 간 소재 ${(o.소재||[]).filter(x=>x.sp>0).length}편 중 지출 많은 순 ${rs.length}편`));
+  const tb = el("table",{class:"tb"});
+  tb.append(el("tr",{},el("th",{},"소재"),el("th",{class:"n"},"지출"),
+    el("th",{class:"n"},"매출"),el("th",{class:"n"},"ROAS"),el("th",{class:"n"},"주문"),
+    el("th",{},"판정")));
+  rs.forEach(x=>{
+    const r = x.sp ? x.nt/x.sp : 0, d0 = DR[x.t];
+    tb.append(el("tr",{},
+      el("td",{},d0?el("button",{class:"lnk",onclick:()=>openDraft(x.t)},이름(x.t)):x.t),
+      el("td",{class:"n"},man(x.sp)),el("td",{class:"n"},man(x.nt)),
+      el("td",{class:"n"},x.sp?el("b",{class:r>=D.cut?"g":"b"},r.toFixed(2))
+                             :el("span",{class:"dim"},"—")),
+      el("td",{class:"n"},String(x.od||0)),
+      el("td",{},d0?el("span",{class:"pill "+(SP[d0.st]||"p-dim")},결(d0)||d0.st)
+                   :el("span",{class:"dim"},"판정 밖"))));
+  });
+  칸.append(el("div",{class:"scroll"},tb));
+}
+/* ★「새로고침」은 오늘 성과만 받는다(1분 안쪽). 판정·코딩까지 다시 도는 전체 갱신은
+   따로 둔다 — 전에는 이 단추가 4분짜리였고, 그래서 아무도 안 눌렀다. (2026-10-07) */
+async function doToday(){
   const btn = document.querySelector("#refBtn");
   const st = await api("/api/status");
+  if(!st){
+    const box = document.querySelector("#liveNow");
+    if(box) box.textContent = "사이트에서는 직접 받아올 수 없습니다 — 아래 숫자는 받아 둔 것입니다.";
+    return;
+  }
+  btn.disabled = true; btn.textContent = "오늘 받는 중…";
+  await api("/api/today/go");
+  const tick = setInterval(async () => {
+    const t = await api("/api/today");
+    if(!t) return;
+    if(t.상태 && t.상태.running) return;
+    clearInterval(tick);
+    btn.disabled = false; btn.textContent = "새로고침";
+    if(t.상태 && t.상태.ok === false){
+      const box = document.querySelector("#liveNow");
+      if(box) box.textContent = "오늘 받기 실패 — " + (t.상태.err||"").slice(0,80);
+      return;
+    }
+    오늘그리기(t);
+  }, 3000);
+}
+
+async function doRefresh(){
+  const btn = document.querySelector("#refBtn2");
+  const st = await api("/api/status");
   if(!st){ location.reload(); return; }
-  btn.disabled = true; btn.textContent = "갱신 중…";
+  btn.disabled = true; btn.textContent = "전체 갱신 중… (4분)";
   await api("/api/refresh");
   const box = document.querySelector("#liveNow");
   const tick = setInterval(async () => {
@@ -2210,7 +2273,10 @@ function viewHome(){
       el("div",{class:"bar",style:"margin:0"},
         el("span",{class:"dim"},`데이터 ${D.asof}까지 · 이번 주 ${D.wk0}~${D.asof}`),
         el("span",{class:"dim",id:"liveNow"},""),
-        el("button",{class:"btn",id:"refBtn",onclick:doRefresh},"새로고침"))));
+        el("button",{class:"btn",id:"refBtn",onclick:doToday,
+          title:"오늘 지출·매출만 받아옵니다 — 1분 안쪽"},"새로고침"),
+        el("button",{class:"btn2",id:"refBtn2",onclick:doRefresh,
+          title:"판정·코딩까지 다시 돌립니다 — 4분쯤"},"전체 갱신"))));
   pollLive();
 
   /* ★ 자료가 어디까지 들어와 있나. 이게 안 보이면 「아직 안 잰 것」을 「성적이
@@ -2294,7 +2360,11 @@ function viewHome(){
       dlt(o.roas,prev.roas,v=>v.toFixed(2),pl)):null);
   m.append(el("div",{class:"kpi kpi3"},
     kpi("오늘",T,D.yday,"어제"),kpi("이번 주",W,D.prev7,"앞 7일"),kpi("누적",C)));
-  m.append(el("p",{class:"dim",id:"kpiToday",style:"margin:8px 0 0"},""));
+  m.append(el("p",{class:"dim",id:"kpiToday",style:"margin:8px 0 0"},""),
+           el("div",{id:"todayRows"}));
+  /* ★사이트(Pages)에는 서버가 없어 단추로 못 받는다. 그래서 갱신 때 같이 받아 둔
+     오늘 값을 payload에 담아 두고, 그것을 먼저 그린다. 서버가 있으면 pollLive가 새것으로 덮는다. */
+  if(D.오늘) 오늘그리기({오늘: D.오늘});
 
   /* 매체별 — 어제·이번 주·누적을 메타/구글/틱톡으로 가른다. (2026-09-30)
      ★자료가 오는 길이 달라 마지막 날짜도 다르다(메타는 API로 오늘까지, 구글·틱톡은
