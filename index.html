@@ -703,10 +703,6 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
   <button data-v="full">판정 원문</button>
   <button data-v="code">코딩 검증</button>
   <button data-v="place">자리 검증</button>
-  <div class="lab brv" style="display:none">브랜드 성과</div>
-  <button data-v="b_home" class="brv" style="display:none">지금</button>
-  <button data-v="b_drafts" class="brv" style="display:none">소재</button>
-  <button data-v="b_mon" class="brv" style="display:none">월별 소재</button>
   <div class="foot" id="navfoot"></div>
 </nav>
 <main id="main"></main>
@@ -935,9 +931,9 @@ function 표정렬(tb){
 }
 function go(v){document.querySelectorAll("nav button").forEach(x=>
     x.setAttribute("aria-current",String(x.dataset.v===v)));
-  try{localStorage.setItem(v.startsWith("b_")?"hyp_bview":"bt_view",v);}catch(e){}   // 베이스튠·다른 브랜드 화면을 따로 기억
+  try{localStorage.setItem("bt_view",v);}catch(e){}
   if(v!=="promo") window.PKSRC="trend";   // 그리기 <전에> 되돌린다
-  VIEWS[v]();
+  if(BRK!=="basetune"&&BT_ONLY[v]) brOnlyBt(); else VIEWS[v]();
   window.scrollTo({top:0,behavior:"smooth"});}
 const STEPS=[["bench","1","무엇을 검증할까","가설을 고르고 사례를 본다"],
   ["write","2","어떻게 쓸까","A안·B안을 여기서 쓴다"],
@@ -2273,7 +2269,7 @@ function dpSay(A, r4, r12){
 function viewHome(){
   const m=$("#main");m.innerHTML="";
   const T=D.today,W=D.week,C=D.cum;
-  m.append(el("p",{class:"eyebrow"},"라이브 모니터 · 베이스튠"),
+  m.append(el("p",{class:"eyebrow"},"라이브 모니터 · "+((BRANDS_UI.find(x=>x[0]===BRK)||[])[1]||"")),
     el("div",{class:"bar",style:"justify-content:space-between;align-items:baseline"},
       el("h2",{style:"margin:0"},"성과"),
       el("div",{class:"bar",style:"margin:0"},
@@ -2426,7 +2422,7 @@ function viewHome(){
   })();
 
   m.append(el("p",{class:"dim",style:"margin:4px 0 0"},
-    "직접 ROAS = 카페24 귀속 매출 ÷ 메타 지출 · 직접 CPA = 메타 지출 ÷ 카페24 귀속 주문수. "+"오늘 숫자는 낮게 보입니다 — 매출이 소재에 붙는 데 시간이 걸립니다. 이번 주와 누적으로 보세요."));
+    (BRK==="basetune"?"직접 ROAS = 카페24 귀속 매출 ÷ 메타 지출 · 직접 CPA = 메타 지출 ÷ 카페24 귀속 주문수. ":D.metric+". ")+"오늘 숫자는 낮게 보입니다 — 매출이 소재에 붙는 데 시간이 걸립니다. 이번 주와 누적으로 보세요."));
 
   /* 라이브 소재 — 숫자가 먼저 */
   /* 판정 밖 소재를 둘로 가른다. 읽어 놓고 판정 창만 기다리는 것과, 아무도
@@ -5815,211 +5811,53 @@ function viewPerf(){
   m.append(el("p",{class:"dim"},
     "이번 달은 아직 매출이 다 붙지 않았습니다 — 카페24 귀속이 며칠 걸립니다."));
 }
-/* ─── 다른 브랜드 — 소재 성과 (2026-10-26) ──────────────────────────────────
-   그래니샐러드·해트케·샐러그리스. W2_브랜드성과.py가 만든 브랜드_<키>.json(올린 판은 .enc)을 읽는다.
-   판정·가설·코딩은 없다 — 원고를 코딩한 건 베이스튠뿐이다.
-   ★매출은 매체가 보고한 구매 금액이다. 베이스튠 화면의 ROAS(카페24 귀속)와 나란히 견주면 안 된다.
-     화면마다 그렇게 적는다. */
+/* ─── 브랜드 고르기 (2026-10-26) ─────────────────────────────────────────────
+   그래니샐러드·해트케·샐러그리스도 베이스튠과 <같은 화면>으로 본다. W2_브랜드성과.py가 W1을 --brand로 돌려
+   베이스튠과 같은 꼴의 데이터(브랜드_<키>.json, 올린 판은 .enc)를 만들어 둔다. 고르면 그 데이터로 boot()를 다시 한다.
+   ★다른 브랜드는 원고를 아직 코딩하지 않아 메인·서브 소구·판정 축 칸이 비어 있다. 성과·소재 판정은 차 있다.
+   ★매출은 매체(메타)가 보고한 구매 금액이다 — 베이스튠(카페24 귀속)과 나란히 견주면 안 된다. */
 const BRANDS_UI=[["basetune","베이스튠"],["granny","그래니샐러드"],["hattke","해트케"],["salagris","샐러그리스"]];
-const MNAME=["메타","틱톡","구글"];
 const BRC={};
-let BR=null, BRK="basetune", BTNAV=null;
+let BRK="basetune", BRINIT=false;
+/* 판정 원문·코딩 검증·자리 검증은 베이스튠 원고를 정독한 문서다 — 다른 브랜드에선 열지 않는다 */
+const BT_ONLY={full:1,code:1,place:1};
 function brLoad(k){
   if(BRC[k]) return Promise.resolve(BRC[k]);
   const f="브랜드_"+k;
-  /* 올린 판은 같은 비번으로 잠긴 파일을, 로컬 판은 옆의 json을 읽는다 */
   const p=window.HYP_ENC ? window.HYP_ENC(f+".enc").then(JSON.parse)
     : fetch(f+".json",{cache:"no-store"}).then(r=>{if(!r.ok)throw new Error("브랜드 자료가 없습니다 ("+r.status+")");return r.json();});
   return p.then(d=>(BRC[k]=d));
 }
+function brLabel(){
+  if(BRK==="basetune") return;
+  const n=(BRANDS_UI.find(x=>x[0]===BRK)||[])[1]||"";
+  $("#navsub").textContent=n+" · "+$("#navsub").textContent;
+  $("#navfoot").innerHTML+="<br>원고 코딩 전 — 소구·판정 축 칸은 비어 있습니다";
+}
 function brSwitch(k){
+  if(!BRC.basetune) BRC.basetune=D;          // 처음 띄운 것이 베이스튠이다
   BRK=k; try{localStorage.setItem("hyp_brand",k);}catch(e){}
   const sel=$("#brandSel"); if(sel) sel.value=k;
-  const bt=k==="basetune";
-  if(!BTNAV) BTNAV={sub:$("#navsub").textContent,foot:$("#navfoot").innerHTML};
-  document.querySelectorAll("nav button, nav .lab").forEach(x=>{
-    const mine=x.classList.contains("brv");
-    x.style.display=(bt?!mine:mine)?"":"none";});
-  if(bt){
-    $("#navsub").textContent=BTNAV.sub; $("#navfoot").innerHTML=BTNAV.foot;
-    let v="home"; try{const s=localStorage.getItem("bt_view"); if(s&&VIEWS[s])v=s;}catch(e){}
-    return go(v);
-  }
   $("#main").innerHTML=""; $("#main").append(el("p",{class:"dim"},"불러오는 중…"));
-  brLoad(k).then(d=>{
-    if(BRK!==k) return;          // 고르는 사이 다른 브랜드로 바뀌었다
-    BR=d;
-    $("#navsub").textContent=`${d.label} · ${d.asof} · 소재 ${Object.keys(d.names).length}편`;
-    $("#navfoot").innerHTML="매체 보고 ROAS<br>= 매체가 보고한 구매 금액 ÷ 지출<br>판정·가설은 베이스튠만";
-    let v="b_home"; try{const s=localStorage.getItem("hyp_bview"); if(s&&VIEWS[s])v=s;}catch(e){}
-    go(v);
-  }).catch(e=>{
+  brLoad(k).then(d=>{ if(BRK!==k) return; boot(d); brLabel(); })
+  .catch(e=>{
     $("#main").innerHTML="";
     $("#main").append(el("h2",{},"자료를 못 받았습니다"),el("p",{class:"lede"},String(e&&e.message||e)),
       el("p",{class:"dim"},"W2_브랜드성과.py가 아직 이 브랜드를 만들지 않았을 수 있습니다."));
   });
 }
-const brR=(c,n)=>c?(n/c).toFixed(2):"—";
-const brDash=()=>el("span",{class:"dim"},"—");
-function brSum(f){const a={c:0,n:0,o:0};BR.tot.forEach(r=>{if(f(r)){a.c+=r[2];a.o+=r[3];a.n+=r[4];}});return a;}
-/* 소재별로 모은다 — rows=[날, 매체, 소재, 지출, 노출, 클릭, 구매, 매출] */
-function brAgg(f){
-  const o={};
-  BR.rows.forEach(r=>{ if(!f(r)) return;
-    const a=o[r[2]]||(o[r[2]]={t:r[2],c:0,n:0,o:0,imp:0,clk:0,d0:r[0],d1:r[0],days:new Set(),m:new Set()});
-    a.c+=r[3];a.imp+=r[4];a.clk+=r[5];a.o+=r[6];a.n+=r[7];a.days.add(r[0]);a.m.add(r[1]);
-    if(r[0]<a.d0)a.d0=r[0]; if(r[0]>a.d1)a.d1=r[0];});
-  return Object.values(o);
+function brOnlyBt(){
+  $("#main").innerHTML="";
+  $("#main").append(el("h2",{},"아직 코딩 전입니다"),
+    el("p",{class:"lede"},"이 화면은 원고를 한 줄씩 정독해 코딩한 문서입니다. 지금은 베이스튠만 했습니다 — 위 칸에서 베이스튠을 고르면 열립니다."));
 }
-const brMs=x=>[...x.m].sort().map(i=>MNAME[i]).join("·");
-function brHead(m,eb,h,lede){
-  m.innerHTML="";
-  m.append(el("p",{class:"eyebrow"},BR.label+" · "+eb),el("h2",{},h),el("p",{class:"lede"},lede));
-  /* 자료가 언제까지 있나 — 매체마다 다르다. 어제 치가 없으면 그 매체 수집이 멈춘 것이다 */
-  const yst=addDays(BR.asof,-1), 줄=[];
-  ["meta","tiktok","google"].forEach((k,i)=>{const s=(BR.src||{})[k]||{};
-    if(s.d1) 줄.push(`${MNAME[i]} ${s.d0}~${s.d1}`+(s.d1<yst?" ⚠멈춤":""));
-    else if(k==="google") 줄.push(s.acct?`구글 계정 합만(${s.acct.d0}~) — 소재 단위는 광고 스크립트 갱신 뒤부터`:"구글 없음");
-    else 줄.push(MNAME[i]+" 없음");});
-  m.append(el("p",{class:"dim sm2"},"자료: "+줄.join(" · ")+` · 만든 때 ${BR.made}`));
-  const 못=Object.entries(BR.noname||{}).filter(([,v])=>v>0);
-  if(못.length) m.append(el("p",{class:"dim sm2"},"소재 이름을 못 얻은 지출(스파크·자동 이름 등)은 「(이름 없음)」으로 묶었습니다: "+
-    못.map(([k,v])=>`${MNAME[["meta","tiktok","google"].indexOf(k)]} ${man(v)}`).join(" · ")));
+/* boot() 끝에서 한 번만 — 브랜드 칸을 채우고 마지막에 보던 브랜드로 연다 */
+function brInit(){
+  if(BRINIT) return; BRINIT=true;
+  $("#brandSel").replaceChildren(...BRANDS_UI.map(([k,n])=>el("option",{value:k},n)));
+  try{const k=localStorage.getItem("hyp_brand"); if(k&&k!=="basetune"&&BRANDS_UI.some(x=>x[0]===k)) brSwitch(k);}catch(e){}
 }
-function brOpen(two,R){
-  const 닫기=()=>{R.innerHTML="";R.style.display="none";two.classList.add("one");};
-  return t=>{R.style.display="";two.classList.remove("one");brDetail(t,R,닫기);};
-}
-function brDetail(t,box,close){
-  box.innerHTML="";
-  const rs=BR.rows.filter(r=>r[2]===t).sort((a,b)=>a[0]<b[0]?1:a[0]>b[0]?-1:a[1]-b[1]);
-  const 합=brAgg(r=>r[2]===t)[0]||{c:0,n:0,o:0};
-  box.append(el("div",{class:"bar"},el("b",{},t),el("button",{class:"btn",onclick:close},"닫기")),
-    el("p",{class:"dim sm2"},"광고 이름: "+(BR.names[t]||[]).join(" · ")),
-    el("div",{class:"kpi"},el("div",{},el("b",{},brR(합.c,합.n)),el("span",{},"누적 ROAS")),
-      el("div",{},el("b",{},man(합.c)),el("span",{},"누적 지출")),el("div",{},el("b",{},num(합.o)),el("span",{},"구매"))));
-  box.append(table([
-    {h:"날",l:1,k:r=>r[0]},{h:"매체",k:r=>r[1],c:r=>MNAME[r[1]]},
-    {h:"지출",k:r=>r[3],c:r=>num(r[3])},{h:"매출",k:r=>r[7],c:r=>num(r[7])},
-    {h:"ROAS",k:r=>r[3]?r[7]/r[3]:-1,c:r=>brR(r[3],r[7])},{h:"구매",k:r=>r[6],c:r=>num(r[6])},
-    {h:"CTR",k:r=>r[4]?r[5]/r[4]:-1,c:r=>r[4]?(r[5]/r[4]*100).toFixed(2)+"%":"—"}],rs.slice(0,120)));
-}
-function brNone(){ $("#main").innerHTML=""; $("#main").append(el("p",{class:"dim"},"위 칸에서 브랜드를 고르세요.")); }
-function viewBHome(){
-  if(!BR) return brNone();   // 브랜드를 고르기 전(점검 도구가 숨은 단추까지 누른다)
-  const m=$("#main"), A=BR.asof, yst=addDays(A,-1), w0=addDays(A,-7), ym=A.slice(0,7);
-  brHead(m,"지금","계정과 지금 도는 소재",
-    "매출은 매체(메타·틱톡·구글)가 보고한 구매 금액입니다 — 카페24 귀속이 아니라 매체끼리 겹쳐 세기도 합니다. "+
-    "베이스튠 화면의 ROAS와 견주지 마세요. 7일은 어제까지 7일입니다(오늘은 아직 다 안 들어왔습니다).");
-  const 칸=[["오늘(진행 중)",r=>r[0]===A],["어제",r=>r[0]===yst],["최근 7일",r=>r[0]>=w0&&r[0]<A],
-            ["이번 달",r=>r[0].slice(0,7)===ym],["전체",r=>true]];
-  m.append(el("div",{class:"kpi"},...칸.map(([n,f])=>{const a=brSum(f);
-    return el("div",{},el("b",{},brR(a.c,a.n)),el("span",{},`${n} ROAS · 지출 ${man(a.c)} · 매출 ${man(a.n)}`));})));
-  m.append(el("h3",{},"매체별"));
-  m.append(table([{h:"매체",l:1,k:r=>r.i,c:r=>MNAME[r.i]},
-    ...칸.slice(1,4).flatMap(([n,f])=>[
-      {h:n+" 지출",k:r=>brSum(x=>x[1]===r.i&&f(x)).c,c:r=>man(brSum(x=>x[1]===r.i&&f(x)).c)},
-      {h:n+" ROAS",k:r=>{const a=brSum(x=>x[1]===r.i&&f(x));return a.c?a.n/a.c:-1;},
-       c:r=>{const a=brSum(x=>x[1]===r.i&&f(x));return brR(a.c,a.n);}}])],
-    [0,1,2].map(i=>({i})).filter(r=>brSum(x=>x[1]===r.i).c>0)));
-  /* 주별 흐름 — 월요일 시작, 최근 12주 */
-  const 주=d=>{const t=new Date(d);const k=(t.getDay()+6)%7;return addDays(d,-k);};
-  const W={};BR.tot.forEach(r=>{if(r[0]===A)return;const k=주(r[0]);
-    const a=W[k]||(W[k]={w:k,c:0,n:0,m:[0,0,0]});a.c+=r[2];a.n+=r[4];a.m[r[1]]+=r[2];});
-  const ws=Object.values(W).sort((a,b)=>a.w<b.w?1:-1).slice(0,12);
-  const g0=BR.tot.filter(r=>r[1]===2).reduce((s,r)=>!s||r[0]<s?r[0]:s,"")||"";
-  m.append(el("h3",{},"주별 흐름 (오늘 제외)"));
-  m.append(table([{h:"주 시작",l:1,k:r=>r.w},{h:"지출",k:r=>r.c,c:r=>man(r.c)},{h:"매출",k:r=>r.n,c:r=>man(r.n)},
-    {h:"ROAS",k:r=>r.c?r.n/r.c:-1,c:r=>brR(r.c,r.n)},
-    /* 구글은 시트에 들어오기 시작한 날 전에는 0이 아니라 「모름」이다 */
-    ...[0,1,2].map(i=>({h:MNAME[i]+" 몫",k:r=>r.m[i],c:r=>!r.c||(i===2&&g0&&r.w<addDays(g0,-6))?"—":pc(r.m[i]/r.c)}))],ws));
-  if(g0>"0000") m.append(el("p",{class:"dim sm2"},`구글은 ${g0}부터만 있습니다 — 그 전 주의 지출·ROAS에는 구글이 빠져 있습니다.`));
-  /* 지금 도는 소재 — 최근 7일에 돈을 쓴 것 */
-  const all=Object.fromEntries(brAgg(()=>true).map(x=>[x.t,x]));
-  const w7=Object.fromEntries(brAgg(r=>r[0]>=w0&&r[0]<A).map(x=>[x.t,x]));
-  const y1=Object.fromEntries(brAgg(r=>r[0]===yst).map(x=>[x.t,x]));
-  const live=Object.values(w7).filter(x=>x.c>0);
-  m.append(el("h3",{},`지금 도는 소재 ${live.length}편`));
-  const two=el("div",{class:"two one"}),L=el("div"),R=el("div",{style:"display:none"});two.append(L,R);m.append(two);
-  L.append(table([
-    {h:"소재",l:1,k:r=>r.t,c:r=>el("b",{},r.t)},{h:"매체",k:r=>brMs(r),c:r=>brMs(r)},
-    {h:"7일 지출",k:r=>r.c,c:r=>man(r.c)},{h:"7일 ROAS",k:r=>r.c?r.n/r.c:-1,c:r=>brR(r.c,r.n)},
-    {h:"어제 지출",k:r=>(y1[r.t]||{}).c||0,c:r=>y1[r.t]?man(y1[r.t].c):brDash()},
-    {h:"어제 ROAS",k:r=>y1[r.t]&&y1[r.t].c?y1[r.t].n/y1[r.t].c:-1,c:r=>y1[r.t]?brR(y1[r.t].c,y1[r.t].n):brDash()},
-    {h:"누적 지출",k:r=>all[r.t].c,c:r=>man(all[r.t].c)},{h:"누적 ROAS",k:r=>all[r.t].c?all[r.t].n/all[r.t].c:-1,c:r=>brR(all[r.t].c,all[r.t].n)},
-    {h:"첫날",k:r=>all[r.t].d0,c:r=>all[r.t].d0}],live,{sort:2,onrow:r=>brOpen(two,R)(r.t)}));
-}
-function viewBDrafts(){
-  if(!BR) return brNone();   // 브랜드를 고르기 전(점검 도구가 숨은 단추까지 누른다)
-  const m=$("#main");
-  brHead(m,"소재","소재 전부",
-    "매체·기간을 골라 소재별 지출과 매체 보고 매출을 봅니다. 줄을 누르면 날짜별로 펼칩니다.");
-  const chSel=el("select",{},el("option",{value:"a"},"전체 매체"),...MNAME.map((n,i)=>el("option",{value:i},n)));
-  const pSel=el("select",{},...[["0","전체 기간"],["7","최근 7일"],["30","최근 30일"],["90","최근 90일"]].map(([v,n])=>el("option",{value:v},n)));
-  const q=el("input",{type:"search",placeholder:"소재 이름"}), 최소=el("input",{type:"number",value:0,step:10000,style:"width:96px"});
-  m.append(el("div",{class:"bar"},chSel,pSel,q,el("span",{class:"dim"},"최소 지출"),최소));
-  const two=el("div",{class:"two one"}),L=el("div"),R=el("div",{style:"display:none"});two.append(L,R);m.append(two);
-  const render=()=>{
-    const ch=chSel.value, p=+pSel.value, d0=p?addDays(BR.asof,-p):"", qq=q.value.trim(), mn=+최소.value||0;
-    const rs=brAgg(r=>(ch==="a"||r[1]===+ch)&&(!d0||r[0]>=d0)).filter(x=>x.c>=mn&&(!qq||x.t.indexOf(qq)>=0));
-    L.innerHTML="";
-    const a=rs.reduce((s,x)=>(s.c+=x.c,s.n+=x.n,s),{c:0,n:0});
-    L.append(el("p",{class:"dim"},`${rs.length}편 · 지출 ${man(a.c)} · 매출 ${man(a.n)} · ROAS ${brR(a.c,a.n)}`));
-    L.append(table([
-      {h:"소재",l:1,k:r=>r.t,c:r=>el("b",{},r.t)},{h:"매체",k:r=>brMs(r),c:r=>brMs(r)},
-      {h:"첫날",k:r=>r.d0,c:r=>r.d0},{h:"마지막",k:r=>r.d1,c:r=>r.d1},{h:"일수",k:r=>r.days.size,c:r=>num(r.days.size)},
-      {h:"지출",k:r=>r.c,c:r=>man(r.c)},{h:"매출",k:r=>r.n,c:r=>man(r.n)},
-      {h:"ROAS",k:r=>r.c?r.n/r.c:-1,c:r=>brR(r.c,r.n)},{h:"구매",k:r=>r.o,c:r=>num(r.o)},
-      {h:"CPA",k:r=>r.o?r.c/r.o:-1,c:r=>r.o?num(r.c/r.o):brDash()},
-      {h:"CTR",k:r=>r.imp?r.clk/r.imp:-1,c:r=>r.imp?(r.clk/r.imp*100).toFixed(2)+"%":"—"}],
-      rs,{sort:5,onrow:r=>brOpen(two,R)(r.t)}));
-  };
-  [chSel,pSel,q,최소].forEach(x=>x.addEventListener("input",render));render();
-}
-function viewBMon(){
-  if(!BR) return brNone();   // 브랜드를 고르기 전(점검 도구가 숨은 단추까지 누른다)
-  const m=$("#main"), KEY="hyp_bmon_"+BRK;
-  brHead(m,"월별","달마다 잘된 소재 · 안된 소재",
-    "고른 달에 쓴 돈과 매체가 보고한 매출만으로 가릅니다. 기준은 브랜드마다 따로 기억합니다.");
-  const 달=[...new Set(BR.rows.map(r=>r[0].slice(0,7)))].sort().reverse();
-  let 기준={잘:2,안:1,최소:300000};
-  try{Object.assign(기준,JSON.parse(localStorage.getItem(KEY)||"{}"));}catch(e){}
-  const mSel=el("select",{},...달.map(k=>el("option",{value:k},k)));
-  const chSel=el("select",{},el("option",{value:"a"},"전체 매체"),...MNAME.map((n,i)=>el("option",{value:i},n)));
-  const 칸=(v,w)=>el("input",{type:"number",step:"any",value:v,style:`width:${w}px`});
-  const 잘=칸(기준.잘,64),안=칸(기준.안,64),최소=칸(기준.최소,96);
-  const cSel=el("select",{},...["전체","잘됨","보통","안됨","지출 적음"].map(s=>el("option",{value:s},s)));
-  m.append(el("div",{class:"bar"},mSel,chSel,el("span",{class:"dim"}," 잘됨 ROAS ≥"),잘,el("span",{class:"dim"}," 안됨 <"),안,
-    el("span",{class:"dim"}," 최소 지출"),최소,cSel));
-  const two=el("div",{class:"two one"}),L=el("div"),R=el("div",{style:"display:none"});two.append(L,R);m.append(two);
-  const PILL={잘됨:"p-ok",보통:"p-dim",안됨:"p-no","지출 적음":"p-dim"};
-  const render=()=>{
-    기준={잘:+잘.value||0,안:+안.value||0,최소:+최소.value||0};
-    try{localStorage.setItem(KEY,JSON.stringify(기준));}catch(e){}
-    const ym=mSel.value, 앞=달[달.indexOf(ym)+1], ch=chSel.value;
-    const f=y=>r=>r[0].slice(0,7)===y&&(ch==="a"||r[1]===+ch);
-    const 전=Object.fromEntries(앞?brAgg(f(앞)).map(x=>[x.t,x.c?x.n/x.c:null]):[]);
-    const 가름=x=>x.c<기준.최소?"지출 적음":(x.n/x.c>=기준.잘?"잘됨":(x.n/x.c<기준.안?"안됨":"보통"));
-    const rs=brAgg(f(ym)).filter(x=>x.c>0).map(x=>Object.assign(x,{g:가름(x),p:전[x.t]}));
-    L.innerHTML="";
-    const 합={};rs.forEach(x=>{const a=(합[x.g]=합[x.g]||{k:0,c:0,n:0});a.k++;a.c+=x.c;a.n+=x.n;});
-    L.append(el("div",{class:"kpi"},...["잘됨","보통","안됨","지출 적음"].map(g=>{const a=합[g]||{k:0,c:0,n:0};
-      return el("div",{},el("b",{},a.k+"편"),el("span",{},`${g} · 지출 ${man(a.c)} · ROAS ${brR(a.c,a.n)}`));})));
-    if(ym===달[0]) L.append(el("p",{class:"dim"},"이번 달은 진행 중입니다."));
-    const 보일=cSel.value==="전체"?rs:rs.filter(x=>x.g===cSel.value);
-    L.append(table([
-      {h:"소재",l:1,k:r=>r.t,c:r=>el("b",{},r.t)},
-      {h:"이 달",k:r=>["안됨","지출 적음","보통","잘됨"].indexOf(r.g),c:r=>el("span",{class:"pill "+PILL[r.g]},r.g)},
-      {h:"매체",k:r=>brMs(r),c:r=>brMs(r)},
-      {h:"지출",k:r=>r.c,c:r=>man(r.c)},{h:"매출",k:r=>r.n,c:r=>man(r.n)},
-      {h:"ROAS",k:r=>r.n/r.c,c:r=>el("b",{class:r.n/r.c>=기준.잘?"g":"b"},brR(r.c,r.n))},
-      {h:"구매",k:r=>r.o,c:r=>num(r.o)},{h:"CPA",k:r=>r.o?r.c/r.o:-1,c:r=>r.o?num(r.c/r.o):brDash()},
-      {h:"전월 ROAS",tip:"앞 달 같은 소재",k:r=>r.p??-1,c:r=>r.p==null?brDash():r.p.toFixed(2)}],
-      보일,{sort:3,onrow:r=>brOpen(two,R)(r.t)}));
-  };
-  [mSel,chSel,잘,안,최소,cSel].forEach(x=>x.addEventListener("input",render));render();
-}
-const VIEWS={b_home:viewBHome,b_drafts:viewBDrafts,b_mon:viewBMon,build:viewBuild,pick:viewPick,promo:viewPromo,write:viewWrite,home:viewHome,full:viewFull,code:viewCode,draft:viewDraft,
+const VIEWS={build:viewBuild,pick:viewPick,promo:viewPromo,write:viewWrite,home:viewHome,full:viewFull,code:viewCode,draft:viewDraft,
   drafts:viewDrafts,perf:viewPerf,mon:viewMon,place:viewPlace};
 document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()=>go(b.dataset.v)));
 function boot(data){
@@ -6034,9 +5872,7 @@ function boot(data){
   let v="build";
   try{const k=localStorage.getItem("bt_view"); if(k&&VIEWS[k])v=k;}catch(e){}
   go(v);
-  /* 브랜드 고르기 — 마지막에 보던 브랜드로 연다 */
-  $("#brandSel").replaceChildren(...BRANDS_UI.map(([k,n])=>el("option",{value:k},n)));
-  try{const k=localStorage.getItem("hyp_brand"); if(k&&k!=="basetune"&&BRANDS_UI.some(x=>x[0]===k)) brSwitch(k);}catch(e){}
+  brInit();   // 브랜드 고르기 — 마지막에 보던 브랜드로 연다
 }
 function bootFail(e){
   $("#main").innerHTML="";
