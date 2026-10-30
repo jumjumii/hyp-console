@@ -5816,7 +5816,7 @@ function viewPerf(){
    베이스튠과 같은 꼴의 데이터(브랜드_<키>.json, 올린 판은 .enc)를 만들어 둔다. 고르면 그 데이터로 boot()를 다시 한다.
    ★다른 브랜드는 원고를 아직 코딩하지 않아 메인·서브 소구·판정 축 칸이 비어 있다. 성과·소재 판정은 차 있다.
    ★매출은 매체(메타)가 보고한 구매 금액이다 — 베이스튠(카페24 귀속)과 나란히 견주면 안 된다. */
-const BRANDS_UI=[["basetune","베이스튠"],["granny","그래니샐러드"],["hattke","해트케"],["salagris","샐러그리스"]];
+const BRANDS_UI=[["basetune","베이스튠"],["granny","그래니살라"],["hattke","해트케"],["salagris","샐러그리스"]];
 const BRC={};
 let BRK="basetune", BRINIT=false;
 /* 판정 원문·코딩 검증·자리 검증은 베이스튠 원고를 정독한 문서다 — 다른 브랜드에선 열지 않는다 */
@@ -5832,7 +5832,7 @@ function brLabel(){
   if(BRK==="basetune") return;
   const n=(BRANDS_UI.find(x=>x[0]===BRK)||[])[1]||"";
   $("#navsub").textContent=n+" · "+$("#navsub").textContent;
-  $("#navfoot").innerHTML+="<br>원고 코딩 전 — 소구·판정 축 칸은 비어 있습니다";
+  $("#navfoot").innerHTML+="<br>"+((D.body&&Object.keys(D.body).length)?"노션 원고 "+Object.keys(D.body).length+"편 붙음 · ":"")+"코딩 전 — 소구·판정 축 칸은 비어 있습니다";
 }
 function brSwitch(k){
   if(!BRC.basetune) BRC.basetune=D;          // 처음 띄운 것이 베이스튠이다
