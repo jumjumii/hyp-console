@@ -2487,6 +2487,7 @@ function viewHome(){
             :el("b",{title:"원고가 없는 광고입니다"},r.t)},
         {h:"라이브",k:r=>r.days,c:r=>el("span",{title:r.d0?`${r.d0}부터 ${이름2}에서 집행`:""},
             r.days?`${r.days}일`:"—")},
+        {h:"매체 판정",tip:"팀 기준을 매체마다 적용 — 마우스를 올리면 매체별",k:r=>((D.mv||{})[r.t]||[])[0]||"",c:r=>매체판정(r.t)},
         {h:"메인 소구",k:r=>메인소구(r.t)||"",c:r=>메인소구(r.t)||"—"},
         {h:"서브",k:r=>서브소구(r.t).join(" "),c:r=>el("span",{class:"dim"},서브소구(r.t).join(" · ")||"—")},
         {h:"이번 주 지출",k:r=>r.w.sp,c:r=>man(r.w.sp)},
@@ -2510,7 +2511,7 @@ function viewHome(){
          k:r=>(DR[r.t]?DR[r.t].st:""),c:r=>DR[r.t]
             ?el("span",{class:"pill "+(SP[DR[r.t].st]||"p-dim")},결(DR[r.t])||DR[r.t].st)
             :el("span",{class:"dim"},r.밖||"원고 없음")}],
-        rs,{sort:4}));
+        rs,{sort:5}));
       return;
     }
     라이브메타(lvHost);
@@ -5383,10 +5384,36 @@ function 밖까닭(d){
   const 긴=결(d)?`판정 창 ROAS ${((d.w==null?d.r:d.w)||0).toFixed(2)} · 컷 ${D.cut}은 못 넘음`
           :(d.why||"");
   return el("span",{class:"dim sm2",title:긴}," — "+t); }
+/* 매체별 판정 (2026-11-04) — 팀 기준을 원고×매체 칸마다 적용(_매체판정.py). 통계의 성공/실패와 별개 */
+const MVP={잘됨:"p-ok",가능성:"p-run",매체형:"p-run",중간:"p-dim",지켜봄:"p-dim",안됨:"p-no"};
+const MVN={meta:"메타",google:"구글",tiktok:"틱톡"};
+function 매체판정(t){const m=(D.mv||{})[t]; if(!m||!m[0]) return el("span",{class:"dim"},"—");
+  const 속=Object.entries(m[1]).filter(([k,c])=>c[0]).map(([k,c])=>`${MVN[k]||k} ${c[0]} (${man(c[1])}`+
+    (c[1]?` · ROAS ${(c[2]/c[1]).toFixed(2)} · 주문 ${c[3]}`:"")+")");
+  return el("span",{title:속.join(" / ")},el("span",{class:"pill "+(MVP[m[0]]||"p-dim")},m[0]),
+    m[0]==="매체형"?el("span",{class:"dim sm2"}," "+Object.entries(m[1]).filter(([k,c])=>c[0])
+      .map(([k,c])=>(MVN[k]||k)+(c[0]==="안됨"?"✕":(c[0]==="잘됨"||c[0]==="가능성")?"○":"△")).join(" ")):null);}
+function 원고분석(){ if(!(D.axtab||[]).length) return null;
+  const 축=[...new Set(D.axtab.map(r=>r.a))], box=el("details",{open:true,style:"margin:0 0 14px"});
+  const 편=D.axtab.filter(r=>r.a===축[0]).reduce((a,r)=>a+r.n,0);
+  box.append(el("summary",{},el("b",{},"원고 분석"),el("span",{class:"dim"},
+    ` — 코딩한 원고 ${편}편 · 축 값마다 메타·구글·틱톡 합. 「판정」은 매체 판정 수`)));
+  const sel=el("select",{},...축.map(a=>el("option",{value:a},a))), host=el("div");
+  const draw=()=>{host.innerHTML="";host.append(table([
+    {h:sel.value,l:1,k:r=>r.v,c:r=>el("b",{},r.v)},{h:"원고",k:r=>r.n,c:r=>r.n},
+    {h:"지출",k:r=>r.sp,c:r=>man(r.sp)},{h:"매출",k:r=>r.nt,c:r=>man(r.nt)},
+    {h:"ROAS",k:r=>r.sp?r.nt/r.sp:-1,c:r=>r.sp?el("b",{class:r.nt/r.sp>=D.cut?"g":"b"},(r.nt/r.sp).toFixed(2)):"—"},
+    {h:"판정",l:1,k:r=>(r.vc["잘됨"]||0)+(r.vc["가능성"]||0),
+     c:r=>el("span",{class:"sm2"},Object.entries(r.vc).sort((a,b)=>b[1]-a[1]).map(([k,n])=>k+" "+n).join(" · "))}],
+    D.axtab.filter(r=>r.a===sel.value),{sort:2}));};
+  sel.addEventListener("input",draw); box.append(el("div",{class:"bar"},sel),host); draw(); return box;}
 function viewDrafts(){
   const m=$("#main");m.innerHTML="";
   m.append(el("p",{class:"eyebrow"},"아카이브"),el("h2",{},`소재 ${D.drafts.length}편`),
-    el("p",{class:"lede"},`집행된 ${D.drafts.length}편 전부. 조기 중단도 실패로 남깁니다.`));
+    el("p",{class:"lede"},`집행된 ${D.drafts.length}편 전부. 조기 중단도 실패로 남깁니다.`),
+    D.mvrule?el("p",{class:"dim sm2",style:"margin:-4px 0 10px"},"매체 판정 — 메타·구글·틱톡 칸마다 따로: "+D.mvrule+
+      " · 원고: 잘된 매체와 안된 매체가 섞이면 「매체형」"):"");
+  { const x=원고분석(); if(x) m.append(x); }
   const two=el("div",{class:"two"}),L=el("div"),R=el("div");two.append(L,R);m.append(two);
   const q=el("input",{type:"search",placeholder:"소재 검색",style:"width:190px"});
   const sSel=el("select",{},el("option",{value:""},"상태 전체"),
@@ -5429,6 +5456,7 @@ function viewDrafts(){
         {h:"소재",l:1,k:r=>r.nm||r.t,c:r=>el("b",{title:r.t},r.nm||r.t)},
         {h:"상태",k:r=>r.st,c:r=>el("span",{class:"pill "+(SP[r.st]||"p-dim"),
             title:r.밖||r.why||"판정은 메타 기준입니다"},r.밖?r.밖:(결(r)||r.st))},
+        {h:"매체 판정",tip:"팀 기준을 매체마다 적용 — 마우스를 올리면 매체별",k:r=>((D.mv||{})[r.t]||[])[0]||"",c:r=>매체판정(r.t)},
         {h:"메인 소구",k:r=>메인소구(r.t)||"",c:r=>메인소구(r.t)||"—"},
         {h:"서브",k:r=>서브소구(r.t).join(" "),
          c:r=>el("span",{class:"dim"},서브소구(r.t).join(" · ")||"—")},
@@ -5448,7 +5476,7 @@ function viewDrafts(){
         {h:"집행일",k:r=>r.days||0,c:r=>r.days||0},
         {h:"글자수",k:r=>((DR[r.t]||{}).ch||0),
          c:r=>((DR[r.t]||{}).ch?DR[r.t].ch.toLocaleString():el("span",{class:"dim"},"—"))}],
-        ms,{sort:6,onrow:d=>DR[d.t]&&열기(DR[d.t])}));
+        ms,{sort:7,onrow:d=>DR[d.t]&&열기(DR[d.t])}));
       return;
     }
     host.innerHTML="";host.append(table([
@@ -5457,7 +5485,8 @@ function viewDrafts(){
         el("span",{class:"pill "+(결(r)?"p-dim":(SP[r.st]||"p-dim")),title:r.why||""},
           결(r)||r.st), 밖까닭(r))},
       /* 소구 — 매체판에도 같은 열을 두었으니 여기에도 둔다(사용자 지시 2026-09-30) */
-      {h:"메인 소구",k:r=>메인소구(r.t)||"",c:r=>메인소구(r.t)||"—"},
+      {h:"매체 판정",tip:"팀 기준을 매체마다 적용 — 마우스를 올리면 매체별",k:r=>((D.mv||{})[r.t]||[])[0]||"",c:r=>매체판정(r.t)},
+        {h:"메인 소구",k:r=>메인소구(r.t)||"",c:r=>메인소구(r.t)||"—"},
       {h:"서브",k:r=>서브소구(r.t).join(" "),
        c:r=>el("span",{class:"dim"},서브소구(r.t).join(" · ")||"—")},
       {h:"판정 창",k:r=>r.w1?r.w1.roas:-1,
@@ -5477,7 +5506,7 @@ function viewDrafts(){
        c:r=>r.ws?짧은날(r.ws):el("span",{class:"dim"},"—")},
       {h:"집행일",k:r=>r.days,c:r=>r.days},
       {h:"글자수",k:r=>r.ch||0,c:r=>r.ch?r.ch.toLocaleString():el("span",{class:"dim"},"—")}],
-      rs,{sort:5,onrow:d=>열기(d)}));};
+      rs,{sort:6,onrow:d=>열기(d)}));};
   /* 오른쪽 본문은 끌 수 있다 — 끄면 표가 화면을 다 쓴다. 열 좌우로 못 보고
      가로로 밀어 보던 자리다. 줄을 다시 누르면 도로 열린다. (2026-08-31) */
   const 닫기=()=>{R.innerHTML="";R.style.display="none";two.classList.add("one");};
@@ -5832,7 +5861,7 @@ function brLabel(){
   if(BRK==="basetune") return;
   const n=(BRANDS_UI.find(x=>x[0]===BRK)||[])[1]||"";
   $("#navsub").textContent=n+" · "+$("#navsub").textContent;
-  $("#navfoot").innerHTML+="<br>"+((D.body&&Object.keys(D.body).length)?"노션 원고 "+Object.keys(D.body).length+"편 붙음 · ":"")+"코딩 전 — 소구·판정 축 칸은 비어 있습니다";
+  $("#navfoot").innerHTML+="<br>"+((D.body&&Object.keys(D.body).length)?"노션 원고 "+Object.keys(D.body).length+"편 붙음 · ":"")+((D.axtab&&D.axtab.length)?"원고 코딩 있음 — 「소재」 맨 위 원고 분석":"코딩 전 — 소구·판정 축 칸은 비어 있습니다");
 }
 function brSwitch(k){
   if(!BRC.basetune) BRC.basetune=D;          // 처음 띄운 것이 베이스튠이다
