@@ -680,6 +680,8 @@ button.lnk.ic.on{background:var(--ok);border-color:var(--ok);color:#fff}
 .srcline .q{color:var(--tx)}
 .evbox{margin:4px 0 10px 14px}
 .advrow.sub{margin-left:6px}
+.ainame{color:#8a4fd8!important}
+.aitag{display:inline-block;margin-left:5px;padding:0 5px;border-radius:4px;font-size:10px;line-height:16px;font-weight:700;color:#fff;background:#8a4fd8;vertical-align:1px}
 </style>
 
 <div class="wrap">
@@ -5353,13 +5355,22 @@ function 짧은날(d){
    열쇠를 바꾸면 패널·코딩·판정이 다 끊어지므로 보여주는 것만 바꾼다.
    ★주석에 실제 소재 이름을 쓰지 말 것 — 공개 판에 그대로 나간다. 배포 검사가 잡는다. */
 function 이름(t){ return (D.nm && D.nm[t]) || t; }
+/* ★2026-11-17 AI로 쓴 원고(기획자 이니셜 앞 a) — 이름을 보라색으로, 옆에 AI 딱지 */
+function 소재이름(r){
+  const ai=DR&&DR[r.t]&&DR[r.t].ai;
+  return el("b",{title:r.t+(ai?" · AI 원고":""),class:ai?"ainame":""},r.nm||r.t,ai?el("span",{class:"aitag"},"AI"):"");
+}
 /* 소구 — 메타판 라이브 표가 쓰는 것과 <같은 자리>에서 뽑는다(「소구 · 어떻게 썼나」).
    매체판에도 같은 열을 두려면 이 함수가 있어야 한다. (2026-09-30) */
+/* ★2026-11-17 제목에 적힌 소구((메인_서브…))가 있으면 그것이 먼저다 — 전 브랜드 공통. 없으면(옛 영상) 코딩 */
+function 제목소구(t){ const d=DR&&DR[t]; return (d&&d.sg)||[]; }
 function 메인소구(t){
+  if(제목소구(t).length) return 제목소구(t)[0];
   const v=(COD[t]||{})["소구 · 어떻게 썼나"]||[];
   return v.filter(x=>x.endsWith("메인")).map(x=>x.replace(" — 메인","")).join(" · ");
 }
 function 서브소구(t){
+  if(제목소구(t).length) return 제목소구(t).slice(1);
   const v=(COD[t]||{})["소구 · 어떻게 썼나"]||[];
   return v.filter(x=>x.endsWith("서브")).map(x=>x.replace(" — 서브",""));
 }
@@ -5415,7 +5426,7 @@ function viewDrafts(){
       " · 원고: 잘된 매체와 안된 매체가 섞이면 「매체형」"):"");
   { const x=원고분석(); if(x) m.append(x); }
   const two=el("div",{class:"two"}),L=el("div"),R=el("div");two.append(L,R);m.append(two);
-  const q=el("input",{type:"search",placeholder:"소재 검색",style:"width:190px"});
+  const q=el("input",{type:"search",placeholder:"소재 검색 (AI 치면 AI 원고만)",style:"width:220px"});
   const sSel=el("select",{},el("option",{value:""},"상태 전체"),
     ...[...new Set(D.drafts.map(d=>결(d)||d.st))].map(s=>el("option",{value:s},s)));
   /* 매체 기준 — 판정은 메타로 내리지만, 같은 소재를 구글·틱톡에서 어땠는지도 본다.
@@ -5431,7 +5442,7 @@ function viewDrafts(){
     return o;};
   const render=()=>{let rs=D.drafts.slice();
     if(q.value.trim()){const _q=q.value.trim();
-      rs=rs.filter(d=>d.t.includes(_q)||(d.nm||"").includes(_q));}
+      rs=rs.filter(d=>d.t.includes(_q)||(d.nm||"").includes(_q)||(/^ai$/i.test(_q)&&d.ai));}
     if(sSel.value)rs=rs.filter(d=>(결(d)||d.st)===sSel.value);
     if(chSel.value!=="meta"){
       const M=매체표(chSel.value), 이름={google:"구글",tiktok:"틱톡"}[chSel.value];
@@ -5441,7 +5452,7 @@ function viewDrafts(){
         {t,nm:t,st:"판정 밖",why:"원고가 없는 광고입니다",sp:0,nt:0,r:0,days:0},M[t],{밖:M[t].밖||"원고 없음"}));
       let ms=있는.concat(대장밖).filter(x=>x.sp>0||x.nt>0);
       if(q.value.trim()){const _q=q.value.trim();
-        ms=ms.filter(x=>x.t.includes(_q)||(x.nm||"").includes(_q));}
+        ms=ms.filter(x=>x.t.includes(_q)||(x.nm||"").includes(_q)||(/^ai$/i.test(_q)&&x.ai));}
       host.innerHTML="";
       const 쟀 = (D.mediarev||{})[chSel.value] || null;
       host.append(el("p",{class:"dim",style:"margin:0 0 6px"},
@@ -5453,7 +5464,7 @@ function viewDrafts(){
         /* ★열을 메타판과 같은 차례로 둔다 — 두 표를 견주다 헷갈리지 않게(사용자 지시).
            판정 창(계속/중단 같은 등급)은 메타에만 있고, 그 자리에 매체의 첫 14일 ROAS를 둔다. */
         table([
-        {h:"소재",l:1,k:r=>r.nm||r.t,c:r=>el("b",{title:r.t},r.nm||r.t)},
+        {h:"소재",l:1,k:r=>r.nm||r.t,c:r=>소재이름(r)},
         {h:"상태",k:r=>r.st,c:r=>el("span",{class:"pill "+(SP[r.st]||"p-dim"),
             title:r.밖||r.why||"판정은 메타 기준입니다"},r.밖?r.밖:(결(r)||r.st))},
         {h:"매체 판정",tip:"팀 기준을 매체마다 적용 — 마우스를 올리면 매체별",k:r=>((D.mv||{})[r.t]||[])[0]||"",c:r=>매체판정(r.t)},
@@ -5480,7 +5491,7 @@ function viewDrafts(){
       return;
     }
     host.innerHTML="";host.append(table([
-      {h:"소재",l:1,k:r=>r.nm||r.t,c:r=>el("b",{title:r.t},r.nm||r.t)},
+      {h:"소재",l:1,k:r=>r.nm||r.t,c:r=>소재이름(r)},
       {h:"상태",k:r=>(결(r)?"실패2 보통":r.st),c:r=>el("span",{},
         el("span",{class:"pill "+(결(r)?"p-dim":(SP[r.st]||"p-dim")),title:r.why||""},
           결(r)||r.st), 밖까닭(r))},
