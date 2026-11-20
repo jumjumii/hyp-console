@@ -935,7 +935,7 @@ function go(v){document.querySelectorAll("nav button").forEach(x=>
     x.setAttribute("aria-current",String(x.dataset.v===v)));
   try{localStorage.setItem("bt_view",v);}catch(e){}
   if(v!=="promo") window.PKSRC="trend";   // 그리기 <전에> 되돌린다
-  if(BRK!=="basetune"&&BT_ONLY[v]) brOnlyBt(); else VIEWS[v]();
+  if(BRK!=="basetune"&&BT_ONLY[v]) brOnlyBt(v); else VIEWS[v]();
   window.scrollTo({top:0,behavior:"smooth"});}
 const STEPS=[["bench","1","무엇을 검증할까","가설을 고르고 사례를 본다"],
   ["write","2","어떻게 쓸까","A안·B안을 여기서 쓴다"],
@@ -5945,10 +5945,96 @@ function brSwitch(k){
       el("p",{class:"dim"},"W2_브랜드성과.py가 아직 이 브랜드를 만들지 않았을 수 있습니다."));
   });
 }
-function brOnlyBt(){
+function brOnlyBt(v){
+  if(v==="code"&&D.brv&&Object.keys(D.brv).length) return viewBrandCode();   // 샐러그리스처럼 원고 단위 코딩이 있는 브랜드
   $("#main").innerHTML="";
   $("#main").append(el("h2",{},"아직 코딩 전입니다"),
     el("p",{class:"lede"},"이 화면은 원고를 한 줄씩 정독해 코딩한 문서입니다. 지금은 베이스튠만 했습니다 — 위 칸에서 베이스튠을 고르면 열립니다."));
+}
+/* 다른 브랜드의 코딩 검증 — 원고 단위 코딩(증상·해결 방식·설득…)을 본문에 대고 확인한다. (2026-11-20)
+   베이스튠 것은 문장 단위라 문서(iframe)가 따로 있다. 여기는 원고 한 편에 값 몇 개라 이 화면 안에서 끝낸다.
+   확인·고침은 이 브라우저에 쌓이고, 「수기판정 내려받기」 파일을 V6_브랜드수기반영.py가 다음 갱신 때 코딩에 넣는다. */
+const BRAXN=["증상","해결 방식","설득","후킹","형식","화자","할인 언급"];
+function viewBrandCode(){
+  const m=$("#main");m.innerHTML="";
+  const V=D.brv, keys=Object.keys(V), AX=D.brax||{};
+  const SK="hyp_brcode_"+BRK; let S={}; try{S=JSON.parse(localStorage.getItem(SK)||"{}");}catch(e){}
+  const save=()=>{try{localStorage.setItem(SK,JSON.stringify(S));}catch(e){}};
+  const fix=k=>((S[k]||{}).fix)||{}, nfix=k=>Object.keys(fix(k)).length;
+  const cur=k=>BRAXN.map((a,i)=>fix(k)[a]!==undefined?fix(k)[a]:V[k].v[i]);
+  const done=k=>V[k].who==="수기"||!!(S[k]||{}).ok||nfix(k)>0;
+  const opts=a=>a==="할인 언급"?["말함","안 함"]:(AX[a]||[]);
+  let sel=keys[0];
+  m.append(el("p",{class:"eyebrow"},"전지표 판정"),el("h2",{},"코딩 검증"),
+    el("p",{class:"lede"},"원고에 붙은 코딩이 맞는지 본문에 대고 확인합니다. 왼쪽에서 원고를 고르면 오른쪽에 본문과 코딩이 나옵니다. "+
+      "맞으면 「맞음」, 다르면 값을 바꾸세요. 확인·고친 것은 「수기판정 내려받기」 파일이 되고 다음 갱신 때 코딩에 들어갑니다. "+
+      "「자동」은 Claude가 본문을 읽고 매긴 것, 「수기」는 사람이 확인한 것입니다."));
+  const q=el("input",{placeholder:"원고 검색",style:"width:150px"});
+  const fs=el("select",{},...[["","전체"],["todo","확인 안 한 것"],["done","확인한 것"],["fix","고친 것"]].map(([v,n])=>el("option",{value:v},n)));
+  const cnt=el("span",{class:"dim"});
+  const exp=el("button",{class:"btn",onclick:()=>{
+    const out={브랜드:BRK,만든날:new Date().toISOString().slice(0,10),판정:{}};
+    keys.forEach(k=>{ if(V[k].who!=="수기"&&((S[k]||{}).ok||nfix(k))) out.판정[k]={ok:true,고침:fix(k)}; });
+    const n=Object.keys(out.판정).length;
+    if(!n){알림("확인하거나 고친 원고가 없습니다");return;}
+    const a=el("a",{href:URL.createObjectURL(new Blob([JSON.stringify(out,null,1)],{type:"application/json"})),
+      download:`원고코딩_수기판정_${BRK}_${out.만든날}.json`});
+    document.body.append(a);a.click();a.remove();알림(`${n}편을 내려받았습니다 — D:/Downloads에 두면 다음 갱신 때 반영됩니다`);
+  }},"수기판정 내려받기");
+  m.append(el("div",{class:"bar"},fs,q,cnt,exp));
+  const listBox=el("div",{style:"max-height:calc(100vh - 300px);min-height:360px;overflow:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--paper)"});
+  const det=el("div");
+  m.append(el("div",{style:"display:grid;grid-template-columns:minmax(240px,320px) 1fr;gap:14px;align-items:start"},listBox,det));
+  const chip=k=>{ const c=[];
+    c.push(el("span",{class:"pill "+(V[k].who==="수기"?"p-ok":"p-dim")},V[k].who==="수기"?"수기":"자동"));
+    if((S[k]||{}).ok&&V[k].who!=="수기") c.push(el("span",{class:"pill p-ok"},"확인"));
+    if(nfix(k)) c.push(el("span",{class:"pill p-run"},"고침 "+nfix(k)));
+    return c; };
+  const drawList=()=>{
+    listBox.innerHTML="";
+    const w=q.value.trim(), f=fs.value;
+    const ks=keys.filter(k=>(!w||k.includes(w)||(V[k].ti||"").includes(w))&&
+      (!f||(f==="todo"&&!done(k))||(f==="done"&&done(k))||(f==="fix"&&nfix(k))));
+    cnt.textContent=`${ks.length}편 · 확인 ${keys.filter(done).length}/${keys.length} · 고친 것 ${keys.filter(nfix).length}`;
+    ks.forEach(k=>listBox.append(el("button",{class:"lnk",style:"display:flex;gap:6px;align-items:center;width:100%;text-align:left;padding:7px 10px;"+
+      "border:0;border-bottom:1px solid var(--line);background:"+(k===sel?"var(--accbg, rgba(80,120,255,.10))":"transparent"),
+      onclick:()=>{sel=k;drawList();drawDet();}},
+      el("b",{style:"flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"},DR[k]?이름(k):k),...chip(k))));
+    if(!ks.length) listBox.append(el("p",{class:"dim",style:"padding:12px"},"해당하는 원고가 없습니다"));
+  };
+  const drawDet=()=>{
+    det.innerHTML=""; if(!sel||!V[sel]) return;
+    const k=sel, v=V[k], now=cur(k);
+    det.append(el("h3",{style:"margin:0 0 6px"},v.ti||k),el("div",{class:"dim sm2",style:"margin:0 0 8px"},
+      DR[k]?"광고로 집행된 원고":"아직 광고로 안 돈 원고"));
+    det.append(el("div",{style:"max-height:300px;overflow:auto;white-space:pre-wrap;font-size:13px;line-height:1.65;padding:10px 12px;"+
+      "border:1px solid var(--line);border-radius:var(--rs);background:var(--paper);margin:0 0 12px"},
+      v.lines&&v.lines.length?v.lines.join("\n\n"):"노션에서 본문을 못 받았습니다."));
+    const rows=el("div",{style:"display:grid;grid-template-columns:90px 1fr;gap:8px 10px;align-items:center;margin:0 0 12px"});
+    BRAXN.forEach((a,i)=>{
+      rows.append(el("span",{class:"dim"},a));
+      const mk=(val,set)=>{ const s=el("select",{},...(a==="설득"?[""]:[]).concat(opts(a)).map(x=>el("option",{value:x},x||"—")));
+        s.value=val||""; s.addEventListener("input",()=>{set(s.value);}); return s; };
+      const setv=(val)=>{ const o=S[k]=S[k]||{}; o.fix=o.fix||{};
+        const orig=JSON.stringify(v.v[i]); if(JSON.stringify(val)===orig) delete o.fix[a]; else o.fix[a]=val;
+        save(); drawList(); drawDet(); };
+      if(a==="설득"){
+        const arr=(now[i]||[]).slice(); const box=el("div",{style:"display:flex;gap:6px;flex-wrap:wrap"});
+        [0,1,2].forEach(j=>box.append(mk(arr[j],x=>{const n=arr.slice(); n[j]=x; setv(n.filter(Boolean));})));
+        rows.append(box);
+      } else rows.append(mk(now[i],setv));
+      if(fix(k)[a]!==undefined) rows.lastChild.style.outline="2px solid var(--wa, #d9a400)";
+    });
+    det.append(rows);
+    const nx=()=>{const ks=keys.filter(x=>!done(x)); if(ks.length){const i=Math.max(0,ks.indexOf(k)); sel=ks[i]===k?(ks[i+1]||ks[0]):ks[i];} drawList(); drawDet();};
+    det.append(el("div",{class:"bar"},
+      el("button",{class:"btn",onclick:()=>{const o=S[k]=S[k]||{}; o.ok=!o.ok; save(); if(o.ok) nx(); else {drawList();drawDet();}}},
+        (S[k]||{}).ok?"맞음 취소":"맞음"),
+      el("button",{class:"btn2",onclick:nx},"다음 확인 안 한 원고 →"),
+      (S[k]||{}).fix&&nfix(k)?el("button",{class:"lnk",onclick:()=>{delete S[k].fix; save(); drawList(); drawDet();}},"고친 것 되돌리기"):null));
+  };
+  q.addEventListener("input",drawList); fs.addEventListener("input",drawList);
+  drawList(); drawDet();
 }
 /* boot() 끝에서 한 번만 — 브랜드 칸을 채우고 마지막에 보던 브랜드로 연다 */
 function brInit(){
