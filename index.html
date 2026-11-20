@@ -2462,6 +2462,26 @@ function viewHome(){
   /* 지금 라이브 — 매체를 갈아 볼 수 있다. (2026-09-30)
      ★메타는 API로 오늘까지 들어오고 구글·틱톡은 넣어 둔 보고서까지다. 영상 지표
        (끝까지·평균 초)는 메타에서만 오므로 다른 매체에서는 「—」로 둔다. */
+  const 라이브팁={"이번 주 지출":"최근 7일(오늘 포함) 메타 지출",
+
+    "이번 주 매출":"최근 7일 동안 카페24에서 이 광고 링크(UTM)로 들어와 산 매출(주문금액−배송비)",
+
+    "이번 주 ROAS":"직접 ROAS = 이번 주 매출 ÷ 이번 주 메타 지출. 메타가 보고하는 구매가 아니라 카페24가 이 광고로 귀속시킨 매출만 셉니다",
+
+    "어제 ROAS":"어제 하루 매출 ÷ 지출. 지출이 10만원 미만이면 회색 — 숫자가 튑니다",
+
+    "이번 주 CPA":"이번 주 메타 지출 ÷ 카페24 귀속 주문수",
+
+    "이번 주 주문":"최근 7일 카페24 귀속 주문수",
+
+    "끝까지 본 비율":"이번 주 ThruPlay(15초 또는 끝까지 본 수) ÷ 노출. 높다고 잘 팔리는 건 아닙니다",
+
+    "평균 시청 초":"이번 주 영상을 본 평균 시간(초). 메타가 주는 평균 시청 시간을 노출 수로 가중해 합친 값",
+
+    "누적 지출":"라이브 첫날부터 오늘까지","누적 ROAS":"라이브 첫날부터 오늘까지 매출 ÷ 지출","누적 CPA":"라이브 첫날부터 오늘까지 지출 ÷ 주문",
+
+    "매체 판정":"메타·구글·틱톡 칸마다 따로 낸 판정(잘됨·안됨·가능성·매체형…). 마우스를 올리면 매체별 숫자"};
+
   const 라이브매체 = ["meta"].concat([...new Set((D.mlive||[]).map(x=>x.media))]
     .filter(m=>m!=="meta").sort());
   const lvSel = el("select",{},...라이브매체.map(m=>el("option",{value:m},
@@ -2493,18 +2513,19 @@ function viewHome(){
         {h:"메인 소구",k:r=>메인소구(r.t)||"",c:r=>메인소구(r.t)||"—"},
         {h:"서브",k:r=>서브소구(r.t).join(" "),c:r=>el("span",{class:"dim"},서브소구(r.t).join(" · ")||"—")},
         {h:"이번 주 지출",k:r=>r.w.sp,c:r=>man(r.w.sp)},
-        {h:"매출",k:r=>r.w.nt,c:r=>man(r.w.nt)},
-        {h:"직접 ROAS",k:r=>r.w.roas,c:r=>el("span",{class:"n "+(r.w.sp<300000?"dim":(r.w.roas>=D.cut?"g":"b")),
+        {h:"이번 주 매출",tip:"최근 7일 카페24 귀속 매출",k:r=>r.w.nt,c:r=>man(r.w.nt)},
+        {h:"이번 주 ROAS",tip:"이번 주 매출 ÷ 이번 주 지출",k:r=>r.w.roas,c:r=>el("span",{class:"n "+(r.w.sp<300000?"dim":(r.w.roas>=D.cut?"g":"b")),
             title:r.w.sp<300000?"이번 주 지출이 30만원이 안 됩니다 — 숫자가 튑니다":""},r.w.roas.toFixed(2))},
-        {h:"어제",k:r=>(r.y.sp?r.y.roas:-1),c:r=>r.y.sp
-            ?el("span",{class:r.y.sp>=100000?(r.y.roas>=D.cut?"g":"b"):"dim"},
-               r.y.sp>=100000?r.y.roas.toFixed(2):"적음"):el("span",{class:"dim"},"—")},
-        {h:"직접 CPA",tip:"그 매체 지출 ÷ 카페24 귀속 주문수",
+        {h:"어제 ROAS",k:r=>(r.y.sp?r.y.roas:-1),c:r=>r.y.sp
+            ?el("span",{class:r.y.sp>=100000?(r.y.roas>=D.cut?"g":"b"):"dim",
+               title:r.y.sp<100000?`어제 지출 ${man(r.y.sp)} — 적어서 숫자가 튑니다`:""},
+               r.y.roas.toFixed(2)):el("span",{class:"dim"},"—")},
+        {h:"이번 주 CPA",tip:"그 매체 지출 ÷ 카페24 귀속 주문수",
          k:r=>(r.w.od?r.w.sp/r.w.od:-1),
          c:r=>r.w.od?num(Math.round(r.w.sp/r.w.od))+"원":el("span",{class:"dim"},"—")},
-        {h:"주문",k:r=>r.w.od,c:r=>num(r.w.od)},
-        {h:"끝까지",tip:"메타 API에서만 오는 값입니다",k:()=>-1,c:()=>el("span",{class:"dim"},"—")},
-        {h:"평균 초",tip:"메타 API에서만 오는 값입니다",k:()=>-1,c:()=>el("span",{class:"dim"},"—")},
+        {h:"이번 주 주문",tip:"최근 7일 카페24 귀속 주문수",k:r=>r.w.od,c:r=>num(r.w.od)},
+        {h:"끝까지 본 비율",tip:"메타 API에서만 오는 값입니다",k:()=>-1,c:()=>el("span",{class:"dim"},"—")},
+        {h:"평균 시청 초",tip:"메타 API에서만 오는 값입니다",k:()=>-1,c:()=>el("span",{class:"dim"},"—")},
         {h:"누적 지출",k:r=>r.c.sp,c:r=>el("span",{class:"dim"},man(r.c.sp))},
         {h:"누적 ROAS",k:r=>r.c.roas,c:r=>el("span",{class:"dim"},r.c.roas.toFixed(2))},
         {h:"누적 CPA",k:r=>(r.c.od?r.c.sp/r.c.od:-1),
@@ -2523,10 +2544,10 @@ function viewHome(){
   /* 메타 판 「지금 라이브」 — 원래 표 그대로. 매체를 메타로 두면 이걸 그린다. */
   function 라이브메타(m){
   const tb=el("table",{class:"tt"});
-  tb.append(el("thead",{},el("tr",{},...["소재","라이브","메인 소구","서브","이번 주 지출","매출",
-    "직접 ROAS","어제","직접 CPA","주문","끝까지","평균 초","누적 지출","누적 ROAS","누적 CPA","판정"]
+  tb.append(el("thead",{},el("tr",{},...["소재","라이브","메인 소구","서브","이번 주 지출","이번 주 매출",
+    "이번 주 ROAS","어제 ROAS","이번 주 CPA","이번 주 주문","끝까지 본 비율","평균 시청 초","누적 지출","누적 ROAS","누적 CPA","매체 판정"]
     .map(h=>el("th",{class:/지출|매출|ROAS|주문|CPA/.test(h)?"n":"",
-      title:h.includes("CPA")?"메타 지출 ÷ 카페24 귀속 주문수":""},h)))));
+      title:라이브팁[h]||""},h)))));
   const tbody=el("tbody");
   D.live.forEach(r=>{
     const hy=(r.hyps||[]).map(h=>h.id).join(" · ");
@@ -2544,8 +2565,9 @@ function viewHome(){
       el("td",{class:"n "+(r.w.sp<300000?"dim":(r.w.roas>=D.cut?"g":"b")),
         title:r.w.sp<300000?"이번 주 지출이 30만원이 안 됩니다 — 숫자가 튑니다":""},
         r.w.roas.toFixed(2)),
-      el("td",{class:"n "+((r.y&&r.y.sp>=100000)?(r.y.roas>=D.cut?"g":"b"):"dim")},
-        r.y&&r.y.sp?(r.y.sp>=100000?r.y.roas.toFixed(2):"적음"):"—"),
+      el("td",{class:"n "+((r.y&&r.y.sp>=100000)?(r.y.roas>=D.cut?"g":"b"):"dim"),
+        title:(r.y&&r.y.sp&&r.y.sp<100000)?`어제 지출 ${man(r.y.sp)} — 적어서 숫자가 튑니다`:""},
+        r.y&&r.y.sp?r.y.roas.toFixed(2):"—"),
       el("td",{class:"n "+(r.w.sp<300000?"dim":"")},won(cpa(r.w))+(r.w.od?"원":"")),
       el("td",{class:"n"},String(r.w.od||0)),
       el("td",{class:"n dim"},r.vw?pc(r.vw.thru):"—"),
@@ -2553,7 +2575,7 @@ function viewHome(){
       el("td",{class:"n dim"},man(r.c.sp)),
       el("td",{class:"n dim"},r.c.roas.toFixed(2)),
       el("td",{class:"n dim"},won(cpa(r.c))+(r.c.od?"원":"")),
-      el("td",{},r.coded?el("span",{class:"pill p-ok",title:"전지표 판정에 들어와 있습니다"},"판정됨")
+      el("td",{},r.coded?매체판정(r.t)
         :el("button",{class:"btn2",onclick:()=>{
             DFT={name:r.t,items:[],hyp:null};go("draft");
             setTimeout(()=>{const i=document.querySelector("input[placeholder='원고 이름']");
@@ -5442,7 +5464,7 @@ function viewDrafts(){
     return o;};
   const render=()=>{let rs=D.drafts.slice();
     if(q.value.trim()){const _q=q.value.trim();
-      rs=rs.filter(d=>d.t.includes(_q)||(d.nm||"").includes(_q)||(/^ai$/i.test(_q)&&d.ai));}
+      rs=rs.filter(d=>/^ai$/i.test(_q)?!!d.ai:(d.t.includes(_q)||(d.nm||"").includes(_q)));}
     if(sSel.value)rs=rs.filter(d=>(결(d)||d.st)===sSel.value);
     if(chSel.value!=="meta"){
       const M=매체표(chSel.value), 이름={google:"구글",tiktok:"틱톡"}[chSel.value];
@@ -5452,7 +5474,7 @@ function viewDrafts(){
         {t,nm:t,st:"판정 밖",why:"원고가 없는 광고입니다",sp:0,nt:0,r:0,days:0},M[t],{밖:M[t].밖||"원고 없음"}));
       let ms=있는.concat(대장밖).filter(x=>x.sp>0||x.nt>0);
       if(q.value.trim()){const _q=q.value.trim();
-        ms=ms.filter(x=>x.t.includes(_q)||(x.nm||"").includes(_q)||(/^ai$/i.test(_q)&&x.ai));}
+        ms=ms.filter(x=>/^ai$/i.test(_q)?!!x.ai:(x.t.includes(_q)||(x.nm||"").includes(_q)));}
       host.innerHTML="";
       const 쟀 = (D.mediarev||{})[chSel.value] || null;
       host.append(el("p",{class:"dim",style:"margin:0 0 6px"},
