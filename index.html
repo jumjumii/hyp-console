@@ -2605,6 +2605,43 @@ function viewHome(){
     t2.append(b2);m.append(el("div",{class:"scroll"},t2));
   });
 
+  /* 새 워딩 — 원고 본문에서 새로 생기거나 갑자기 늘어난 표현. Claude 없이 센 것이다. (2026-11-20) */
+  if(D.nw&&D.nw.rows&&D.nw.rows.length){
+    const NW=D.nw;
+    m.append(el("h3",{},"새 워딩"),
+      el("p",{class:"dim",style:"margin:-6px 0 8px"},
+        `원고 ${NW.docs}편 본문에서, 최근 ${NW.창}일(${NW.cut}~)에 쓴 원고 ${NW.recent}편에 새로 나오거나 전보다 훨씬 자주 나오는 표현입니다. `+
+        `「새로」는 그 전 원고에 한 번도 없던 것, 「늘어남」은 있었지만 등장률이 4배 이상 오른 것입니다. 비슷한 표현은 한 문장 조각으로 묶었습니다. `+
+        `성적은 그 표현을 쓴 원고 중 광고비가 쓰인 것만 합친 누적 값이라 판정이 아니고 참고용입니다. `+
+        `언제 쓴 원고인지는 노션 만든 날 → 제목 날짜 → 첫 라이브일 순으로 보고, 못 찾으면 예전 것으로 칩니다(날짜 있는 원고 ${NW.dated}/${NW.docs}편).`));
+    const nwSel=el("select",{},el("option",{value:""},"새로 + 늘어남"),el("option",{value:"새로"},"새로 생김"),el("option",{value:"급증"},"늘어남"));
+    const nwQ=el("input",{placeholder:"표현 검색",style:"width:160px"});
+    const nwHost=el("div",{style:"max-height:560px;overflow-y:auto"});
+    const nwDraw=()=>{
+      nwHost.innerHTML="";
+      const q=nwQ.value.trim();
+      const rs=NW.rows.filter(r=>(!nwSel.value||r.kind===nwSel.value)&&(!q||r.p.includes(q)));
+      nwHost.append(table([
+        {h:"표현",l:1,k:r=>r.p,c:r=>el("b",{},r.p)},
+        {h:"구분",l:1,k:r=>r.kind,c:r=>el("span",{class:"pill "+(r.kind==="새로"?"p-run":"p-dim")},r.kind==="새로"?"새로":"늘어남")},
+        {h:"최근 편수",tip:"최근 "+NW.창+"일에 쓴 원고 중 이 표현이 나온 편수",k:r=>r.nr,c:r=>String(r.nr)},
+        {h:"이전 편수",tip:"그 전 원고(날짜를 모르는 것 포함) 중 나온 편수",k:r=>r.no,c:r=>String(r.no)},
+        {h:"처음 나온 날",k:r=>r.first||"",c:r=>r.first||"—"},
+        {h:"집행",tip:"이 표현을 쓴 원고 중 광고비가 쓰인 편수",k:r=>r.집행||0,
+         c:r=>el("span",{title:Object.entries(r.st||{}).map(([k,v])=>k+" "+v).join(" · ")},String(r.집행||0))},
+        {h:"지출",k:r=>r.sp||0,c:r=>r.sp?man(r.sp):"—"},
+        {h:"ROAS",tip:"쓴 원고들의 누적 매출 ÷ 지출 (참고용)",k:r=>r.sp?r.roas:-1,
+         c:r=>r.sp?el("span",{class:"dim"},r.roas.toFixed(2)):"—"},
+        {h:"쓴 원고",l:1,k:r=>r.docs.length,
+         c:r=>el("span",{},...r.docs.slice(0,4).flatMap((d,i)=>[i?" · ":"",
+           (d[1]&&DR[d[1]])?el("button",{class:"lnk",onclick:()=>openDraft(d[1])},이름(d[1])):el("span",{class:"dim"},d[0])]),
+           (r.nr+r.no>4)?el("span",{class:"dim"},` 외 ${r.nr+r.no-4}편`):"")}],
+        rs,{sort:2}));
+    };
+    nwSel.addEventListener("input",nwDraw); nwQ.addEventListener("input",nwDraw);
+    m.append(el("div",{class:"bar"},nwSel,nwQ),nwHost); nwDraw();
+  }
+
   /* 쌓인 성과 */
   m.append(el("h3",{},"쌓인 성과"));
   const CH={pick:"주", met:"roas"};
