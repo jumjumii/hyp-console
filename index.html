@@ -2605,6 +2605,35 @@ function viewHome(){
     t2.append(b2);m.append(el("div",{class:"scroll"},t2));
   });
 
+  /* 새 성공 기준(병기) — 지출 30만원(라이브 후 30일) + 14일 직접 ROAS 1.10. 옛 기준은 그대로이고 10월 이후 라이브만 따로 센다. (2026-11-24) */
+  if(D.s2&&D.s2.rows&&D.s2.rows.length){
+    const S2=D.s2, R=S2.rows, mo=r=>r.live.slice(0,7);
+    const cnt=(rs,k)=>rs.filter(r=>r[k]==="성공").length;
+    m.append(el("h3",{},"새 성공 기준 (병기)"),
+      el("p",{class:"dim",style:"margin:-6px 0 8px"},
+        `요즘 매출이 낮아져 「라이브 후 30일 지출 ${man(S2.sp)} 이상 + 첫 14일 직접 ROAS ${S2.cut.toFixed(2)} 이상」을 성공으로 따로 셉니다. `+
+        `${S2.from} 이후에 라이브된 소재만 해당하고, 그 전 소재와 위쪽 판정·성공률·가설은 옛 기준(ROAS 1.30, 지출 문턱 없음) 그대로입니다. `+
+        `30일 지출이 모자라면 ROAS가 높아도 실패로 셉니다.`));
+    const mos=[...new Set(R.map(mo))].sort();
+    m.append(table([
+      {h:"라이브 달",l:1,k:r=>r.m,c:r=>r.m},
+      {h:"소재",k:r=>r.n,c:r=>String(r.n)},
+      {h:"옛 기준 성공",k:r=>r.a,c:r=>`${r.a} (${(100*r.a/r.n).toFixed(0)}%)`},
+      {h:"새 기준 성공",k:r=>r.b,c:r=>el("b",{},`${r.b} (${(100*r.b/r.n).toFixed(0)}%)`)},
+      {h:"30일 지출 미달",tip:"라이브 후 30일 지출이 "+man(S2.sp)+" 미만 — 새 기준에서는 실패",k:r=>r.s,c:r=>String(r.s)}],
+      [...mos.map(x=>{const q=R.filter(r=>mo(r)===x);return {m:x,n:q.length,a:cnt(q,"st"),b:cnt(q,"st2"),s:q.filter(r=>r.short).length}}),
+       {m:"합계",n:R.length,a:cnt(R,"st"),b:cnt(R,"st2"),s:R.filter(r=>r.short).length}],{sort:0}));
+    const diff=R.filter(r=>r.st!==r.st2);
+    m.append(el("p",{class:"dim",style:"margin:10px 0 6px"},`옛 기준과 판정이 다른 소재 ${diff.length}편 (옛 성공 → 새 실패 ${diff.filter(r=>r.st==="성공").length}, 옛 실패 → 새 성공 ${diff.filter(r=>r.st==="실패").length})`),
+      el("div",{class:"scroll"},table([
+        {h:"소재",l:1,k:r=>r.nm,c:r=>(DR[r.t]?el("button",{class:"lnk",onclick:()=>openDraft(r.t)},r.nm):r.nm)},
+        {h:"라이브일",k:r=>r.live,c:r=>r.live},
+        {h:"14일 ROAS",k:r=>r.r14,c:r=>r.r14.toFixed(2)},
+        {h:"30일 지출",k:r=>r.sp30,c:r=>man(r.sp30)},
+        {h:"옛 기준",k:r=>r.st,c:r=>r.st},
+        {h:"새 기준",k:r=>r.st2,c:r=>el("b",{},r.st2)}],diff,{sort:1})));
+  }
+
   /* 새 워딩 — 원고 본문에서 새로 생기거나 갑자기 늘어난 표현. Claude 없이 센 것이다. (2026-11-20) */
   if(D.nw&&D.nw.rows&&D.nw.rows.length){
     const NW=D.nw;
