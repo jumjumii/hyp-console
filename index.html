@@ -6035,7 +6035,8 @@ function viewBrandCode(){
   const det=el("div");
   m.append(el("div",{style:"display:grid;grid-template-columns:minmax(240px,320px) 1fr;gap:14px;align-items:start"},listBox,det));
   const chip=k=>{ const c=[];
-    if(none(k)) return [el("span",{class:"pill p-wa"},"원고 없음")];
+    if(none(k)) return [el("span",{class:"pill p-wa"},"원고 없음"),
+      DR[k]&&DR[k].sp?el("span",{class:"dim sm2"},man(DR[k].sp)+(DR[k].nt&&DR[k].sp?" · "+(DR[k].nt/DR[k].sp).toFixed(2):"")):null];
     c.push(el("span",{class:"pill "+(V[k].who==="수기"?"p-ok":"p-dim")},V[k].who==="수기"?"수기":"자동"));
     if((S[k]||{}).ok&&V[k].who!=="수기") c.push(el("span",{class:"pill p-ok"},"확인"));
     if(nfix(k)) c.push(el("span",{class:"pill p-run"},"고침 "+nfix(k)));
@@ -6057,6 +6058,15 @@ function viewBrandCode(){
     if(none(sel)){
       det.append(el("h3",{style:"margin:0 0 6px"},V[sel].ti||sel),
         el("p",{class:"dim"},"지금 광고가 돌고 있는데 노션에서 원고 본문을 못 찾아 코딩하지 못했습니다. 노션에 원고를 올려 두면 다음 갱신 때 자동으로 코딩됩니다."));
+      const d=DR[sel];
+      if(d){ const w1=d.w1||{};
+        det.append(el("div",{class:"scroll"},table([
+          {h:"판정",l:1,k:r=>r.st,c:r=>r.st},
+          {h:"지출",k:r=>r.sp,c:r=>man(r.sp)},{h:"매출",k:r=>r.nt,c:r=>man(r.nt)},
+          {h:"ROAS",k:r=>r.nt/Math.max(r.sp,1),c:r=>(r.nt/Math.max(r.sp,1)).toFixed(2)},
+          {h:"첫 라이브",k:r=>r.f||"",c:r=>r.f||"—"},{h:"14일 ROAS",k:r=>r.w||0,c:r=>r.w?r.w.toFixed(2):"—"}],
+          [{st:d.st,sp:d.sp,nt:d.nt,f:w1.first,w:d.w}],{})));
+        if(d.why) det.append(el("p",{class:"dim sm2"},d.why)); }
       return; }
     const k=sel, v=V[k], now=cur(k);
     det.append(el("h3",{style:"margin:0 0 6px"},v.ti||k),el("div",{class:"dim sm2",style:"margin:0 0 8px"},
