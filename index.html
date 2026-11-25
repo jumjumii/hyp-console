@@ -4712,10 +4712,12 @@ const pkDet=(r)=>{
   });
   if(온&&온.length) d.append(el("p",{class:"dim sm2",style:"margin:2px 0 6px"},
     `이 값이 붙은 문장 ${온.length}개를 다 폈습니다 — 성공작이 앞입니다.`));
-  if((r.작||[]).length){
+  /* ★성공작도 기간 안에 라이브한 것만 — 전 기간 상위 몇 편을 그대로 내서 기간 밖 원고가 떴다. (2026-11-25) */
+  const 안작=pk기간안(), 작들=(r.작||[]).filter(w=>!안작||안작.has(w.t)).slice(0,3);
+  if(작들.length){
     d.append(el("p",{class:"dim sm2",style:"margin:6px 0 4px"},
       (온||[]).length?"이 값을 쓴 성공작":"이 값은 문장으로 못 남깁니다 — 쓴 성공작을 폅니다"));
-    (r.작).forEach(w=>{
+    작들.forEach(w=>{
       const 줄=el("div",{class:"srccard one"});
       줄.append(소재줄(w.t),
         el("span",{class:"srcbtns"},
@@ -4723,8 +4725,8 @@ const pkDet=(r)=>{
       d.append(줄);
     });
   }
-  if(!(온||[]).length && !(r.작||[]).length)
-    d.append(el("p",{class:"dim"},"이 값에 딸린 문장이 없습니다."));
+  if(!(온||[]).length && !작들.length)
+    d.append(el("p",{class:"dim"},(r.작||[]).length?"이 값은 문장으로 못 남깁니다 — 그리고 이 기간에 라이브한 성공작이 없습니다(기간 밖 성공작 "+(r.작||[]).length+"편은 가렸습니다).":"이 값에 딸린 문장이 없습니다."));
   /* 담기 — 가설 제안과 같은 바구니를 쓴다 */
   {
     const 축=r.axr||r.ax||"";
