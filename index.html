@@ -2463,25 +2463,15 @@ function viewHome(){
      ★메타는 API로 오늘까지 들어오고 구글·틱톡은 넣어 둔 보고서까지다. 영상 지표
        (끝까지·평균 초)는 메타에서만 오므로 다른 매체에서는 「—」로 둔다. */
   const 라이브팁={"이번 주 지출":"최근 7일(오늘 포함) 메타 지출",
-
     "이번 주 매출":"최근 7일 동안 카페24에서 이 광고 링크(UTM)로 들어와 산 매출(주문금액−배송비)",
-
     "이번 주 ROAS":"직접 ROAS = 이번 주 매출 ÷ 이번 주 메타 지출. 메타가 보고하는 구매가 아니라 카페24가 이 광고로 귀속시킨 매출만 셉니다",
-
     "어제 ROAS":"어제 하루 매출 ÷ 지출. 지출이 10만원 미만이면 회색 — 숫자가 튑니다",
-
     "이번 주 CPA":"이번 주 메타 지출 ÷ 카페24 귀속 주문수",
-
     "이번 주 주문":"최근 7일 카페24 귀속 주문수",
-
     "끝까지 본 비율":"이번 주 ThruPlay(15초 또는 끝까지 본 수) ÷ 노출. 높다고 잘 팔리는 건 아닙니다",
-
     "평균 시청 초":"이번 주 영상을 본 평균 시간(초). 메타가 주는 평균 시청 시간을 노출 수로 가중해 합친 값",
-
     "누적 지출":"라이브 첫날부터 오늘까지","누적 ROAS":"라이브 첫날부터 오늘까지 매출 ÷ 지출","누적 CPA":"라이브 첫날부터 오늘까지 지출 ÷ 주문",
-
     "매체 판정":"메타·구글·틱톡 칸마다 따로 낸 판정(잘됨·안됨·가능성·매체형…). 마우스를 올리면 매체별 숫자"};
-
   const 라이브매체 = ["meta"].concat([...new Set((D.mlive||[]).map(x=>x.media))]
     .filter(m=>m!=="meta").sort());
   const lvSel = el("select",{},...라이브매체.map(m=>el("option",{value:m},
@@ -6020,7 +6010,8 @@ function viewBrandCode(){
   const save=()=>{try{localStorage.setItem(SK,JSON.stringify(S));}catch(e){}};
   const fix=k=>((S[k]||{}).fix)||{}, nfix=k=>Object.keys(fix(k)).length;
   const cur=k=>BRAXN.map((a,i)=>fix(k)[a]!==undefined?fix(k)[a]:V[k].v[i]);
-  const done=k=>V[k].who==="수기"||!!(S[k]||{}).ok||nfix(k)>0;
+  const none=k=>V[k].who==="없음";           // 원고(노션 본문)가 없어 코딩 못 한 라이브 소재
+  const done=k=>none(k)||V[k].who==="수기"||!!(S[k]||{}).ok||nfix(k)>0;
   const opts=a=>a==="할인 언급"?["말함","안 함"]:(AX[a]||[]);
   let sel=keys[0];
   m.append(el("p",{class:"eyebrow"},"전지표 판정"),el("h2",{},"코딩 검증"),
@@ -6044,6 +6035,7 @@ function viewBrandCode(){
   const det=el("div");
   m.append(el("div",{style:"display:grid;grid-template-columns:minmax(240px,320px) 1fr;gap:14px;align-items:start"},listBox,det));
   const chip=k=>{ const c=[];
+    if(none(k)) return [el("span",{class:"pill p-wa"},"원고 없음")];
     c.push(el("span",{class:"pill "+(V[k].who==="수기"?"p-ok":"p-dim")},V[k].who==="수기"?"수기":"자동"));
     if((S[k]||{}).ok&&V[k].who!=="수기") c.push(el("span",{class:"pill p-ok"},"확인"));
     if(nfix(k)) c.push(el("span",{class:"pill p-run"},"고침 "+nfix(k)));
@@ -6053,7 +6045,7 @@ function viewBrandCode(){
     const w=q.value.trim(), f=fs.value;
     const ks=keys.filter(k=>(!w||k.includes(w)||(V[k].ti||"").includes(w))&&
       (!f||(f==="todo"&&!done(k))||(f==="done"&&done(k))||(f==="fix"&&nfix(k))));
-    cnt.textContent=`${ks.length}편 · 확인 ${keys.filter(done).length}/${keys.length} · 고친 것 ${keys.filter(nfix).length}`;
+    cnt.textContent=`${ks.length}편 · 확인 ${keys.filter(k=>done(k)&&!none(k)).length}/${keys.filter(k=>!none(k)).length} · 고친 것 ${keys.filter(nfix).length} · 원고 없음 ${keys.filter(none).length}`;
     ks.forEach(k=>listBox.append(el("button",{class:"lnk",style:"display:flex;gap:6px;align-items:center;width:100%;text-align:left;padding:7px 10px;"+
       "border:0;border-bottom:1px solid var(--line);background:"+(k===sel?"var(--accbg, rgba(80,120,255,.10))":"transparent"),
       onclick:()=>{sel=k;drawList();drawDet();}},
@@ -6062,6 +6054,10 @@ function viewBrandCode(){
   };
   const drawDet=()=>{
     det.innerHTML=""; if(!sel||!V[sel]) return;
+    if(none(sel)){
+      det.append(el("h3",{style:"margin:0 0 6px"},V[sel].ti||sel),
+        el("p",{class:"dim"},"지금 광고가 돌고 있는데 노션에서 원고 본문을 못 찾아 코딩하지 못했습니다. 노션에 원고를 올려 두면 다음 갱신 때 자동으로 코딩됩니다."));
+      return; }
     const k=sel, v=V[k], now=cur(k);
     det.append(el("h3",{style:"margin:0 0 6px"},v.ti||k),el("div",{class:"dim sm2",style:"margin:0 0 8px"},
       DR[k]?"광고로 집행된 원고":"아직 광고로 안 돈 원고"));
