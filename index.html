@@ -4425,9 +4425,22 @@ window.PKD = null;                  // 날짜로 직접 고르면 {부터, 까�
 const PKW_고를것 = [1, 2, 3, 0];      // 0 = 자르지 않고 전체
 
 const pk날범위 = () => {
-  const ds=((PKT().pool||{}).소재||[]).map(x=>x.d).filter(Boolean).sort();
-  return ds.length ? [ds[0], ds[ds.length-1]] : ["", ""];
+  const P=PKT().pool||{};
+  const ds=(P.소재||[]).map(x=>x.d).filter(Boolean).sort();
+  return ds.length ? [ds[0], P.asof||ds[ds.length-1]] : ["", ""];
 };
+/* ★기간에 돈이 쓰인 원고를 그 기간 지출·매출로 다시 판정한다 (2026-11-25).
+   전에는 「첫 라이브일이 기간 안」인 원고만 넣고 성공은 첫 14일 성적으로 굳어 있어서,
+   오래 도는 원고는 요즘 성적이 반영 안 됐고 기간 밖 성적이 따라왔다.
+   기간 지출 P.min 이상인 원고만 넣고, 기간 ROAS가 P.cut 이상이면 성공. dl 이 없는 풀(프로모션)은 옛 방식. */
+const 일수=s=>Math.round(Date.parse(s)/864e5)-Math.round(Date.parse("2026-01-01")/864e5);
+function pk기간판(부터,까지){
+  const P=PKT().pool||{}, 소=P.소재||[];
+  if(!소.length||!소.some(x=>x.dl)) return null;
+  const a=일수(부터), b=일수(까지);
+  return 소.map(x=>{let sp=0,nt=0;(x.dl||[]).forEach(e=>{if(e[0]>=a&&e[0]<=b){sp+=e[1];nt+=e[2];}});
+    return {in:sp>=P.min, s:sp>0&&nt/sp>=P.cut?1:0, sp, nt};});
+}
 function pkCut(달){
   const [_a, 끝] = pk날범위(); if(!끝) return "";
   const d=new Date(끝); d.setMonth(d.getMonth()-달); d.setDate(d.getDate()+1);
@@ -4442,16 +4455,24 @@ function pkRecount(달){
   const 까지 = (window.PKD && window.PKD.까지) || 끝;
   const 끊 = 부터;
   const 늦=[], 이=[];
-  소.forEach((x,i)=>{ if(!x.d) return;
+  const 판L=pk기간판(부터,까지);
+  let sL=소.map(x=>x.s), sE=sL;
+  if(판L){
+    const 길=일수(까지)-일수(부터)+1, d0=new Date(부터); d0.setDate(d0.getDate()-길);
+    const 앞끝=new Date(부터); 앞끝.setDate(앞끝.getDate()-1);
+    const 판E=pk기간판(d0.toISOString().slice(0,10),앞끝.toISOString().slice(0,10));
+    sL=판L.map(o=>o.s); sE=판E.map(o=>o.s);
+    소.forEach((x,i)=>{ if(판L[i].in) 늦.push(i); else if(판E[i].in) 이.push(i); });
+  } else 소.forEach((x,i)=>{ if(!x.d) return;
     if(x.d>=부터 && x.d<=까지) 늦.push(i);
     else if(x.d<부터) 이.push(i); });
-  const 율=a=>a.length? a.reduce((s,i)=>s+소[i].s,0)/a.length : null;
-  const bL=율(늦), bE=율(이);
-  const 셈=(ids,쪽)=>{const g=ids.filter(i=>쪽.has(i));
-    return {n:g.length, w:g.reduce((s,i)=>s+소[i].s,0)};};
+  const 율=(a,s)=>a.length? a.reduce((t,i)=>t+s[i],0)/a.length : null;
+  const bL=율(늦,sL), bE=율(이,sE);
+  const 셈=(ids,쪽,s)=>{const g=ids.filter(i=>쪽.has(i));
+    return {n:g.length, w:g.reduce((t,i)=>t+s[i],0)};};
   const SL=new Set(늦), SE=new Set(이);
   const out=(P.줄||[]).map(r=>{
-    const L=셈(r.ids,SL), E=셈(r.ids,SE);
+    const L=셈(r.ids,SL,sL), E=셈(r.ids,SE,sE);
     const rL=L.n?L.w/L.n:null, rE=E.n?E.w/E.n:null;
     const d=(rL==null||rE==null||bL==null||bE==null)?null:((rL-bL)-(rE-bE));
     let 어디;
@@ -4663,12 +4684,14 @@ function pk기간안(){
   const 달=window.PKW, D2=window.PKD;
   if(!D2 && !달) return null;                 // 「전체」면 안 거른다
   const ds=소.map(x=>x.d).filter(Boolean).sort();
-  const 끝=(D2&&D2.까지)||ds[ds.length-1];
+  const 마=P.asof||ds[ds.length-1];
+  const 끝=(D2&&D2.까지)||마;
   let 부터=(D2&&D2.부터);
-  if(!부터){ const d=new Date(ds[ds.length-1]); d.setMonth(d.getMonth()-달);
+  if(!부터){ const d=new Date(마); d.setMonth(d.getMonth()-달);
              d.setDate(d.getDate()+1); 부터=d.toISOString().slice(0,10); }
-  const 안=new Set();
-  소.forEach(x=>{ if(x.d && x.d>=부터 && x.d<=끝) 안.add(x.t); });
+  const 안=new Set(), 판=pk기간판(부터,끝);
+  if(판) 소.forEach((x,i)=>{ if(판[i].in) 안.add(x.t); });
+  else 소.forEach(x=>{ if(x.d && x.d>=부터 && x.d<=끝) 안.add(x.t); });
   return 안;
 }
 function pk온문장(r){
@@ -4949,6 +4972,10 @@ function viewPick(){
     onclick:()=>{window.PK=k;viewPick();}},k)));
   m.append(el("div",{class:"bar"},seg));
   m.append(pkWinBar(viewPick));
+  {const PP=PKT().pool||{}; if((PP.소재||[]).some(x=>x.dl)&&(window.PKW||window.PKD))
+    m.append(el("p",{class:"dim sm2",style:"margin:2px 0 6px"},
+      `고른 기간에 광고비가 ${man(PP.min)} 이상 쓰인 원고만 넣고, 그 기간 지출·매출로 다시 판정합니다(직접 ROAS ${PP.cut.toFixed(2)} 이상이면 성공). `+
+      `오래 도는 원고도 그 기간 성적만 봅니다. 「이전」은 같은 길이의 바로 앞 기간입니다. 위쪽 판정·성공률은 옛 기준 그대로입니다.`));}
   m.append(pk찾기바(viewPick));
   const RC=(PKT().pool&&PKT().pool.줄)?pkRecount(window.PKW):null;
   if(RC) m.append(el("p",{class:"dim sm2"},
